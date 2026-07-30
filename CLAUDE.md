@@ -64,12 +64,30 @@ The spine this enforces:
    An E2E reproduction is what proves you found the real problem rather than a symptom.
    A bug with no failing test is hidden, not fixed.
 5. Branch names: `feat/REQ-00X-short-name`, `fix/BUG-00X`.
-6. Every source file starts with a header: purpose + REQ-IDs it serves.
+6. Documentation conventions are binding: a README per directory, a header per file,
+   and a doc block per function. See "Documentation conventions" below.
 7. PR checklist: tests pass · docs regenerated · traceability intact.
 8. Traceability must hold both ways: no REQ-ID without a test/design row,
    no component or scope without a REQ-ID.
 9. Never weaken, skip, or delete a test to make a suite go green. Fix the cause.
 10. Never work directly on `main`. Always a branch.
+
+## Documentation conventions
+Every directory, file, and function carries documentation that travels with the code and is committed as part of the same diff.
+These are not optional polish; a change that omits them is incomplete.
+
+- Every new directory has a `README.md` saying what the directory is for, in a sentence or two.
+  Creating a directory without a README is unfinished work.
+- Every source file starts with a top comment block: what the file does, plus the REQ-IDs it serves.
+  This is the file header referenced in Loop rule 6.
+- Every function carries a comment block stating three things: what it does, what it calls, and what calls it.
+  Write callers and callees as `function_name:file_name:directory_name` so a reader can locate each one without searching.
+- Keep the "what it does" and "what it calls" lines true at all times; they are cheap to maintain.
+  The "called by" list is a back-reference and rots the moment a caller is renamed or moved.
+  Fix it whenever you touch a caller, and prefer generating it from a tool (ctags / grep / an AST pass) over hand-maintaining it.
+- Enforce all of the above through the test suite, not through review alone.
+  Wire a doc-lint into the test command so a missing README, file header, or function block turns the suite RED.
+  The loop's exit condition is a green suite, so a rule with no test behind it is a suggestion the loop can ignore.
 
 ## Test strategy
 - Write tests FIRST, from the TC-### rows in `docs/04-testplan.md`.

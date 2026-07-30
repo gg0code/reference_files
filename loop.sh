@@ -22,6 +22,95 @@ set -uo pipefail
 
 LOOP_VERSION="v3"
 
+# ---------- help / usage ----------
+usage() {
+  cat <<'HELP'
+loop.sh — bounded Ralph loop for ONE GitHub Issue.        VERSION: v3
+
+WHAT IT DOES
+  Repeatedly runs Claude Code against a single Issue with a FRESH context each
+  pass, feeding test failures back in, until the test suite is green or a hard
+  iteration cap is hit. State lives in the codebase + git + PROMPT.md, never in
+  chat history. The EXIT CONDITION is a green suite, not the agent's opinion.
+
+INVOCATION
+  bash loop.sh <issue-number> <REQ-ID> [max-iters]
+  bash loop.sh --help
+
+  <issue-number>   GitHub Issue number, e.g. 1
+  <REQ-ID>         Requirement id, e.g. REQ-001   (one Issue per REQ-ID; the
+                   REQ number need not equal the Issue number)
+  [max-iters]      Hard iteration cap (default: 8)
+
+  Examples:
+    bash loop.sh 1 REQ-001
+    bash loop.sh 1 REQ-001 5
+    TEST_CMD="pytest -q" bash loop.sh 1 REQ-001
+    PLAN_FILE=docs/plans/REQ-001.md bash loop.sh 1 REQ-001
+
+ENV OVERRIDES
+  TEST_CMD    Force the test command (else auto-detected per stack:
+              npm test / pytest / cargo test / go test ./...).
+  PLAN_FILE   Path to the approved plan (default: docs/plans/<REQ>.md).
+
+ONE-TIME SETUP (per machine / workspace)
+  1. Install the Claude Code CLI and confirm it is on PATH:   command -v claude
+  2. In THIS repo, run `claude` interactively once and ACCEPT the trust dialog.
+     Otherwise the loop's `claude -p` calls run untrusted, ignore your
+     permission allowlist, and files may silently not get written.
+  3. Make sure your test runner works by hand once:
+       - Python: source .venv/bin/activate && pytest
+       - Node:   npm test
+  4. Have `gh` (GitHub CLI) authenticated if you want to open the PR at the end.
+
+BEFORE EVERY RUN (per Issue)
+  1. Be inside the git repo, on a FEATURE branch (the loop refuses main/master):
+       git checkout -b feat/REQ-001-short-name
+  2. PREPARE + APPROVE A PLAN, and save it to docs/plans/<REQ>.md. The loop uses
+     a fresh context each pass and cannot see a plan that only lives in a chat.
+     Suggested prompt to generate the plan (run on a strong model, e.g. Opus):
+
+       "Read docs/01-prd.md for REQ-001 and docs/04-testplan.md for its TC-###
+        rows. Produce a concrete implementation plan for REQ-001: files to
+        create/change, the approach, and how each TC row will be satisfied.
+        Do NOT write code yet — output only the plan."
+
+     Then review it and save the approved version:
+       mkdir -p docs/plans
+       $EDITOR docs/plans/REQ-001.md      # paste the approved plan
+       git add docs/plans/REQ-001.md && git commit -m "plan(REQ-001): approved"
+
+RECOMMENDED tmux LAYOUT (3 panes)
+  Pane 1 — PLAN:  run `claude` (Opus) here to draft/re-plan the approach.
+  Pane 2 — LOOP:  run the loop and WATCH it here:
+                    bash loop.sh 1 REQ-001
+  Pane 3 — TEST/GIT WATCH:  observe the suite and drive git afterwards:
+                    watch -n2 'tail -20 .loop-test-out.txt 2>/dev/null'
+                    # after LOOP COMPLETE:
+                    git diff
+                    git add -A
+                    git commit -m "feat(REQ-001): ... (#1)"
+                    git push -u origin $(git branch --show-current)
+                    gh pr create --title "feat(REQ-001): ..." \
+                                 --body  "Implements REQ-001. Closes #1"
+
+  Quick setup:
+    tmux new -s loop \; split-window -h \; split-window -v \; select-pane -t 0
+
+WHEN IT STOPS
+  Green   -> prints the exact git/gh commands to review, commit, push, and PR.
+  At cap  -> usually the PLAN was wrong, not the code. Do NOT just re-run:
+               git diff            # what it actually did
+               cat FAILURES.txt    # the real failure
+               re-plan REQ-001 in pane 1 (Opus)
+               git checkout .      # discard, if the approach was wrong
+HELP
+}
+
+case "${1:-}" in
+  -h|--help|help|"") usage; exit 0 ;;
+esac
+
 ISSUE="${1:?ERROR : issue number required   (usage: bash loop.sh <issue#> <REQ-ID>, e.g. 1 REQ-001)}"
 REQ="${2:?ERROR : REQ-ID required           (usage: bash loop.sh <issue#> <REQ-ID>, e.g. 1 REQ-001)}"
 MAX_ITERS="${3:-8}"
@@ -107,7 +196,7 @@ Rules (from CLAUDE.md — these are binding):
    note in FAILURES.txt rather than silently changing the approach.
 2. Read docs/01-prd.md for ${REQ} and docs/04-testplan.md for its TC-### rows.
 3. Write the tests from those TC rows FIRST, then the implementation.
-4. Every new file starts with a header: purpose + the REQ-IDs it serves.
+4. Follow CLAUDE.md > "Documentation conventions": a README in every new directory, a header on every file, and a doc block on every function (what it does, what it calls, who calls it).
 5. Do NOT commit. Do NOT open a PR. Do NOT touch main. Implementation only.
 6. If \`${TEST_CMD}\` is failing, read the failure output below and fix the CAUSE.
    Do not delete, skip, or weaken a test to make it pass.
