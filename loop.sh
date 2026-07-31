@@ -20,12 +20,12 @@
 # Run from the repo root, on a feature branch, in the git pane. Watch the test pane.
 set -uo pipefail
 
-LOOP_VERSION="v4"
+LOOP_VERSION="v6"
 
 # ---------- help / usage ----------
 usage() {
   cat <<'HELP'
-loop.sh — bounded Ralph loop for ONE GitHub Issue.        VERSION: v4
+loop.sh — bounded Ralph loop for ONE GitHub Issue.        VERSION: v6
 
 WHAT IT DOES
   Repeatedly runs Claude Code against a single Issue with a FRESH context each
@@ -33,7 +33,8 @@ WHAT IT DOES
   iteration cap is hit. State lives in the codebase + git + PROMPT.md, never in
   chat history. The EXIT CONDITION is a green suite, not the agent's opinion.
   Prints per-iteration cost + token usage and a per-REQ total (needs jq; without
-  jq it still runs, just without the numbers).
+  jq it still runs, just without the numbers). When it finishes it also lists
+  every file it created or modified this run.
 
 INVOCATION
   bash loop.sh <issue-number> <REQ-ID> [max-iters]
@@ -54,6 +55,14 @@ ENV OVERRIDES
   TEST_CMD    Force the test command (else auto-detected per stack:
               npm test / pytest / cargo test / go test ./...).
   PLAN_FILE   Path to the approved plan (default: docs/plans/<REQ>.md).
+  FORCE       FORCE=1 skips the "already done" guard (see below).
+
+ALREADY-DONE GUARD
+  Before looping, the script checks whether <REQ-ID> is already finished — a
+  feat/fix(<REQ>) commit on the base branch (origin/main etc.) or a CLOSED
+  GitHub Issue — and stops so you don't re-implement it into duplicates or
+  conflicts. Deliberately rebuilding it (e.g. after a revert)? Re-run with
+  FORCE=1 bash loop.sh <issue> <REQ>.
 
 TELEMETRY
   Install jq to see cost/token usage:  apt install jq  (or: brew install jq)
@@ -141,6 +150,39 @@ if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
 fi
 ok "branch: $BRANCH"
 ok "issue : #$ISSUE   requirement: $REQ"
+
+# ---------- already-done guard ----------
+# Re-running a finished REQ re-implements it from scratch and usually creates
+# duplicate files or the merge conflicts you then have to untangle. If we can see
+# this REQ is already done — a feat/fix(<REQ>) commit on the base branch, or a
+# CLOSED GitHub Issue — stop and say so. Override with FORCE=1 (e.g. after a
+# revert when you deliberately want to rebuild it).
+if [ "${FORCE:-0}" != 1 ]; then
+  DONE_HINTS=""
+  BASE=""
+  for ref in origin/main origin/master main master; do
+    git rev-parse --verify -q "$ref" >/dev/null 2>&1 && { BASE="$ref"; break; }
+  done
+  if [ -n "$BASE" ]; then
+    HITS="$(git log -E --oneline --grep="(feat|fix)\(${REQ}\)" "$BASE" 2>/dev/null)"
+    [ -n "$HITS" ] && DONE_HINTS="${DONE_HINTS}
+    - already merged on ${BASE}:
+$(echo "$HITS" | sed 's/^/        /')"
+  fi
+  if command -v gh >/dev/null 2>&1; then
+    ISTATE="$(gh issue view "$ISSUE" --json state --jq .state 2>/dev/null || true)"
+    [ "$ISTATE" = "CLOSED" ] && DONE_HINTS="${DONE_HINTS}
+    - GitHub Issue #${ISSUE} is CLOSED"
+  fi
+  if [ -n "$DONE_HINTS" ]; then
+    err "${REQ} looks ALREADY DONE:"
+    printf '%s\n' "$DONE_HINTS"
+    echo "    Re-running re-implements ${REQ} and can create duplicates / conflicts."
+    echo "    If you truly want to run it again:  FORCE=1 bash loop.sh $ISSUE $REQ"
+    exit 1
+  fi
+  ok "not-done check: no prior ${REQ} completion detected"
+fi
 
 # ---------- test command: explicit override, else auto-detect per stack ----------
 # The old default was "npm test", which silently fails in non-Node repos.
@@ -247,6 +289,32 @@ usage_summary() {
   printf '    cache read : %s tokens\n'    "$TOTAL_CR"
 }
 
+# list_generated_files — everything the loop wrote/changed this run. Since the
+# loop never commits, its output is exactly the uncommitted working-tree changes
+# vs the last commit. Loop scratch files (PROMPT.md, FAILURES.txt, .loop-*) and
+# anything gitignored (e.g. __pycache__) are excluded.
+list_generated_files() {
+  git rev-parse --git-dir >/dev/null 2>&1 || return 0
+  local rows
+  rows=$(git status --porcelain=v1 --untracked-files=all 2>/dev/null \
+         | grep -vE '[[:space:]](PROMPT\.md|FAILURES\.txt|\.loop-[^[:space:]]*)$')
+  echo "  FILES touched this run (uncommitted vs last commit):"
+  if [ -z "$rows" ]; then
+    echo "    (none)"
+    return 0
+  fi
+  echo "$rows" | awk '
+    { code=substr($0,1,2); path=substr($0,4)
+      if (code=="??")        tag="new     "
+      else if (code ~ /D/)   tag="deleted "
+      else if (code ~ /R/)   tag="renamed "
+      else                   tag="modified"
+      printf "    %s  %s\n", tag, path }'
+  local n
+  n=$(echo "$rows" | wc -l | tr -d ' ')
+  echo "    ($n path(s) total — review with: git diff  and  git status)"
+}
+
 # ---------- the loop ----------
 for i in $(seq 1 "$MAX_ITERS"); do
   step "Iteration $i/$MAX_ITERS  (fresh context)"
@@ -308,6 +376,8 @@ for i in $(seq 1 "$MAX_ITERS"); do
     echo "=============================================="
     usage_summary "$i"
     echo "----------------------------------------------"
+    list_generated_files
+    echo "----------------------------------------------"
     echo "  Review the diff, THEN (pane 3):"
     echo "    git diff"
     echo "    git add -A"
@@ -332,6 +402,8 @@ err "STOPPED at the ${MAX_ITERS}-iteration cap — suite still RED."
 echo "=============================================="
 usage_summary "$MAX_ITERS"
 echo "----------------------------------------------"
+list_generated_files
+echo "----------------------------------------------"
 echo "  This usually means the PLAN was wrong, not the code."
 echo "  Do NOT just re-run the loop. Instead:"
 echo "    1. git diff                 # read what it actually did"
@@ -339,4 +411,3 @@ echo "    2. cat FAILURES.txt         # read the real failure"
 echo "    3. go back to pane 1 on Opus and re-plan ${REQ}"
 echo "    4. git checkout .           # discard, if the approach was wrong"
 exit 1
-
