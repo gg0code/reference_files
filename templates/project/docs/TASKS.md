@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.5. Build ORDER only. Status lives in the GitHub Issue. A REQ line is ticked only when its Issue is closed; `wrap up` syncs the ticks from `gh issue list --state all`. -->
+<!-- Template v2.6. Build ORDER only. Status lives in the GitHub Issue. A REQ line is ticked only when its Issue is closed; `wrap up` syncs the ticks from `gh issue list --state all`. -->
 
 # Tasks
 
@@ -15,7 +15,7 @@ How to read this file:
 - [ ] 02-architecture.md and 03-ui-design.md approved
 - [ ] 04-testplan.md approved; CLAUDE.md FILL IN sections completed
 - [ ] RULES.md and 05-launch-checklist.md tailored (proposed changes approved)
-- [ ] Repo, CI (`.github/workflows/ci.yml`), branch protection and doc-lint in place
+- [ ] `bash scripts/start.sh check` passes; CI green once; branch protection on
 - [ ] Wireframe in `docs/03-wireframe/` with `data-req` tags
 
 ## Phase 1 - Core (Must)

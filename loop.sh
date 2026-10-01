@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v9
+# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v10
 # Usage:  bash scripts/loop.sh [max-iters]          (ID from the branch, Issue from docs/TASKS.md)
 #         bash scripts/loop.sh <issue-number> <REQ-00X|BUG-00X> [max-iters]   (explicit form)
 #
@@ -20,9 +20,10 @@
 #      so the loop fixes the reviewer's findings; on green it sends you to "review".
 #   v9 no arguments needed: the ID comes from the branch name (feat/REQ-001-x, fix/BUG-002)
 #      and the Issue number from docs/TASKS.md or GitHub.
+#   v10 runs scripts/doclint.sh in front of the detected test command; TEST_CMD may use && (bash -c).
 set -uo pipefail
 
-LOOP_VERSION="v9"
+LOOP_VERSION="v10"
 
 # ---------- help / usage ----------
 usage() {
@@ -52,8 +53,9 @@ INVOCATION
 
 ENV OVERRIDES
   TEST_CMD    Force the test command (else auto-detected per stack:
-              npm test / pytest / cargo test / go test ./...).
-              It must run the FULL suite, including the doc-lint.
+              npm test / pytest / cargo test / go test ./..., with
+              "bash scripts/doclint.sh &&" in front when that script exists).
+              It must run the FULL suite. "&&" chains are fine.
   PLAN_FILE   Path to the approved plan (default: docs/plans/<ID>.md).
   FORCE       FORCE=1 skips the "already done" guard (see below).
 
@@ -176,6 +178,7 @@ fi
 
 # ---------- test command: explicit override, else auto-detect per stack ----------
 if [ -n "${TEST_CMD:-}" ]; then
+  TEST_CMD_FROM_ENV=1
   ok "tests : $TEST_CMD   (from TEST_CMD env)"
 elif [ -f package.json ]; then
   TEST_CMD="npm test";        ok "tests : $TEST_CMD   (detected package.json)"
@@ -195,9 +198,12 @@ else
   exit 1
 fi
 
+if [ -z "${TEST_CMD_FROM_ENV:-}" ] && [ -f scripts/doclint.sh ] && [ "${NO_DOCLINT:-0}" != 1 ]; then
+  TEST_CMD="bash scripts/doclint.sh && $TEST_CMD"; ok "tests : $TEST_CMD   (doclint in front; NO_DOCLINT=1 to skip)"
+fi
 case "$TEST_CMD" in
-  npm*|yarn*|pnpm*) [ -f package.json ] || { err "TEST_CMD is '$TEST_CMD' but there is no package.json here. Wrong stack? Set TEST_CMD=..."; exit 1; } ;;
-  pytest*)          command -v pytest >/dev/null 2>&1 || { err "pytest not found on PATH. Activate your venv: source .venv/bin/activate"; exit 1; } ;;
+  *npm\ *|*yarn\ *) [ -f package.json ] || { err "TEST_CMD is '$TEST_CMD' but there is no package.json here. Wrong stack? Set TEST_CMD=..."; exit 1; } ;;
+  *pytest*)          command -v pytest >/dev/null 2>&1 || { err "pytest not found on PATH. Activate your venv: source .venv/bin/activate"; exit 1; } ;;
 esac
 
 # ---------- telemetry ----------
@@ -389,7 +395,7 @@ for i in $(seq 1 "$MAX_ITERS"); do
   fi
 
   step "Iteration $i - running: $TEST_CMD"
-  if $TEST_CMD > .loop-test-out.txt 2>&1; then
+  if bash -c "$TEST_CMD" > .loop-test-out.txt 2>&1; then
     tail -5 .loop-test-out.txt
     ok "SUITE GREEN on iteration $i"
     NOTICED="$(grep -A50 -i '^Noticed' FAILURES.txt 2>/dev/null)"

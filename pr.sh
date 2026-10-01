@@ -73,12 +73,15 @@ Checklist:
 }
 
 detect_test_cmd() {
-  if [ -n "${TEST_CMD:-}" ]; then echo "$TEST_CMD"
-  elif [ -f package.json ]; then echo "npm test"
-  elif [ -f pyproject.toml ] || [ -f pytest.ini ] || [ -f requirements.txt ] || compgen -G "tests/test_*.py" >/dev/null 2>&1; then echo "pytest"
-  elif [ -f Cargo.toml ]; then echo "cargo test"
-  elif [ -f go.mod ]; then echo "go test ./..."
+  local t=""
+  if [ -n "${TEST_CMD:-}" ]; then echo "$TEST_CMD"; return; fi
+  if [ -f package.json ]; then t="npm test"
+  elif [ -f pyproject.toml ] || [ -f pytest.ini ] || [ -f requirements.txt ] || compgen -G "tests/test_*.py" >/dev/null 2>&1; then t="pytest"
+  elif [ -f Cargo.toml ]; then t="cargo test"
+  elif [ -f go.mod ]; then t="go test ./..."
   fi
+  if [ -n "$t" ] && [ -f scripts/doclint.sh ]; then t="bash scripts/doclint.sh && $t"; fi
+  echo "$t"
 }
 
 merge_pr() {
@@ -98,7 +101,7 @@ merge_pr() {
   echo ""; echo "==> After-merge checks on $BASE (CLAUDE.md section 7)"
   tc="$(detect_test_cmd)"
   if [ -z "$tc" ]; then warn "cannot detect the test command; set TEST_CMD=... and run the full suite yourself"
-  elif $tc >/tmp/pr-sh-tests.$$ 2>&1; then ok "full suite green on $BASE ($tc)"; rm -f /tmp/pr-sh-tests.$$
+  elif bash -c "$tc" >/tmp/pr-sh-tests.$$ 2>&1; then ok "full suite green on $BASE ($tc)"; rm -f /tmp/pr-sh-tests.$$
   else
     tail -15 /tmp/pr-sh-tests.$$; rm -f /tmp/pr-sh-tests.$$
     err "MAIN IS RED after merging $ID. Revert first, diagnose second:"

@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.5. Written by the user (or dictated). Rough is fine. Claude does not invent this. -->
+<!-- Template v2.6. Written by the user (or dictated). Rough is fine. Claude does not invent this. -->
 
 # Idea
 

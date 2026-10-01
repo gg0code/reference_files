@@ -1,4 +1,4 @@
-# ci.template.yml - kit template, version v2.5
+# ci.template.yml - kit template, version v2.6
 #
 # scaffold.sh turns this into .github/workflows/ci.yml for the stack you name:
 #   bash scaffold.sh <app> node|python|go|rust
@@ -9,7 +9,7 @@
 # Philosophy, identical for every stack:
 # - Run the FULL regression suite on every PR and every push to main, never only the new tests.
 #   A branch suite proves the new REQ works; only the full suite proves earlier REQ-IDs still work.
-# - The doc-lint belongs inside the test command (docs/RULES.md section 3), so it runs here too.
+# - The doc-lint (scripts/doclint.sh, docs/RULES.md section 3) runs first for every stack.
 # - The traceability step fails the build if a merged REQ-ID has no test files.
 # - The job is named "test"; branch protection requires that check (see runbook.md Phase 2c).
 name: test
@@ -28,6 +28,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # full history, so the traceability check can read merged REQ commits
+
+      # Every stack: documentation conventions first (README per folder, file headers, function blocks)
+      - name: Doc lint
+        run: |
+          if [ -f scripts/doclint.sh ]; then bash scripts/doclint.sh; else echo "scripts/doclint.sh not found - skipped"; fi
 
       # Node / npm
       #>>> STACK:node

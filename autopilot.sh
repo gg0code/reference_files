@@ -77,13 +77,15 @@ done
 BASE_BRANCH="main"; git rev-parse --verify -q main >/dev/null || BASE_BRANCH="master"
 START_BRANCH="$(git branch --show-current)"
 
+TEST_CMD_SET="${TEST_CMD:+1}"
 if [ -n "${TEST_CMD:-}" ]; then :
 elif [ -f package.json ]; then TEST_CMD="npm test"
 elif [ -f pyproject.toml ] || [ -f pytest.ini ] || [ -f requirements.txt ] || compgen -G "tests/test_*.py" >/dev/null 2>&1; then TEST_CMD="pytest"
 elif [ -f Cargo.toml ]; then TEST_CMD="cargo test"
 elif [ -f go.mod ]; then TEST_CMD="go test ./..."
 else die "cannot detect the test command; set TEST_CMD=... (CLAUDE.md section 2)"; fi
-TEST_BIN="${TEST_CMD%% *}"
+if [ -z "${TEST_CMD_SET:-}" ] && [ -f scripts/doclint.sh ] && [ "${NO_DOCLINT:-0}" != 1 ]; then TEST_CMD="bash scripts/doclint.sh && $TEST_CMD"; fi
+TEST_LAST="${TEST_CMD##*&& }"; TEST_BIN="${TEST_LAST%% *}"   # the real test runner, for the reviewer's allowlist
 
 if [ "$AUTO_MERGE" = 1 ]; then
   if ! gh api "repos/{owner}/{repo}/branches/${BASE_BRANCH}/protection" >/dev/null 2>&1; then
@@ -150,7 +152,7 @@ reviewer_sysprompt() {   # reviewer.md without its YAML front matter
   awk 'NR==1&&/^---$/{fm=1;next} fm&&/^---$/{fm=0;next} !fm' .claude/agents/reviewer.md > .autopilot/reviewer.sys.md
   echo .autopilot/reviewer.sys.md
 }
-RO_TOOLS="Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git merge-base:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(gh issue view:*),Bash(${TEST_BIN}:*)"
+RO_TOOLS="Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git merge-base:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(gh issue view:*),Bash(${TEST_BIN}:*),Bash(bash scripts/doclint.sh:*),Bash(bash scripts/req_status.sh:*),Bash(bash scripts/start.sh status)"
 RO_DENY="Edit,Write,NotebookEdit,Bash(git commit:*),Bash(git push:*),Bash(git checkout:*),Bash(git reset:*),Bash(rm:*)"
 
 record() {  # record <req> <issue> <plan-by> <rounds> <verdict> <pr> <outcome> <reason>
@@ -389,7 +391,7 @@ Opened unattended by autopilot run ${RUN_ID}." >>"$LOG" 2>&1 || { needs_you "$re
   fi
   gh pr merge "$pr" --squash --delete-branch >>"$LOG" 2>&1 || { needs_you "$req" "merge of PR #$pr failed"; record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "#$pr" "NEEDS YOU" "merge failed"; return 1; }
   git checkout -q "$BASE_BRANCH" && git pull -q --ff-only origin "$BASE_BRANCH" 2>>"$LOG"
-  if ! $TEST_CMD >>"$LOG" 2>&1; then
+  if ! bash -c "$TEST_CMD" >>"$LOG" 2>&1; then
     STOPPED="main is RED after merging ${req}"
     needs_you "$req" "MAIN IS RED after merging PR #$pr. Revert first: git revert -m 1 <merge-sha> on a branch + PR, then diagnose."
     record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "#$pr" "MERGED, MAIN RED" "revert needed"; return 3

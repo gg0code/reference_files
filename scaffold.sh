@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.5
+# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.6
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
 #   bash /path/to/reference_files/scaffold.sh <app-name> [node|python|go|rust]
@@ -18,7 +18,7 @@
 # The kit layout it expects (next to this script):
 #   templates/project/        CLAUDE.md, .claude/agents/, docs/, src/, tests/, scripts/README.md, .gitignore
 #   templates/ci.template.yml CI workflow with one block per stack
-#   start.sh, loop.sh, pr.sh, req_status.sh, autopilot.sh   copied into <app>/scripts/
+#   start.sh, loop.sh, pr.sh, doclint.sh, req_status.sh, autopilot.sh   copied into <app>/scripts/
 #
 # PREREQUISITE - once per machine, before this script:
 #   git config --global user.name  "Your Name"
@@ -52,7 +52,7 @@ die()  { echo ""; echo "ERROR : $*" >&2; echo "Aborted. Nothing further was run.
 trap 'err "unexpected failure at line $LINENO (command: $BASH_COMMAND)"; exit 1' ERR
 
 echo "=============================================="
-echo " scaffold.sh v2.5 - project: $APP${STACK:+  (stack: $STACK)}"
+echo " scaffold.sh v2.6 - project: $APP${STACK:+  (stack: $STACK)}"
 echo "=============================================="
 
 # ---------- 0. Preflight ----------
@@ -73,7 +73,7 @@ ok "git identity: $GIT_NAME <$GIT_MAIL>"
 
 [ -d "$TPL" ]    || die "project template not found at $TPL (keep scaffold.sh inside the kit folder)"
 [ -f "$CI_TPL" ] || die "CI template not found at $CI_TPL"
-for s in start.sh loop.sh pr.sh req_status.sh autopilot.sh; do
+for s in start.sh loop.sh pr.sh doclint.sh req_status.sh autopilot.sh; do
   [ -f "$KIT_DIR/$s" ] || die "kit script missing: $KIT_DIR/$s"
 done
 ok "kit found: $KIT_DIR"
@@ -131,7 +131,7 @@ mkdir -p docs/plans || die "could not create docs/plans"
 # ---------- 3. Tooling scripts + CI ----------
 step "Step 3/6  Tooling scripts and CI"
 mkdir -p scripts || die "could not create scripts/"
-for s in start.sh loop.sh pr.sh req_status.sh autopilot.sh; do
+for s in start.sh loop.sh pr.sh doclint.sh req_status.sh autopilot.sh; do
   if [ -f "scripts/$s" ]; then
     if cmp -s "$KIT_DIR/$s" "scripts/$s"; then
       ok "scripts/$s is current"
@@ -169,8 +169,8 @@ git add -A || die "git add failed"
 if git diff --cached --quiet; then
   warn "nothing new to commit - working tree already matches HEAD"
 else
-  git commit -qm "chore: scaffold from project template v2.5" || die "git commit failed"
-  ok "committed: chore: scaffold from project template v2.5"
+  git commit -qm "chore: scaffold from project template v2.6" || die "git commit failed"
+  ok "committed: chore: scaffold from project template v2.6"
 fi
 COMMITS="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 [ "$COMMITS" -ge 1 ] || die "no commit exists - a push would fail with 'src refspec main does not match any'"
@@ -253,11 +253,11 @@ fi
 cat <<NEXT
 
   Next:
-    1. cd $APP && tmux new -s $APP        # then split into 4 panes (runbook.md)
-    2. In the claude pane run: claude     # accept the trust dialog once
-    3. Type: setup                        # Claude lists the TEMPLATE docs and walks you through them
+    1. cd $APP, then open the 4 tmux panes (runbook.md 0c)
+    2. git pane:    bash scripts/start.sh check   # verifies the kit is installed and active
+    3. claude pane: claude                        # accept the trust dialog once, then type: setup
     4. After CI has run once, turn on branch protection (runbook.md Phase 2c).
-    5. Then, for each requirement: bash scripts/start.sh   (bash scripts/start.sh status shows where you are)
+    5. Then, for each requirement: bash scripts/start.sh   (start.sh status shows where you are)
 
   Sanity check:
     git log --oneline    # >= 1 commit

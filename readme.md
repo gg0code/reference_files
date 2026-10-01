@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.5 (2026-10-01).
+Kit version: v2.6 (2026-10-01).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -14,6 +14,7 @@ reference_files/
   scaffold.sh                creates a new project from the templates
   start.sh                   starts the next REQ or a BUG, shows status (copied into each project)
   pr.sh                      opens the PR after review, merges with after-merge checks (copied into each project)
+  doclint.sh                 enforces file headers, function doc blocks and folder READMEs (copied into each project)
   loop.sh                    bounded implement-and-test loop for one Issue (copied into each project)
   req_status.sh              REQ-ID ledger and CI traceability check (copied into each project)
   autopilot.sh               optional unattended runs over several REQs (copied into each project)
@@ -22,6 +23,7 @@ reference_files/
     project/                 everything a new project starts with
       CLAUDE.md              the project constitution (FIXED + FILL IN sections)
       .claude/agents/reviewer.md   the second agent: read-only code reviewer (Opus)
+      .claude/settings.json        pre-approved read-only commands (the reviewer runs without prompts)
       .gitignore
       docs/                  00-idea, 01-prd, 02-architecture, 03-ui-design, 03-wireframe/,
                              04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, plans/, reviews/
@@ -140,6 +142,15 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+
+## Changes in v2.6
+
+- New `doclint.sh`: rules D1 (README per folder), D2 (file header with `REQ-IDs:`), D3 (function doc block with `Calls:` and `Called by:`), for Python, JS/TS, Go, Rust and shell.
+  loop.sh, pr.sh merge, autopilot and CI run it in front of the tests; RULES.md section 3 shows the exact formats.
+- New `start.sh check`: verifies the kit is installed and active in a project (runbook 0g, guide Phase 2).
+- New `.claude/settings.json`: pre-approves the reviewer's read-only commands and denies force-push and `.env` reads.
+- The reviewer agent now has an explicit, ordered list of commands to run, including doclint and security greps.
+- Launch checklist A8: doclint passes on the whole codebase.
 
 ## Changes in v2.5
 

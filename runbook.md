@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.5 (2026-10-01).
+Kit version: v2.6 (2026-10-01).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -170,6 +170,32 @@ Verify in the git pane: `grep -A3 statusLine ~/.claude/settings.json`.
 For a cross-pane view, park `npx ccusage@latest blocks --live` in the frontend pane.
 Read the numbers as relative signals, not as an invoice.
 
+### 0g. Check the kit is active (first session in every new project)
+Two checks: one for the files, one for Claude.
+
+**Files and tools** (git pane):
+```bash
+bash scripts/start.sh check
+```
+It reports PASS / WARN / FAIL for: CLAUDE.md at the repo root, every doc in `docs/`, the reviewer agent, `.claude/settings.json`, all scripts, `.gitignore`, CI, the tools (git, claude, gh, jq, python3), the remote and branch protection, how many docs are still TEMPLATE or DRAFT, and the doc-lint.
+Fix every FAIL before going on. WARN lines about TEMPLATE docs are expected until Phase 1 is done.
+
+**Claude is reading them** (claude pane):
+```
+Which project files have you read this session, and what does section 0 of CLAUDE.md tell you to do?
+```
+Expect CLAUDE.md, `docs/RULES.md`, `docs/TASKS.md` and `docs/MEMORY.md`, and a description of the TEMPLATE/DRAFT setup check.
+If Claude does not mention them, it was started outside the project folder: quit, `cd` into the project, start `claude` again.
+
+| What makes the kit work | Where it happens |
+|---|---|
+| Files copied into the project | `scaffold.sh` step 2/6 (template) and 3/6 (scripts, CI) |
+| Claude loads `CLAUDE.md` | Automatically, every session, from the folder `claude` is started in |
+| Claude reads RULES, TASKS, MEMORY | CLAUDE.md section 3 tells it to, every session |
+| Setup check (TEMPLATE / DRAFT docs) | CLAUDE.md section 0, and typing `setup` |
+| Reviewer agent available | `.claude/agents/reviewer.md`, its commands pre-approved in `.claude/settings.json` |
+| File and function comments enforced | `scripts/doclint.sh`, run by loop.sh, pr.sh merge, CI and the reviewer |
+
 ---
 
 ## Phase 1 - Specification (the doc chain)
@@ -328,7 +354,7 @@ Lost? `bash scripts/start.sh status` shows the current ID, Issue, plan, review, 
 | 4 | **git** | - | `git add docs/plans && git commit -m "docs: approved plan"` |
 | 5 | **git** | **sonnet** | `bash scripts/loop.sh` (Phase 2b), or implement by hand with the **Implement** prompt |
 | 6 | **test** | - | watch it go RED as tests land, then GREEN as code catches up |
-| 7 | **frontend** | - | if there is UI, eyeball it. Be picky |
+| 7 | **frontend** | - | if there is UI, eyeball it. Be picky. Missing READMEs, file headers or function doc blocks already turned the loop red (doclint runs in front of the tests) |
 | 8 | **git** | - | `git add -A && git commit -m "feat: <summary>"` (the loop prints the exact message with the ID and Issue) |
 | 9 | **claude** | reviewer (Opus) | `review` - the reviewer agent checks the branch; its report is saved to `docs/reviews/<REQ>.md` and committed |
 | 10 | **git** | sonnet | **CHANGES REQUESTED?** `bash scripts/loop.sh` again (it reads the findings), commit, then `review` again. Maximum 2 rounds |
@@ -608,6 +634,8 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `bash scripts/start.sh REQ-004` | Start or resume that REQ |
 | `bash scripts/start.sh bug "symptom"` | Next BUG-ID: files the Issue, creates `fix/BUG-00X` |
 | `bash scripts/start.sh status` | Where am I: ID, Issue, plan, review, PR, next action |
+| `bash scripts/start.sh check` | Is the kit installed and active here: PASS / WARN / FAIL per item |
+| `bash scripts/doclint.sh` | README per folder, file headers, function doc blocks (`--changed`: this branch only) |
 | `bash scripts/loop.sh` | Bounded implement-and-test loop for the current branch |
 | `bash scripts/pr.sh` | Push and open the PR (needs a reviewer APPROVE) |
 | `bash scripts/pr.sh merge` | After your PR review: CI, merge, after-merge checks |

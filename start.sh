@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# start.sh - start the next piece of work, or show where you are.      VERSION: v1
+# start.sh - start the next piece of work, or show where you are.      VERSION: v2
 #
 #   bash scripts/start.sh                    start the next unticked REQ in docs/TASKS.md
 #   bash scripts/start.sh REQ-004            start (or resume) that REQ
 #   bash scripts/start.sh bug "symptom"      file the next BUG-ID as an Issue and start fix/BUG-00X
 #   bash scripts/start.sh status             where am I: ID, Issue, plan, review, PR, next action
+#   bash scripts/start.sh check              is the kit installed and active in this project? (PASS/WARN/FAIL)
 #
 # You never type an Issue number: it comes from the "REQ-00X (#N) title" line in
 # docs/TASKS.md, or from GitHub. The branch name then carries the ID, so loop.sh,
@@ -19,7 +20,7 @@ warn() { echo "    WARN  : $*"; }
 err()  { echo "    ERROR : $*" >&2; }
 die()  { err "$*"; exit 1; }
 
-case "${1:-}" in -h|--help|help) sed -n '2,13p' "$0"; exit 0 ;; esac
+case "${1:-}" in -h|--help|help) sed -n '2,14p' "$0"; exit 0 ;; esac
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repo"
 cd "$ROOT" || die "cannot enter $ROOT"
@@ -88,6 +89,75 @@ show_status() {
     *) nxt="read $plan, then set line 1 to 'Status: APPROVED - $(date +%Y-%m-%d)' and commit it" ;;
   esac
   echo "  next   : $nxt"
+}
+
+# ---------- check: is the kit installed and active? ----------
+kit_check() {
+  local fails=0 warns=0 f n=0 t a d st
+  pass() { echo "    PASS  : $*"; }
+  wrn()  { echo "    WARN  : $*"; warns=$((warns+1)); }
+  bad()  { echo "    FAIL  : $*"; fails=$((fails+1)); }
+  echo ""
+  echo "==> 1. Files from the kit (copied by scaffold.sh)"
+  if [ -f CLAUDE.md ] && grep -q '^## 0. Session start check' CLAUDE.md; then
+    pass "CLAUDE.md at the repo root ($(grep -m1 -oE 'Template v[0-9.]+' CLAUDE.md || echo 'version unknown')) - Claude Code loads it every session"
+  else bad "CLAUDE.md missing at the repo root or not the kit's version (start claude from THIS folder)"; fi
+  for f in docs/00-idea.md docs/01-prd.md docs/02-architecture.md docs/03-ui-design.md docs/04-testplan.md \
+           docs/05-launch-checklist.md docs/RULES.md docs/TASKS.md docs/MEMORY.md docs/plans/_TEMPLATE.md docs/reviews/README.md; do
+    [ -f "$f" ] || { bad "$f missing"; n=$((${n:-0}+1)); }
+  done
+  [ "${n:-0}" -eq 0 ] && pass "docs/: 00-05, RULES, TASKS, MEMORY, plans/_TEMPLATE, reviews/ present"
+  if [ -f .claude/agents/reviewer.md ] && grep -q '^name: reviewer' .claude/agents/reviewer.md; then pass ".claude/agents/reviewer.md (second agent)"
+  else bad ".claude/agents/reviewer.md missing: copy it from the kit's templates/project/"; fi
+  if [ -f .claude/settings.json ] && python3 -m json.tool .claude/settings.json >/dev/null 2>&1; then pass ".claude/settings.json (pre-approved read-only commands for the reviewer)"
+  else wrn ".claude/settings.json missing or invalid JSON: the reviewer will ask permission for every command"; fi
+  n=0
+  for f in start.sh loop.sh pr.sh doclint.sh req_status.sh autopilot.sh; do
+    [ -f "scripts/$f" ] || { n=$((n+1)); if [ "$f" = autopilot.sh ]; then wrn "scripts/$f missing (optional)"; else bad "scripts/$f missing: copy it from the kit"; fi; }
+  done
+  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, req_status, autopilot"
+  for t in PROMPT.md FAILURES.txt .autopilot/ CLAUDE.local.md; do
+    grep -qxF "$t" .gitignore 2>/dev/null || wrn ".gitignore does not list $t"
+  done
+  if [ -f .github/workflows/ci.yml ]; then pass ".github/workflows/ci.yml (CI)"; else bad "no CI: re-run the kit's scaffold.sh with a stack (it keeps your files)"; fi
+
+  echo ""
+  echo "==> 2. Tools"
+  for t in git claude python3; do command -v "$t" >/dev/null 2>&1 && pass "$t" || bad "$t not found on PATH"; done
+  if [ "$HAVE_GH" = 1 ]; then pass "gh (authenticated)"; else bad "gh missing or not authenticated (gh auth login)"; fi
+  command -v jq >/dev/null 2>&1 && pass "jq" || wrn "jq not found: no cost numbers in loop.sh; autopilot will not run"
+  git remote get-url origin >/dev/null 2>&1 && pass "git remote origin: $(git remote get-url origin)" || wrn "no git remote 'origin'"
+  if [ "$HAVE_GH" = 1 ]; then
+    gh api "repos/{owner}/{repo}/branches/${BASE}/protection" >/dev/null 2>&1 && pass "branch protection on ${BASE}" || wrn "no branch protection on ${BASE} yet (turn it on after CI has run once: runbook Phase 2c)"
+  fi
+
+  echo ""
+  echo "==> 3. Setup status (CLAUDE.md section 0)"
+  grep -q 'one or two sentences: the product and who it is for' CLAUDE.md 2>/dev/null && wrn "CLAUDE.md sections 1 and 2 (FILL IN) still hold the template examples (setup step 4)" || pass "CLAUDE.md FILL IN sections filled"
+  a=0; d=0; t=0
+  for f in docs/*.md; do
+    st="$(head -1 "$f")"
+    case "$st" in "Status: APPROVED"*) a=$((a+1)) ;; "Status: DRAFT"*) d=$((d+1)) ;; "Status: TEMPLATE"*) t=$((t+1)); echo "          template: $f" ;; esac
+  done
+  if [ "$t" -eq 0 ] && [ "$d" -eq 0 ]; then pass "docs: $a approved, none left at TEMPLATE or DRAFT"
+  else wrn "docs: $a approved, $d draft, $t template - type 'setup' in the claude pane"; fi
+
+  echo ""
+  echo "==> 4. Documentation conventions (docs/RULES.md section 3)"
+  if [ -f scripts/doclint.sh ]; then
+    n="$(bash scripts/doclint.sh 2>&1 | tail -1)"
+    case "$n" in *OK*) pass "$n" ;; *) wrn "$n  (run: bash scripts/doclint.sh)" ;; esac
+  fi
+
+  echo ""
+  echo "==> 5. Is Claude actually using the kit? (cannot be checked from a script)"
+  echo "    In the claude pane, ask:"
+  echo "      Which project files have you read this session, and what does section 0 of CLAUDE.md tell you to do?"
+  echo "    Expect: CLAUDE.md, docs/RULES.md, docs/TASKS.md, docs/MEMORY.md, and the TEMPLATE/DRAFT setup check."
+  echo "    If not: claude was started outside this folder. Quit it, cd $ROOT, start claude again."
+  echo ""
+  if [ "$fails" -gt 0 ]; then echo "  RESULT: $fails FAIL, $warns WARN - fix the FAIL lines first"; return 1; fi
+  echo "  RESULT: kit installed ($warns WARN)"
 }
 
 guard_unfinished() {   # refuse to leave unfinished work unless FORCE=1
@@ -173,6 +243,7 @@ Actual:
 case "${1:-}" in
   "")              start_req "" ;;
   status|where)    show_status ;;
+  check|doctor)    kit_check ;;
   bug)             shift; start_bug "$*" ;;
   REQ-*)           start_req "$1" ;;
   *)               die "unknown argument '$1' (try --help)" ;;

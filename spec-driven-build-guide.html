@@ -175,7 +175,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.5 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.6 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release, using <code>scaffold.sh</code>, the project templates, and the scripts <code>start.sh</code>, <code>loop.sh</code> and <code>pr.sh</code>. Two agents do the work: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b> that checks every branch before its PR. Fill in your project details and every command and prompt below updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -332,6 +332,21 @@ tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux switch-client -t {APP}<
               <pre data-label="bash · claude pane">claude</pre>
               <pre data-label="prompt · claude pane" class="prompt">setup</pre>
               <p class="expect">You should see: a table of every doc still at TEMPLATE or DRAFT, and the setup order. Claude will not write application code until setup is approved.</p>
+            </div>
+          </li>
+          <li class="step gate" data-id="o-check" data-pane="you">
+            <div class="step-body">
+              <div class="step-head"><h3>Check the kit is active (first session in a new project)</h3></div>
+              <p>Files and tools: one command reports PASS, WARN or FAIL for CLAUDE.md, every doc, the reviewer agent and its permissions, all scripts, CI, the tools, and how many docs are still templates. Fix every FAIL; TEMPLATE warnings are expected until Phase 3 is done.</p>
+              <pre data-label="bash · git pane">bash scripts/start.sh check</pre>
+              <p>Claude is reading them: ask this in the claude pane.</p>
+              <pre data-label="prompt · claude pane" class="prompt">Which project files have you read this session, and what does section 0 of CLAUDE.md tell you to do?</pre>
+              <p class="expect">You should see: <b>CLAUDE.md, docs/RULES.md, docs/TASKS.md, docs/MEMORY.md</b> and the TEMPLATE/DRAFT setup check. If not, Claude was started outside the project folder: quit, <code>cd {ROOT}/{APP}</code>, start <code>claude</code> again.</p>
+              <ul>
+                <li>Copied in by: <code>scaffold.sh</code> (Phase 1)</li>
+                <li>Loaded by: Claude Code reads <code>CLAUDE.md</code> automatically; CLAUDE.md tells it to read RULES, TASKS and MEMORY every session</li>
+                <li>Comments enforced by: <code>scripts/doclint.sh</code>, run by the loop, <code>pr.sh merge</code>, CI and the reviewer</li>
+              </ul>
             </div>
           </li>
         </ol>
@@ -493,7 +508,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
           <li class="step" data-id="b-eyeball" data-pane="frontend">
             <div class="step-body">
               <div class="step-head"><h3>Look at it</h3></div>
-              <p>If there is UI, run it and be picky: spacing, states, mobile width, dark mode. Small unrelated fixes (lint, typo, flaky test, obvious UI defect, under about 20 lines) go in their own <code>chore(hygiene)</code> commit. Anything bigger becomes a bug later.</p>
+              <p>If there is UI, run it and be picky: spacing, states, mobile width, dark mode. Missing folder READMEs, file headers or function doc blocks already turned the loop red, because <code>doclint.sh</code> runs in front of the tests. Small unrelated fixes (lint, typo, flaky test, obvious UI defect, under about 20 lines) go in their own <code>chore(hygiene)</code> commit. Anything bigger becomes a bug later.</p>
             </div>
           </li>
           <li class="step" data-id="b-commit" data-pane="git">
@@ -745,6 +760,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           <tbody>
             <tr><td><code>bash scripts/start.sh</code></td><td>Next unticked REQ from TASKS.md: finds its Issue, creates the branch.</td></tr>
             <tr><td><code>bash scripts/start.sh status</code></td><td>Where am I: ID, Issue, plan, review, PR, and the next action.</td></tr>
+            <tr><td><code>bash scripts/start.sh check</code></td><td>Is the kit installed and active in this project: PASS / WARN / FAIL per item.</td></tr>
+            <tr><td><code>bash scripts/doclint.sh</code></td><td>Folder READMEs, file headers with <code>REQ-IDs:</code>, function doc blocks with <code>Calls:</code> and <code>Called by:</code>. Add <code>--changed</code> for this branch only.</td></tr>
             <tr><td><code>bash scripts/start.sh bug "symptom"</code></td><td>Next free BUG number: files the Issue, creates <code>fix/BUG-00X</code>.</td></tr>
             <tr><td><code>bash scripts/start.sh REQ-004</code></td><td>Start or resume a specific requirement instead of the next one.</td></tr>
             <tr><td><code>bash scripts/loop.sh</code></td><td>Bounded implement-and-test loop for the current branch.</td></tr>
@@ -770,6 +787,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/MEMORY.md</code></td><td>Status, decisions, gotchas, session log</td><td>Claude, at wrap up</td></tr>
             <tr><td><code>docs/plans/REQ-00X.md</code></td><td>Approved plan the loop enforces, with a review focus</td><td>Claude drafts, you approve</td></tr>
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
+            <tr><td><code>.claude/settings.json</code></td><td>Pre-approved read-only commands for the reviewer; blocks force-push and reading <code>.env</code></td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>scripts/*.sh</code></td><td>start, loop, pr, req_status, autopilot</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.autopilot/</code></td><td>Autopilot run reports and logs (gitignored)</td><td>autopilot.sh</td></tr>
@@ -807,6 +825,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td>Claude does not know the reviewer agent</td><td>Check <code>.claude/agents/reviewer.md</code> exists (copy it from the kit's <code>templates/project/</code>), then restart <code>claude</code>.</td></tr>
             <tr><td>Autopilot says "needs jq" or "gh is not authenticated"</td><td><code>sudo apt install jq</code>, <code>gh auth login</code></td></tr>
             <tr><td>Autopilot skipped a REQ: "no approved plan"</td><td>Level 1 only builds plans you approved. Type <code>next</code>, approve the plan, or run level 2.</td></tr>
+            <tr><td>Loop red with <code>D1</code>, <code>D2</code> or <code>D3</code> lines</td><td>doclint: add the folder README, the <code>REQ-IDs:</code> header line, or the function doc block (formats in <code>docs/RULES.md</code> section 3). Generated files go in <code>.doclintignore</code>.</td></tr>
+            <tr><td>The reviewer asks permission for every command</td><td><code>.claude/settings.json</code> is missing: copy it from the kit's <code>templates/project/.claude/</code>.</td></tr>
             <tr><td>Red on main after a merge</td><td><code>git revert -m 1 MERGE_SHA</code> first, then diagnose on a branch.</td></tr>
             <tr><td>tmux opens inside tmux</td><td>Use the switch command in Phase 2 instead of <code>tmux new</code>.</td></tr>
           </tbody>
@@ -822,7 +842,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.5: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.6: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>
