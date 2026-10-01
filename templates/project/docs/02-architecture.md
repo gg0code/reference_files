@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.2. Drafted by Claude (Opus) from 01-prd.md, approved by the user. Keep it current: regenerate affected rows after every merged PR. -->
+<!-- Template v2.3. Drafted by Claude (Opus) from 01-prd.md, approved by the user. Keep it current: regenerate affected rows after every merged PR. -->
 
 # <Product name> - Architecture
 

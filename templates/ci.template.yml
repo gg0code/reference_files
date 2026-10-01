@@ -1,4 +1,4 @@
-# ci.template.yml - kit template, version v2.2
+# ci.template.yml - kit template, version v2.3
 #
 # scaffold.sh turns this into .github/workflows/ci.yml for the stack you name:
 #   bash scaffold.sh <app> node|python|go|rust

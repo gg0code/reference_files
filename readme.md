@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.2 (2026-10-01).
+Kit version: v2.3 (2026-10-01).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -10,6 +10,7 @@ This README explains what each file is, whether you edit it, and how a new proje
 reference_files/
   readme.md                  this guide
   runbook.md                 step-by-step playbook: setup, spec chain, build loop, bug loop, release
+  spec-driven-build-guide.html  the runbook as an interactive page: open in a browser
   scaffold.sh                creates a new project from the templates
   loop.sh                    bounded implement-and-test loop for one Issue (copied into each project)
   req_status.sh              REQ-ID ledger and CI traceability check (copied into each project)
@@ -17,9 +18,10 @@ reference_files/
     ci.template.yml          CI workflow, one block per stack (scaffold.sh activates one)
     project/                 everything a new project starts with
       CLAUDE.md              the project constitution (FIXED + FILL IN sections)
+      .claude/agents/reviewer.md   the second agent: read-only code reviewer (Opus)
       .gitignore
       docs/                  00-idea, 01-prd, 02-architecture, 03-ui-design, 03-wireframe/,
-                             04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, plans/
+                             04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, plans/, reviews/
       src/  tests/  scripts/ each with a README.md
   .bashrc  .tmux.conf  .wezterm.lua   your machine setup (not used by the scripts)
 ```
@@ -73,14 +75,30 @@ command -v claude
 
 On Windows, run the scripts from WSL or Git Bash; they are bash scripts.
 
+## Two agents
+
+The kit uses the minimum that gives independent checking: two agents.
+
+| Agent | What it is | Does | Never does |
+|---|---|---|---|
+| **Builder** | Your main Claude session plus `scripts/loop.sh` | Plans, writes tests and code, fixes review findings | Approves its own work |
+| **Reviewer** | `.claude/agents/reviewer.md`, Opus, fresh context, read-only tools | Reviews the branch diff against the plan, PRD, test plan and RULES; returns findings and a verdict | Edits any file |
+
+You type `review` before every PR.
+The report lands in `docs/reviews/<ID>.md` with `Verdict: APPROVE` or `Verdict: CHANGES REQUESTED` on line 1.
+Critical or Major findings block the PR; the loop can fix them, then you review again (maximum 2 rounds).
+Tests, CI and `req_status.sh` stay the deterministic tester, and you stay the final reviewer at the PR.
+Add a third agent (for example a separate test writer) only when you see the builder writing tests its own code was bound to pass.
+
 ## How the pieces fit together
 
 - **CLAUDE.md** sets the working loop, the ID scheme and the commands (`setup`, `next`, `status`, `audit`, `fix`, `release check`, `wrap up`).
 - **docs/RULES.md** holds the detailed coding, documentation and engineering rules.
 - **docs/TASKS.md** holds the build order; GitHub Issues hold the status.
 - **docs/MEMORY.md** carries decisions and gotchas from one session to the next.
-- **scripts/loop.sh** runs the implement-and-test grind for one Issue, but only against an APPROVED plan in `docs/plans/`.
-- **scripts/req_status.sh** reports every REQ-ID's plan, merge, Issue, PR and tests, and makes CI fail if a merged REQ has no tests.
+- **scripts/loop.sh** runs the implement-and-test grind for one Issue, but only against an APPROVED plan in `docs/plans/`, and feeds in review findings when a review asked for changes.
+- **.claude/agents/reviewer.md** is the second agent; `review` runs it and saves its report to `docs/reviews/`.
+- **scripts/req_status.sh** reports every REQ-ID's plan, review verdict, merge, Issue, PR and tests, and makes CI fail if a merged REQ has no tests.
 - **docs/05-launch-checklist.md** is the release gate, driven by `audit` and `release check`.
 
 ## The policy these files share
@@ -101,6 +119,13 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+
+## Changes in v2.3
+
+- New reviewer agent `templates/project/.claude/agents/reviewer.md` and `docs/reviews/`.
+- CLAUDE.md: section 5a (builder and reviewer), `review` command, review step before every PR.
+- RULES.md section 8 (review severities), plan template "Review focus", launch checklist A7.
+- loop.sh v8 reads review findings; req_status.sh v3 adds the Review column; scaffold.sh v2.3.
 
 ## Removed in v2.2
 

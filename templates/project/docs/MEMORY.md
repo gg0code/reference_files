@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.2. Claude keeps this current at the end of every task and on `wrap up`. Facts only, dated, short. Review it: the next session trusts it. -->
+<!-- Template v2.3. Claude keeps this current at the end of every task and on `wrap up`. Facts only, dated, short. Review it: the next session trusts it. -->
 
 # Memory
 

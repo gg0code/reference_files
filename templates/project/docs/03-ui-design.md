@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.2. Drafted from 01-prd.md and approved by the user. The wireframe in docs/03-wireframe/ must follow this file. -->
+<!-- Template v2.3. Drafted from 01-prd.md and approved by the user. The wireframe in docs/03-wireframe/ must follow this file. -->
 
 # <Product name> - UI Design
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v7
+# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v8
 # Usage:  bash scripts/loop.sh <issue-number> <REQ-00X|BUG-00X> [max-iters]
 #   e.g.  bash scripts/loop.sh 12 REQ-001   (the REQ number need not equal the Issue number)
 #
@@ -16,9 +16,11 @@
 #   v7 plan must be "Status: APPROVED"; cap read from the plan; works for BUG-IDs;
 #      prompt points at docs/RULES.md and docs/MEMORY.md; runs from the repo root;
 #      single version string everywhere.
+#   v8 reads docs/reviews/<ID>.md: a CHANGES REQUESTED review is fed into every pass
+#      so the loop fixes the reviewer's findings; on green it sends you to "review".
 set -uo pipefail
 
-LOOP_VERSION="v7"
+LOOP_VERSION="v8"
 
 # ---------- help / usage ----------
 usage() {
@@ -58,6 +60,11 @@ ENV OVERRIDES
 PLAN GATE
   The plan file's first line must be "Status: APPROVED - <date>".
   A DRAFT plan is refused: approve it first, then commit it.
+
+REVIEW FINDINGS
+  If docs/reviews/<ID>.md starts with "Verdict: CHANGES REQUESTED", its findings
+  are injected into every pass and the loop fixes the Critical and Major ones.
+  After a green run, type "review" in the claude pane for the next round.
 
 ALREADY-DONE GUARD
   Before looping, the script checks whether <ID> is already finished (a
@@ -207,6 +214,22 @@ case "$FIRST_LINE" in
 esac
 PLAN_BLOCK="$(cat "$PLAN_FILE")"
 
+# ---------- reviewer findings (second agent), if a review asked for changes ----------
+REVIEW_FILE="docs/reviews/${ID}.md"
+REVIEW_BLOCK=""
+if [ -f "$REVIEW_FILE" ]; then
+  RV_LINE="$(grep -m1 -v '^[[:space:]]*$' "$REVIEW_FILE")"
+  case "$RV_LINE" in
+    "Verdict: CHANGES REQUESTED"*)
+      REVIEW_BLOCK="$(cat "$REVIEW_FILE")"
+      ok "review: $REVIEW_FILE ($RV_LINE) - findings fed into every pass" ;;
+    "Verdict: APPROVE"*)
+      ok "review: $REVIEW_FILE is already APPROVE - any change now needs a fresh review round" ;;
+    *)
+      ok "review: $REVIEW_FILE has no verdict line - ignored" ;;
+  esac
+fi
+
 # ---------- iteration cap: argument > plan file > default ----------
 PLAN_CAP="$(grep -oiE 'Maximum loop iterations:[[:space:]]*[0-9]+' "$PLAN_FILE" | grep -oE '[0-9]+$' | head -1)"
 if [ -n "$CAP_ARG" ]; then
@@ -251,8 +274,16 @@ ${TASK_LINES}
 8. If \`${TEST_CMD}\` is failing, read the failure output in FAILURES.txt and fix the CAUSE.
    Never delete, skip or weaken a test, or edit fixtures or expected data, to make it pass.
 
-Success = \`${TEST_CMD}\` (the FULL suite) exits clean, built the way the APPROVED PLAN specifies.
+Success = \`${TEST_CMD}\` (the FULL suite) exits clean, built the way the APPROVED PLAN specifies${REVIEW_BLOCK:+,
+and every Critical and Major finding in the REVIEW below is resolved}.
+${REVIEW_BLOCK:+
+## REVIEW FINDINGS TO FIX (from the reviewer agent; fix every Critical and Major item)
+Fix the cause of each finding within the approved plan. Do not argue with a finding in code
+comments; if you believe one is wrong, leave it unfixed and explain why in FAILURES.txt under "Disputed".
+Do NOT edit ${REVIEW_FILE}.
 
+${REVIEW_BLOCK}
+}
 ## Current failures
 See FAILURES.txt in the repo root (empty on the first pass).
 PROMPT
@@ -350,6 +381,7 @@ for i in $(seq 1 "$MAX_ITERS"); do
     tail -5 .loop-test-out.txt
     ok "SUITE GREEN on iteration $i"
     NOTICED="$(grep -A50 -i '^Noticed' FAILURES.txt 2>/dev/null)"
+    DISPUTED="$(grep -A30 -i '^Disputed' FAILURES.txt 2>/dev/null)"
     rm -f .loop-test-out.txt
     echo ""
     echo "=============================================="
@@ -364,22 +396,33 @@ for i in $(seq 1 "$MAX_ITERS"); do
       echo "$NOTICED" | sed 's/^/    /'
     fi
     rm -f FAILURES.txt
-    echo "----------------------------------------------"
-    echo "  Review the diff, THEN (git pane):"
-    echo "    git diff"
-    echo "    git add -A"
-    echo "    git commit -m \"${KIND}(${ID}): <summary> (#${ISSUE})\""
-    echo "    git push -u origin ${BRANCH}"
-    if [ "$KIND" = feat ]; then
-      echo "    gh pr create --title \"feat(${ID}): <summary>\" --body \"Implements ${ID}. Closes #${ISSUE}\""
-    else
-      echo "    gh pr create --title \"fix(${ID}): <cause>\" --body \"Fixes #${ISSUE} (${ID}).\""
+    if [ -n "$DISPUTED" ]; then
+      echo "----------------------------------------------"
+      echo "  Review findings the builder disputes (decide these yourself):"
+      echo "$DISPUTED" | sed 's/^/    /'
     fi
+    echo "----------------------------------------------"
+    echo "  NEXT (two-agent flow, CLAUDE.md section 5a):"
+    echo "    1. git pane:    git diff"
+    if [ -n "$REVIEW_BLOCK" ]; then
+      echo "                    git add -A && git commit -m \"fix(${ID}): address review round (#${ISSUE})\""
+    else
+      echo "                    git add -A && git commit -m \"${KIND}(${ID}): <summary> (#${ISSUE})\""
+    fi
+    echo "    2. claude pane: review ${ID}        <- the reviewer agent checks the branch"
+    echo "    3. Only after 'Verdict: APPROVE':"
+    echo "                    git push -u origin ${BRANCH}"
+    if [ "$KIND" = feat ]; then
+      echo "                    gh pr create --title \"feat(${ID}): <summary>\" --body \"Implements ${ID}. Closes #${ISSUE}. Review: docs/reviews/${ID}.md (APPROVE)\""
+    else
+      echo "                    gh pr create --title \"fix(${ID}): <cause>\" --body \"Fixes #${ISSUE} (${ID}). Review: docs/reviews/${ID}.md (APPROVE)\""
+    fi
+    echo "    CHANGES REQUESTED? Run this loop again: it reads the findings."
     echo "  After merge: CLAUDE.md section 7, then 'wrap up'."
     exit 0
   fi
 
-  { tail -40 .loop-test-out.txt; grep -A50 -i '^Noticed' FAILURES.txt 2>/dev/null; } > .loop-failures.tmp
+  { tail -40 .loop-test-out.txt; grep -A50 -iE '^(Noticed|Disputed)' FAILURES.txt 2>/dev/null; } > .loop-failures.tmp
   mv .loop-failures.tmp FAILURES.txt
   err "tests RED after iteration $i - feeding failures back"
   tail -8 .loop-test-out.txt | sed 's/^/            /'

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# req_status.sh - requirements implementation ledger for a spec-driven project.   VERSION: v2
+# req_status.sh - requirements implementation ledger for a spec-driven project.   VERSION: v3
 #
 # Scans the repo and prints a Markdown ledger of every REQ-ID: whether its plan is
-# approved, whether it is merged to the base branch, its GitHub Issue and PR, and which
-# test cases (TC-IDs) exist for it. Project-agnostic: it relies only on the kit's
+# approved, its reviewer verdict, whether it is merged to the base branch, its GitHub Issue
+# and PR, and which test cases (TC-IDs) exist for it. Project-agnostic: it relies only on the kit's
 # conventions (docs/plans/<REQ>.md with a Status line, feat(<REQ>) commits, REQ and
 # TC IDs named in tests/).
 #
@@ -17,6 +17,7 @@
 #
 # Needs: git. Uses gh if available (Issue/PR state); degrades gracefully without it.
 # v2: skips TEMPLATE docs, shows plan approved/draft, adds --strict, finds repo root.
+# v3: Review column from docs/reviews/<REQ>.md (approved / changes / -). Reported, not enforced.
 set -uo pipefail
 
 OUT=""; STRICT=0
@@ -24,7 +25,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     -o) OUT="${2:?-o needs a path}"; shift 2 ;;
     --strict) STRICT=1; shift ;;
-    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
   esac
 done
@@ -48,7 +49,7 @@ command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 && HAVE_GH=1
 doc_files=""
 if [ -d docs ]; then
   while IFS= read -r f; do
-    case "$f" in docs/REQUIREMENTS_STATUS.md|docs/plans/_TEMPLATE.md) continue ;; esac
+    case "$f" in docs/REQUIREMENTS_STATUS.md|docs/plans/_TEMPLATE.md|docs/reviews/*) continue ;; esac
     head -1 "$f" | grep -q '^Status: TEMPLATE' && continue
     doc_files="${doc_files}${f}
 "
@@ -63,7 +64,7 @@ reqs="$( {
 emit() { if [ -n "$OUT" ]; then printf '%s\n' "$*" >>"$OUT"; else printf '%s\n' "$*"; fi; }
 [ -n "$OUT" ] && { mkdir -p "$(dirname "$OUT")"; : > "$OUT"; }
 
-total=0; done_n=0; untested_merged=""
+total=0; done_n=0; untested_merged=""; unreviewed_merged=""
 rows=""
 
 for req in $reqs; do
@@ -75,6 +76,18 @@ for req in $reqs; do
     if head -1 "$pf" | grep -q '^Status: APPROVED'; then plan="approved"; else plan="draft"; fi
   else
     plan="-"
+  fi
+
+  # reviewer verdict: approved / changes / none
+  rf="docs/reviews/${req}.md"
+  review="-"
+  if [ -f "$rf" ]; then
+    rl="$(grep -m1 -v '^[[:space:]]*$' "$rf")"
+    case "$rl" in
+      "Verdict: APPROVE"*) review="approved" ;;
+      "Verdict: CHANGES REQUESTED"*) review="changes" ;;
+      *) review="?" ;;
+    esac
   fi
 
   # merged to base? (feat|fix conventional commit)
@@ -98,11 +111,14 @@ for req in $reqs; do
     tcids="$(printf '%s\n' "$tfiles" | xargs grep -hoE 'TC-[0-9]+' 2>/dev/null | sort -u | paste -sd, - )"
     [ -n "$tcids" ] && tcs="$tcids"
   fi
+  if [ "$status" = "merged" ] && [ "$review" != "approved" ]; then
+    unreviewed_merged="${unreviewed_merged} ${req}"
+  fi
   if [ "$status" = "merged" ] && [ "$ntests" -eq 0 ]; then
     untested_merged="${untested_merged} ${req}"
   fi
 
-  rows="${rows}| ${req} | ${plan} | ${status} | ${issue} | ${pr} | ${ntests} | ${tcs} |
+  rows="${rows}| ${req} | ${plan} | ${review} | ${status} | ${issue} | ${pr} | ${ntests} | ${tcs} |
 "
 done
 
@@ -117,9 +133,14 @@ emit ""
 if [ "$total" -eq 0 ]; then
   emit "No REQ-IDs found yet (template docs are ignored until their Status line changes)."
 else
-  emit "| REQ-ID | Plan | Status | Issue | PR | Test files | TC-IDs in tests |"
-  emit "|--------|------|--------|-------|----|-----------|-----------------|"
+  emit "| REQ-ID | Plan | Review | Status | Issue | PR | Test files | TC-IDs in tests |"
+  emit "|--------|------|--------|--------|-------|----|-----------|-----------------|"
   if [ -n "$OUT" ]; then printf '%s' "$rows" >>"$OUT"; else printf '%s' "$rows"; fi
+fi
+
+if [ -n "$unreviewed_merged" ]; then
+  emit ""
+  emit "**UNREVIEWED:** merged without a reviewer APPROVE:${unreviewed_merged} (blocks release, checklist A7)"
 fi
 
 if [ -n "$untested_merged" ]; then

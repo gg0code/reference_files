@@ -128,6 +128,9 @@ li.step.is-next{box-shadow:0 0 0 2px var(--accent)}
 .chip.you{background:var(--gate-soft);color:var(--gate);border:1px solid var(--gate)}
 .chip.model{background:transparent;color:var(--muted);border:1px solid var(--line-strong);font-family:var(--mono);font-weight:400}
 .chip.once{background:var(--accent-soft);color:var(--accent)}
+.chip.agent{background:var(--surface);color:var(--p-claude-bg);border:1px dashed currentColor}
+:root[data-theme="dark"] .chip.agent{color:var(--p-claude-fg)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip.agent{color:var(--p-claude-fg)}}
 
 .code{margin:8px 0 10px;border-radius:8px;overflow:hidden;background:var(--code-bg);border:1px solid var(--line)}
 .code .ch{display:flex;align-items:center;gap:8px;padding:5px 8px 5px 12px;font:500 11.5px var(--body);color:var(--code-com);border-bottom:1px solid rgba(255,255,255,.06)}
@@ -172,9 +175,9 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.2 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.3 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
-      <p class="lede">Every step from an empty folder to a tagged release, using <code>scaffold.sh</code>, the project templates, <code>loop.sh</code> and <code>req_status.sh</code>. Fill in your project details and every command and prompt below updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
+      <p class="lede">Every step from an empty folder to a tagged release, using <code>scaffold.sh</code>, the project templates, <code>loop.sh</code> and <code>req_status.sh</code>. Two agents do the work: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b> that checks every branch before its PR. Fill in your project details and every command and prompt below updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
       <div class="overall">
         <div class="bar" aria-hidden="true"><i id="overallBar"></i></div>
@@ -223,6 +226,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
         <span><span class="chip pane git">git</span> shell, git, gh, scripts</span>
         <span><span class="chip pane test">test</span> watcher, look only</span>
         <span><span class="chip pane frontend">frontend</span> app, wireframe</span>
+        <span><span class="chip agent">reviewer agent</span> second agent, read-only</span>
         <span><span class="chip you">you</span> human gate</span>
       </div>
     </nav>
@@ -457,7 +461,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
       <section class="phase" id="build" data-phase="build">
         <div class="phase-head"><h2>4 · Build a requirement</h2><span class="when">Repeat for each REQ in TASKS.md. Update REQ, Issue and slug at the top first.</span>
           <span class="confirm" data-reset="build"><button class="btn small warn" type="button">Start next REQ</button></span></div>
-        <div class="callout gatey">Two hard stops: the plan (step 3) and the PR (step 7). Loop as much as you like between them. One hard signal: the test pane must be green.</div>
+        <div class="callout gatey">Two human stops: the plan (step 3) and the PR (step 10). One agent gate: no PR until the reviewer says APPROVE (step 7). One hard signal: the test pane must be green.</div>
         <ol class="steps">
           <li class="step" data-id="b-branch" data-pane="git">
             <div class="step-body">
@@ -502,20 +506,44 @@ file headers, function doc blocks and directory READMEs.</pre>
               <p>If there is UI, run it and be picky: spacing, states, mobile width, dark mode. Small unrelated fixes (lint, typo, flaky test, obvious UI defect, under about 20 lines) go in their own <code>chore(hygiene)</code> commit. Anything bigger becomes a BUG Issue.</p>
             </div>
           </li>
+          <li class="step" data-id="b-commit" data-pane="git">
+            <div class="step-body">
+              <div class="step-head"><h3>Commit locally (do not push yet)</h3></div>
+              <pre data-label="bash · git pane">git diff
+git add -A && git commit -m "feat({REQ}): {SLUG} (#{ISSUE})"</pre>
+            </div>
+          </li>
+          <li class="step" data-id="b-review" data-pane="claude" data-agent="reviewer">
+            <div class="step-body">
+              <div class="step-head"><h3>Review by the second agent</h3></div>
+              <p>The reviewer runs on Opus in a fresh context, can only read, and checks the branch against the plan, the PRD row, the TC rows and RULES.md. Its report is saved verbatim to <code>docs/reviews/{REQ}.md</code> and committed.</p>
+              <pre data-label="prompt · claude pane" class="prompt">review {REQ}</pre>
+              <p class="expect">You should see: <b>Verdict: APPROVE</b> or <b>Verdict: CHANGES REQUESTED</b>, with findings ranked Critical, Major, Minor and the file:line for each.</p>
+            </div>
+          </li>
+          <li class="step" data-id="b-fixreview" data-pane="git" data-model="Sonnet">
+            <div class="step-body">
+              <div class="step-head"><h3>If CHANGES REQUESTED: fix, then review again</h3></div>
+              <p>Run the loop again: it reads the findings and fixes the Critical and Major ones, and lists any it disputes for you to decide. Skip this step when the verdict is APPROVE. Maximum 2 rounds; a second CHANGES REQUESTED means the plan is wrong, so re-plan.</p>
+              <pre data-label="bash · git pane">bash scripts/loop.sh {ISSUE} {REQ}
+git add -A && git commit -m "fix({REQ}): address review round 1 (#{ISSUE})"</pre>
+              <pre data-label="prompt · claude pane" class="prompt">review {REQ}</pre>
+            </div>
+          </li>
           <li class="step" data-id="b-pr" data-pane="git">
             <div class="step-body">
-              <div class="step-head"><h3>Commit, push, open the PR</h3></div>
-              <pre data-label="bash · git pane">git diff
-git add -A && git commit -m "feat({REQ}): {SLUG} (#{ISSUE})"
-git push -u origin feat/{REQ}-{SLUG}
-gh pr create --title "feat({REQ}): {SLUG}" --body "Implements {REQ}. Closes #{ISSUE}"</pre>
+              <div class="step-head"><h3>After APPROVE: push and open the PR</h3></div>
+              <pre data-label="bash · git pane">git push -u origin feat/{REQ}-{SLUG}
+gh pr create --title "feat({REQ}): {SLUG}" --body "Implements {REQ}. Closes #{ISSUE}. Review: docs/reviews/{REQ}.md (APPROVE)"</pre>
             </div>
           </li>
           <li class="step gate" data-id="b-pr-gate" data-pane="you">
             <div class="step-body">
               <div class="step-head"><h3>Review the PR, then merge</h3></div>
+              <p>Read the review report first, then the diff. You can overrule a finding, but write why in the PR body.</p>
               <ul>
                 <li>Full suite green locally and in CI</li>
+                <li>Reviewer verdict APPROVE, report committed</li>
                 <li>Regression gate green</li>
                 <li>File headers, function doc blocks and READMEs present</li>
                 <li>Architecture row and test plan still match the code</li>
@@ -585,10 +613,12 @@ stay green. Do not weaken or skip any test.</pre>
           </li>
           <li class="step gate" data-id="g-pr" data-pane="git">
             <div class="step-body">
-              <div class="step-head"><h3>Commit, PR, review, merge</h3></div>
-              <pre data-label="bash · git pane">git add -A && git commit -m "fix({BUG}): cause (#{ISSUE})"
-git push -u origin fix/{BUG}
-gh pr create --title "fix({BUG}): cause" --body "Fixes #{ISSUE} ({BUG})."
+              <div class="step-head"><h3>Commit, review, PR, merge</h3></div>
+              <pre data-label="bash · git pane">git add -A && git commit -m "fix({BUG}): cause (#{ISSUE})"</pre>
+              <pre data-label="prompt · claude pane · reviewer agent" class="prompt">review {BUG}</pre>
+              <p>Fix and review again until <b>APPROVE</b> (maximum 2 rounds), then:</p>
+              <pre data-label="bash · git pane">git push -u origin fix/{BUG}
+gh pr create --title "fix({BUG}): cause" --body "Fixes #{ISSUE} ({BUG}). Review: docs/reviews/{BUG}.md (APPROVE)"
 gh pr merge --squash --delete-branch</pre>
               <p>Then run "After every merge" from Phase 4, and record the test in <code>docs/04-testplan.md</code> section 5.</p>
             </div>
@@ -667,6 +697,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           <tbody>
             <tr><td><code>setup</code></td><td>Lists docs still at TEMPLATE or DRAFT and continues the setup order.</td></tr>
             <tr><td><code>next</code></td><td>Picks the next item in TASKS.md and drafts its plan file.</td></tr>
+            <tr><td><code>review REQ-001</code></td><td>Runs the read-only reviewer agent on the branch; saves its report to <code>docs/reviews/</code> and shows the verdict.</td></tr>
             <tr><td><code>status</code></td><td>Runs the REQ ledger and summarises it with MEMORY and open TASKS in 5 lines.</td></tr>
             <tr><td><code>audit</code></td><td>Goes through the launch checklist with evidence. Fixes nothing.</td></tr>
             <tr><td><code>fix A3, B1</code></td><td>Fixes only those checklist items and re-checks them with the same tool.</td></tr>
@@ -689,7 +720,9 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/RULES.md</code></td><td>Coding, documentation, security rules</td><td>Claude proposes, you approve</td></tr>
             <tr><td><code>docs/TASKS.md</code></td><td>Build order and Issue numbers</td><td>Claude, at wrap up</td></tr>
             <tr><td><code>docs/MEMORY.md</code></td><td>Status, decisions, gotchas, session log</td><td>Claude, at wrap up</td></tr>
-            <tr><td><code>docs/plans/REQ-00X.md</code></td><td>Approved plan the loop enforces</td><td>Claude drafts, you approve</td></tr>
+            <tr><td><code>docs/plans/REQ-00X.md</code></td><td>Approved plan the loop enforces, with a review focus</td><td>Claude drafts, you approve</td></tr>
+            <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
+            <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>scripts/loop.sh</code>, <code>req_status.sh</code></td><td>Bounded loop, REQ ledger</td><td>Nobody; refresh from the kit</td></tr>
           </tbody>
         </table></div>
@@ -698,7 +731,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
         <div class="tablewrap"><table class="ref">
           <thead><tr><th>Model</th><th>Use it for</th></tr></thead>
           <tbody>
-            <tr><td><span class="chip model">Opus</span></td><td>PRD interview, architecture, UI design, plans, bug localisation, traceability audit</td></tr>
+            <tr><td><span class="chip model">Opus</span></td><td>PRD interview, architecture, UI design, plans, bug localisation, traceability audit, and the reviewer agent (pinned in its file)</td></tr>
             <tr><td><span class="chip model">Sonnet</span></td><td>Wireframe, test plan, implementation, tests, fixes, release audit</td></tr>
             <tr><td><span class="chip model">Haiku</span></td><td>Issues from the PRD, commit messages, PR bodies, wrap up</td></tr>
           </tbody>
@@ -718,6 +751,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>pytest not found on PATH</code></td><td><code>source .venv/bin/activate</code>, then re-run.</td></tr>
             <tr><td>Loop runs but writes no files</td><td>Run <code>claude</code> once in the repo and accept the trust dialog.</td></tr>
             <tr><td>CI fails on Traceability check</td><td>A merged REQ has no test files. Add tests naming the REQ-ID and TC-ID.</td></tr>
+            <tr><td>Review says CHANGES REQUESTED twice</td><td>Stop fixing. The plan or the requirement is wrong: re-plan on Opus, re-approve, rebuild.</td></tr>
+            <tr><td>Claude does not know the reviewer agent</td><td>Check <code>.claude/agents/reviewer.md</code> exists (copy it from the kit's <code>templates/project/</code>), then restart <code>claude</code>.</td></tr>
             <tr><td>Red on main after a merge</td><td><code>git revert -m 1 MERGE_SHA</code> first, then diagnose on a branch.</td></tr>
             <tr><td>tmux opens inside tmux</td><td>Use the switch command in Phase 2 instead of <code>tmux new</code>.</td></tr>
           </tbody>
@@ -733,7 +768,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.2: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh and templates/project. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.3: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>
@@ -840,6 +875,9 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
       c.className = pane === 'you' ? 'chip you' : 'chip pane ' + pane;
       c.textContent = pane === 'you' ? 'you · stop and review' : pane + ' pane';
       head.appendChild(c);
+    }
+    if (li.dataset.agent) {
+      var a = document.createElement('span'); a.className = 'chip agent'; a.textContent = li.dataset.agent + ' agent · Opus'; head.appendChild(a);
     }
     if (li.dataset.model) {
       var m = document.createElement('span'); m.className = 'chip model'; m.textContent = '/model ' + li.dataset.model.toLowerCase(); head.appendChild(m);

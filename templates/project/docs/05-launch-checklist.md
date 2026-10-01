@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.2. Release gate. Claude PROPOSES project additions and removals; the user approves each change. -->
+<!-- Template v2.3. Release gate. Claude PROPOSES project additions and removals; the user approves each change. -->
 
 # <Product name> - Launch Checklist
 
@@ -15,6 +15,7 @@ Record each run in the audit log at the bottom and a line in MEMORY.md.
 - [ ] A4. Every acceptance criterion in 01-prd.md section 9 is demonstrated.
 - [ ] A5. No skipped, disabled or quarantined tests without an open Issue.
 - [ ] A6. No open Critical or High BUG Issues.
+- [ ] A7. Every merged REQ-ID and BUG-ID has `docs/reviews/<ID>.md` with `Verdict: APPROVE`. Tool: `bash scripts/req_status.sh` (Review column).
 
 ## B. Security and privacy (blocking)
 - [ ] B1. No secrets in code, history or frontend bundles. Tool: gitleaks / grep.

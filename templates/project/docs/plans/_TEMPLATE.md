@@ -24,5 +24,9 @@ Status: DRAFT
 ## Out of scope for this plan
 -
 
+## Review focus
+<!-- What the reviewer agent should check hardest: risky logic, security-sensitive code, tricky edge cases. -->
+-
+
 ## Iteration cap
 Maximum loop iterations: 5. Hitting the cap means re-plan, not re-run.

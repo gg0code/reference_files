@@ -3,8 +3,9 @@ PROMPT.md
 FAILURES.txt
 .loop-*
 
-# Personal notes, never shared
+# Personal notes and settings, never shared (.claude/agents/ IS shared)
 CLAUDE.local.md
+.claude/settings.local.json
 
 # Secrets and local environment
 .env

@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.2 (2026-10-01).
+Kit version: v2.3 (2026-10-01).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -11,6 +11,10 @@ Substitute your own values wherever these appear.
 Pick a small first app (5 to 6 requirements) so a full run fits in one session.
 
 **Phases:** 0 setup · 1 specification · 2 build loop (2b automated loop, 2c after every merge) · 3 bug loop · 4 release.
+
+**Two agents.** The **builder** is your main Claude session plus `scripts/loop.sh`: it plans, writes tests and code, and fixes findings.
+The **reviewer** is a second, read-only agent (`.claude/agents/reviewer.md`, Opus, fresh context) that checks every branch before its PR and returns a verdict: APPROVE or CHANGES REQUESTED.
+The builder never approves its own work; you still make the final merge decision.
 
 ---
 
@@ -30,6 +34,7 @@ Rule of thumb: **Opus thinks, Sonnet builds, Haiku fetches.**
 | Build loop: implement + tests | **Sonnet** | Default coding engine |
 | Bug loop: reproduce + failing test, fix | **Sonnet** | Straight coding |
 | Bug loop: **localise / call-map** | **Opus** | Hardest reasoning in the project |
+| Code review (reviewer agent) | **Opus** | Pinned in `.claude/agents/reviewer.md`; a fresh context that did not write the code |
 | Release audit | **Sonnet** | Tool-driven checks; Opus for judgement calls |
 
 Switch anytime with `/model opus`, `/model sonnet`, `/model haiku`.
@@ -328,13 +333,16 @@ gh issue list --search "REQ-00X in:title"
 | 7 | **test** | - | watch it go RED as tests land, then GREEN as code catches up |
 | 8 | **frontend** | - | if there is UI, eyeball it. Be picky |
 | 9 | **git** | - | `git add -A && git commit -m "feat(REQ-00X): <short-name> (#N)"` |
-| 10 | **git** | - | `git push -u origin feat/REQ-00X-<short-name>` |
-| 11 | **git** | - | `gh pr create` with body `Implements REQ-00X. Closes #N` |
-| 12 | **you** | - | ⬛ **STOP. Review the PR.** Checklist: full suite green · regression gate green · docs and headers updated · traceability intact · hygiene fixes in their own commits |
-| 13 | **git** | - | `gh pr merge --squash --delete-branch` (the Issue auto-closes) |
-| 14 | all | - | **Phase 2c**, then `wrap up` in the claude pane |
+| 10 | **claude** | reviewer (Opus) | type `review REQ-00X`. The reviewer agent checks the branch; its report is saved to `docs/reviews/REQ-00X.md` and committed |
+| 11 | **claude** or **git** | sonnet | **CHANGES REQUESTED?** Fix the Critical and Major findings (by hand, or `bash scripts/loop.sh <N> REQ-00X`, which reads them), commit `fix(REQ-00X): address review round 1 (#N)`, then `review` again. Maximum 2 rounds |
+| 12 | **git** | - | after **APPROVE**: `git push -u origin feat/REQ-00X-<short-name>` |
+| 13 | **git** | - | `gh pr create` with body `Implements REQ-00X. Closes #N. Review: docs/reviews/REQ-00X.md (APPROVE)` |
+| 14 | **you** | - | ⬛ **STOP. Review the PR.** Read the review report first, then the diff. Checklist: full suite green · regression gate green · review APPROVE · docs and headers updated · traceability intact · hygiene fixes in their own commits |
+| 15 | **git** | - | `gh pr merge --squash --delete-branch` (the Issue auto-closes) |
+| 16 | all | - | **Phase 2c**, then `wrap up` in the claude pane |
 
-> **Two hard stops:** step 4 (plan) and step 12 (PR). Loop as much as you like between them, but never cross either without a human "yes."
+> **Two hard stops:** step 4 (plan) and step 14 (PR). Loop as much as you like between them, but never cross either without a human "yes."
+> **One agent gate:** no PR until the reviewer says APPROVE (step 10). Two CHANGES REQUESTED rounds in a row means the plan is wrong: re-plan, do not keep fixing.
 > **One hard signal:** step 7 ends only when the **test** pane is green.
 
 **Prompts (pasted in pane 1):**
@@ -360,6 +368,13 @@ Run `gh issue list --search "REQ-00X in:title"` to find Issue N. Commit as
 body "Implements REQ-00X. Closes #N", with the PR checklist and an "Also fixed" list of any
 chore(hygiene) commits.
 ```
+
+Review - typed in the claude pane (the reviewer runs on Opus by itself):
+```
+review REQ-00X
+```
+You should see the verdict line, the Critical and Major findings, and the report committed as `docs(REQ-00X): review round 1 (#N)`.
+If a finding looks wrong to you, say so: you can overrule the reviewer, but write the reason in the PR body.
 
 ### Unrelated problems found on the way (CLAUDE.md section 10)
 - **Small hygiene** (lint, failing or flaky test, typo, obvious UI defect, under about 20 lines, no behaviour change): fix in its own commit `chore(hygiene): <what> (#N)` on the same branch; list it in the PR.
@@ -408,6 +423,7 @@ It is **bounded**: it exits on a **green full suite**, not on the agent deciding
 | **claude** | idle; the loop spawns its own fresh `claude` each pass |
 
 Then resume the manual table at **step 8**.
+After a CHANGES REQUESTED review, run the same command again: the loop feeds the findings into every pass, and lists any finding the builder disputes for you to decide.
 
 **Guardrails built into `loop.sh` (do not remove):**
 - Refuses to run on `main`, without a plan file, or with a plan that is not `Status: APPROVED`.
@@ -426,8 +442,9 @@ bash scripts/loop.sh <N> REQ-00X
 # → "OK : SUITE GREEN on iteration k"
 git add -A
 git commit -m "feat(REQ-00X): <short-name> (#N)"
+# claude pane: review REQ-00X   → APPROVE (or fix, re-run the loop, review again)
 git push -u origin feat/REQ-00X-<short-name>
-gh pr create --title "feat(REQ-00X): <short-name>" --body "Implements REQ-00X. Closes #N"
+gh pr create --title "feat(REQ-00X): <short-name>" --body "Implements REQ-00X. Closes #N. Review: docs/reviews/REQ-00X.md (APPROVE)"
 gh pr merge <pr-number> --squash --delete-branch
 git checkout main && git pull       # then Phase 2c
 ```
@@ -494,9 +511,10 @@ A bug with no failing test is not fixed; it is hidden.
 | 7 | **claude** | **`/model opus`** | **Localise** prompt: call-map + root-cause hypothesis, no patch |
 | 8 | **claude** | **`/model sonnet`** | **Fix** prompt (minimal fix), or save a plan to `docs/plans/BUG-00X.md`, approve it and run `bash scripts/loop.sh <N> BUG-00X` |
 | 9 | **test** | - | the RED test goes GREEN and the whole suite stays GREEN |
-| 10 | **git** | - | `git commit -am "fix(BUG-00X): <cause> (#N)"` then `git push -u origin fix/BUG-00X` |
-| 11 | **git** | - | `gh pr create --title "fix(BUG-00X): <cause>" --body "Fixes #N (BUG-00X)."` |
-| 12 | **you** | - | ⬛ **STOP. Review the PR**, then `gh pr merge --squash --delete-branch`, then Phase 2c |
+| 10 | **git** | - | `git commit -am "fix(BUG-00X): <cause> (#N)"` |
+| 11 | **claude** | reviewer (Opus) | `review BUG-00X`; fix findings and review again until **APPROVE** (maximum 2 rounds) |
+| 12 | **git** | - | `git push -u origin fix/BUG-00X` then `gh pr create --title "fix(BUG-00X): <cause>" --body "Fixes #N (BUG-00X). Review: docs/reviews/BUG-00X.md (APPROVE)"` |
+| 13 | **you** | - | ⬛ **STOP. Review the PR**, then `gh pr merge --squash --delete-branch`, then Phase 2c |
 
 > **Why two commits (step 6, then step 10):** the failing test lands on its own, so the history proves the bug existed before the fix.
 > **Order that matters:** localise (step 7) comes AFTER the failing test, never before.
@@ -564,6 +582,7 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 |---|---|
 | `setup` | Lists docs still at TEMPLATE or DRAFT and continues the setup order |
 | `next` | Picks the next TASKS item and drafts its plan file |
+| `review [ID]` | The read-only reviewer agent checks the branch; report saved to `docs/reviews/<ID>.md` |
 | `status` | REQ ledger + MEMORY + open TASKS in 5 lines |
 | `audit` | Launch checklist, evidence only, no fixes |
 | `fix <IDs>` | Fixes only those checklist items and re-checks them |

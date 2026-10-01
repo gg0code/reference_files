@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.2. Build ORDER only. Status lives in the GitHub Issue. A REQ line is ticked only when its Issue is closed; `wrap up` syncs the ticks from `gh issue list --state all`. -->
+<!-- Template v2.3. Build ORDER only. Status lives in the GitHub Issue. A REQ line is ticked only when its Issue is closed; `wrap up` syncs the ticks from `gh issue list --state all`. -->
 
 # Tasks
 

@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.2. Mostly reusable. Claude PROPOSES project additions and removals as a list; the user approves each one. Never rewrite wholesale. -->
+<!-- Template v2.3. Mostly reusable. Claude PROPOSES project additions and removals as a list; the user approves each one. Never rewrite wholesale. -->
 
 # Rules
 
@@ -65,7 +65,16 @@ These are not optional polish; a change that omits them is incomplete.
 - After 2 failed attempts at the same fix, stop and explain.
 - Show evidence (command output, screenshots) instead of saying "done".
 
-## 8. Never
+## 8. Review
+Every REQ and BUG branch is reviewed by the read-only reviewer agent before its PR (CLAUDE.md section 5a).
+- **Critical:** wrong behaviour, failing or weakened tests, a security problem, data loss, an unmet acceptance criterion.
+- **Major:** a required test missing, a rule in this file broken, required documentation missing, traceability drift, an unapproved dependency or network call.
+- **Minor:** readability, naming, small duplication, an optional edge-case test.
+- Any Critical or Major finding blocks the PR. Minor findings are fixed if hygiene-sized, otherwise logged.
+- At most 2 review rounds; a second CHANGES REQUESTED means re-plan.
+- The builder never approves its own work, and the reviewer never edits code.
+
+## 9. Never
 - Weaken, skip or delete a test, or edit fixtures or expected data, to get a green suite.
 - Work directly on `main`.
 - Delete existing features or tests without asking.

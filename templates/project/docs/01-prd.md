@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.2. Drafted by Claude (Opus) from 00-idea.md, approved by the user. REQ-IDs are permanent and never renumbered. -->
+<!-- Template v2.3. Drafted by Claude (Opus) from 00-idea.md, approved by the user. REQ-IDs are permanent and never renumbered. -->
 
 # <Product name> - Product Requirements
 

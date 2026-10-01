@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2
+# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.3
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
 #   bash /path/to/reference_files/scaffold.sh <app-name> [node|python|go|rust]
@@ -16,7 +16,7 @@
 #   bash scaffold.sh myapp python
 #
 # The kit layout it expects (next to this script):
-#   templates/project/        CLAUDE.md, docs/, src/, tests/, scripts/README.md, .gitignore
+#   templates/project/        CLAUDE.md, .claude/agents/, docs/, src/, tests/, scripts/README.md, .gitignore
 #   templates/ci.template.yml CI workflow with one block per stack
 #   loop.sh, req_status.sh    copied into <app>/scripts/
 #
@@ -52,7 +52,7 @@ die()  { echo ""; echo "ERROR : $*" >&2; echo "Aborted. Nothing further was run.
 trap 'err "unexpected failure at line $LINENO (command: $BASH_COMMAND)"; exit 1' ERR
 
 echo "=============================================="
-echo " scaffold.sh v2 - project: $APP${STACK:+  (stack: $STACK)}"
+echo " scaffold.sh v2.3 - project: $APP${STACK:+  (stack: $STACK)}"
 echo "=============================================="
 
 # ---------- 0. Preflight ----------
@@ -169,8 +169,8 @@ git add -A || die "git add failed"
 if git diff --cached --quiet; then
   warn "nothing new to commit - working tree already matches HEAD"
 else
-  git commit -qm "chore: scaffold from project template v2.2" || die "git commit failed"
-  ok "committed: chore: scaffold from project template v2.2"
+  git commit -qm "chore: scaffold from project template v2.3" || die "git commit failed"
+  ok "committed: chore: scaffold from project template v2.3"
 fi
 COMMITS="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 [ "$COMMITS" -ge 1 ] || die "no commit exists - a push would fail with 'src refspec main does not match any'"
