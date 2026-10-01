@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.3. Drafted from 01-prd.md acceptance criteria, approved by the user. Tests are written FROM these rows, first. -->
+<!-- Template v2.4. Drafted from 01-prd.md acceptance criteria, approved by the user. Tests are written FROM these rows, first. -->
 
 # <Product name> - Test Plan
 

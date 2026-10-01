@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.4 (adds section 9: browser tools). Mostly reusable. Claude PROPOSES project additions and removals as a list; the user approves each one. Never rewrite wholesale. -->
+<!-- Template v2.4. Mostly reusable. Claude PROPOSES project additions and removals as a list; the user approves each one. Never rewrite wholesale. -->
 
 # Rules
 
@@ -12,7 +12,6 @@ CLAUDE.md holds the working loop; this file holds the detail.
 
 ## 2. Coding rules
 - Follow the stack in 02-architecture.md. No new library, CDN, service or network call without approval.
-  The dev-only test tooling in section 9 is pre-approved.
 - Strict typing where the language supports it; no `any` or equivalent escape hatches.
 - Prefer the existing component library and utilities before writing new ones.
 - Keep files around 200 lines or fewer; split by responsibility when larger.
@@ -58,7 +57,6 @@ These are not optional polish; a change that omits them is incomplete.
 - Follow 03-ui-design.md: tokens only, no hard-coded colours.
 - Mobile first; light and dark both supported where the design says so.
 - Every screen has empty, loading and error states.
-- Every UI change is checked in a real browser at 1440, 1180, 768 and 375 px before review (section 9). Reading the code is not a UI check.
 - Accessibility to WCAG AA is a requirement, not polish.
 
 ## 7. Working with the user
@@ -76,69 +74,9 @@ Every REQ and BUG branch is reviewed by the read-only reviewer agent before its 
 - At most 2 review rounds; a second CHANGES REQUESTED means re-plan.
 - The builder never approves its own work, and the reviewer never edits code.
 
-## 9. Browser tools and test tooling
-Applies to projects with a browser UI. Write "N/A - no browser UI" under the heading otherwise.
-
-### Setup (once per project)
-Run from the repo root, then restart Claude Code and confirm both show as connected in `/mcp`:
-```bash
-claude mcp add --scope project playwright -- npx @playwright/mcp@latest
-claude mcp add --scope project chrome-devtools -- npx chrome-devtools-mcp@latest
-```
-- `--scope project` writes `.mcp.json`. Commit it.
-- Both servers need Node, even when the app's stack is not Node.
-- Package names can change. If a command fails, check the current README of each project.
-
-### Running a browser pass
-- Start the dev server with the command in CLAUDE.md section 2 and use the Local URL from there. Stop the server afterwards.
-- Never use `file://`.
-- Before each pass, clear the app's browser storage (localStorage, sessionStorage, cookies, IndexedDB) and reload, so results do not depend on an earlier session.
-- Sign in only with the test accounts named in CLAUDE.md section 2.
-- Checks that need the preview URL (see "Local-run limits") are run there and marked as such in the evidence.
-
-### Which tool for which check
-| Tool | Use it for |
-|---|---|
-| Playwright MCP | Screenshots of every view at 1440, 1180, 768 and 375 px; no horizontal page scroll |
-| Playwright MCP | Keyboard pass: Tab reaches every interactive element, focus is visible, dialogs trap focus and close with Esc |
-| Playwright MCP | Emulated `prefers-reduced-motion: reduce`, light and dark colour schemes, print |
-| Playwright MCP | Edge cases: unknown route, missing ID, empty and very long input, invalid form values, storage blocked |
-| Playwright MCP | The main user flows from CLAUDE.md section 2, end to end |
-| Chrome DevTools MCP | Network request list after visiting every view: every external host, every failed request |
-| Chrome DevTools MCP | Console errors and warnings on each view |
-| Chrome DevTools MCP | Performance trace of first load; transfer size; resource list |
-| Chrome DevTools MCP | Storage keys and values after user actions |
-| axe-core (through Playwright) or Lighthouse CLI | WCAG AA contrast and accessibility in light and dark; performance score |
-| grep / gitleaks | Secrets and hard-coded URLs in source and built bundles |
-
-### Evidence
-- REQ and BUG work: `audit/screens/<ID>/<view>-<width>.png`.
-- Audits and release checks: `audit/screens/<YYYY-MM-DD>/` and `audit/reports/<YYYY-MM-DD>/` (network list, console log, axe or Lighthouse JSON).
-- Cite the file path as the evidence. A claim about the UI with no screenshot or tool output counts as Fail.
-
-### Offline and degraded check
-Block every external host found in the network list (Playwright route blocking).
-Confirm the app still renders, the core flow still works, and the user sees a clear message for anything that degrades.
-Record what degrades.
-
-### Scripted browser tests
-- Runner: `@playwright/test` for Node stacks, `pytest-playwright` for Python. Accessibility: the axe-core binding for the same runner.
-- Tests live in `tests/e2e/`, carry the doc-lint file header like any source file, and every test title starts with its TC-###.
-- They run inside the full suite and in CI. CI installs the browser first (e.g. `npx playwright install --with-deps chromium`).
-- No fixed sleeps. Wait on a visible state. A flaky browser test is a failing test (CLAUDE.md section 6).
-
-### Pre-approved dev-only tooling
-Playwright (runner and MCP), Chrome DevTools MCP, axe-core bindings, Lighthouse CLI, gitleaks.
-- They are dev dependencies only. The shipped app never loads, references or bundles them.
-- axe-core is injected into the page during a test run, never added to the app as a script tag.
-- Anything else still needs approval.
-
-## 10. Never
+## 9. Never
 - Weaken, skip or delete a test, or edit fixtures or expected data, to get a green suite.
 - Work directly on `main`.
 - Delete existing features or tests without asking.
 - Modify CHANGELOG.md or any auto-generated file by hand.
 - Present placeholder, mock or synthetic data as real.
-- Mark a checklist item Pass, or call a UI change done, from reading code when a browser tool can check it.
-- Point browser tools at production, at any site outside the CLAUDE.md section 2 URLs, or type real credentials into the app.
-- Commit `test-results/`, `playwright-report/` or real user data in screenshots.

@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.3 (2026-10-01).
+Kit version: v2.4 (2026-10-01).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -10,7 +10,7 @@ A copy-paste runbook for the full traceability loop:
 Substitute your own values wherever these appear.
 Pick a small first app (5 to 6 requirements) so a full run fits in one session.
 
-**Phases:** 0 setup · 1 specification · 2 build loop (2b automated loop, 2c after every merge) · 3 bug loop · 4 release.
+**Phases:** 0 setup · 1 specification · 2 build loop (2b automated loop, 2c after every merge, 2d autopilot) · 3 bug loop · 4 release.
 
 **Two agents.** The **builder** is your main Claude session plus `scripts/loop.sh`: it plans, writes tests and code, and fixes findings.
 The **reviewer** is a second, read-only agent (`.claude/agents/reviewer.md`, Opus, fresh context) that checks every branch before its PR and returns a verdict: APPROVE or CHANGES REQUESTED.
@@ -488,6 +488,36 @@ gh api -X PUT repos/:owner/:repo/branches/main/protection \
 ```
 Now an un-green PR cannot merge.
 This is also the moment Phase 1's "commit straight to main" ends for good.
+
+---
+
+## Phase 2d - Autopilot (optional, unattended)
+
+Use it when Phase 1 is approved and you want several requirements built while you are away.
+It runs Phase 2 steps 1 to 13 for each REQ in `docs/TASKS.md` and stops at your gates, depending on the level.
+
+| Level | Run in the git pane | You do before | You do after |
+|---|---|---|---|
+| 1 (default) | `bash scripts/autopilot.sh` | approve the plans (`next`, step 3 to 5) | review and merge the PRs, Phase 2c |
+| 2 | `AUTOPILOT=plan,build bash scripts/autopilot.sh` | nothing | review and merge the PRs, Phase 2c |
+| 3 | `AUTOPILOT=plan,build AUTO_MERGE=1 bash scripts/autopilot.sh` | branch protection on (Phase 2c) | read the report, `wrap up` |
+
+Always start with a dry run, and keep the caps:
+```bash
+DRY_RUN=1 bash scripts/autopilot.sh                           # what would happen, nothing changes
+MAX_REQS=2 MAX_COST=5 bash scripts/autopilot.sh                # level 1, two REQs, 5 USD at most
+bash scripts/autopilot.sh REQ-004 REQ-005                      # exactly these REQs
+NOTIFY_CMD="notify-send Autopilot" bash scripts/autopilot.sh   # desktop note when it ends
+```
+
+When you come back:
+1. Read `.autopilot/<run-id>.md`: what finished, which PRs are open, what stopped and why ("Needs you").
+2. For each open PR, read `docs/reviews/<REQ>.md` first, then the diff; merge, then Phase 2c.
+3. Plans marked `by reviewer agent` deserve a quick read, since you did not approve them.
+4. Type `wrap up`.
+
+> Without `AUTO_MERGE`, each REQ is built from `main` on its own branch, so pick REQs that do not depend on each other.
+> A plan line `Depends on: REQ-00X` makes autopilot skip a REQ until that one is merged.
 
 ---
 

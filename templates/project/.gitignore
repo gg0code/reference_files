@@ -1,7 +1,8 @@
-# Loop scratch files (scripts/loop.sh)
+# Loop and autopilot scratch files (scripts/loop.sh, scripts/autopilot.sh)
 PROMPT.md
 FAILURES.txt
 .loop-*
+.autopilot/
 
 # Personal notes and settings, never shared (.claude/agents/ IS shared)
 CLAUDE.local.md

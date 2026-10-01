@@ -175,7 +175,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.3 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.4 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release, using <code>scaffold.sh</code>, the project templates, <code>loop.sh</code> and <code>req_status.sh</code>. Two agents do the work: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b> that checks every branch before its PR. Fill in your project details and every command and prompt below updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -205,6 +205,12 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
         <label>Its Issue #<input id="v-issue" data-var="ISSUE" value="1" spellcheck="false"></label>
         <label>Short name (branch slug)<input id="v-slug" data-var="SLUG" value="login" spellcheck="false"></label>
         <label>Current BUG-ID<input id="v-bug" data-var="BUG" value="BUG-001" spellcheck="false"></label>
+        <label>Autopilot level
+          <select id="v-level" data-var="LEVEL">
+            <option value="1">1 - build approved plans</option><option value="2">2 - also plans</option><option value="3">3 - also merge</option>
+          </select>
+        </label>
+        <label>Autopilot cost cap (USD)<input id="v-cost" data-var="COST" value="10" spellcheck="false"></label>
         <p class="vnote">Change REQ, Issue and slug each time you start a new requirement. Look the Issue up with the command in Phase 4 step 1.</p>
       </div>
     </form>
@@ -217,6 +223,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
       <a href="#session" data-phase="session">2 · Open session<small></small><span class="mini"><i></i></span></a>
       <a href="#spec" data-phase="spec">3 · Specification<small></small><span class="mini"><i></i></span></a>
       <a href="#build" data-phase="build">4 · Build a REQ<small></small><span class="mini"><i></i></span></a>
+      <a href="#autopilot" data-phase="autopilot">4b · Autopilot<small></small><span class="mini"><i></i></span></a>
       <a href="#bug" data-phase="bug">5 · Fix a bug<small></small><span class="mini"><i></i></span></a>
       <a href="#release" data-phase="release">6 · Release<small></small><span class="mini"><i></i></span></a>
       <a href="#daily" data-phase="daily">Pause / resume<small></small><span class="mini"><i></i></span></a>
@@ -572,6 +579,43 @@ Output a markdown table.</pre>
         </ol>
       </section>
 
+      <!-- ================= AUTOPILOT ================= -->
+      <section class="phase" id="autopilot" data-phase="autopilot">
+        <div class="phase-head"><h2>4b · Autopilot (optional)</h2><span class="when">Instead of Phase 4, build several REQs unattended. Choose the level at the top.</span>
+          <span class="confirm" data-reset="autopilot"><button class="btn small warn" type="button">Clear</button></span></div>
+        <div class="callout gatey">Level 1 builds only plans you approved and stops at the PR. Level 2 lets the reviewer agent approve plans. Level 3 also merges after green CI. The spec docs always stay yours, and anything autopilot cannot decide lands under "Needs you" in its report.</div>
+        <ol class="steps">
+          <li class="step" data-id="a-dry" data-pane="git">
+            <div class="step-body">
+              <div class="step-head"><h3>Dry run first</h3></div>
+              <p>Shows each REQ it would take from TASKS.md and what it would do. Changes nothing.</p>
+              <pre data-label="bash · git pane">{APCMD} DRY_RUN=1 bash scripts/autopilot.sh</pre>
+            </div>
+          </li>
+          <li class="step" data-id="a-run" data-pane="git">
+            <div class="step-body">
+              <div class="step-head"><h3>Start the run and walk away</h3></div>
+              <p>Caps keep it safe: at most 3 REQs, {COST} USD, 2 review rounds each, and it stops at the first REQ that needs you. Level 3 refuses to start without branch protection on main.</p>
+              <pre data-label="bash · git pane">git checkout main && git pull
+{APCMD} MAX_COST={COST} MAX_REQS=3 NOTIFY_CMD="notify-send Autopilot" bash scripts/autopilot.sh</pre>
+            </div>
+          </li>
+          <li class="step gate" data-id="a-back" data-pane="you">
+            <div class="step-body">
+              <div class="step-head"><h3>When you are back: read the report</h3></div>
+              <pre data-label="bash · git pane">ls -t .autopilot/*.md | head -1 | xargs cat
+gh pr list</pre>
+              <ul>
+                <li>"Needs you": each line says what stopped and what to do next.</li>
+                <li>Plans marked <code>by reviewer agent</code>: read them, you did not approve them.</li>
+                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge, then the after-merge checks in Phase 4 step 11.</li>
+              </ul>
+              <pre data-label="prompt · claude pane" class="prompt">wrap up</pre>
+            </div>
+          </li>
+        </ol>
+      </section>
+
       <!-- ================= PHASE 5 ================= -->
       <section class="phase" id="bug" data-phase="bug">
         <div class="phase-head"><h2>5 · Fix a bug</h2><span class="when">Repeat per bug. Set the BUG-ID and its Issue # at the top.</span>
@@ -723,7 +767,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/plans/REQ-00X.md</code></td><td>Approved plan the loop enforces, with a review focus</td><td>Claude drafts, you approve</td></tr>
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
             <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>
-            <tr><td><code>scripts/loop.sh</code>, <code>req_status.sh</code></td><td>Bounded loop, REQ ledger</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>scripts/loop.sh</code>, <code>req_status.sh</code>, <code>autopilot.sh</code></td><td>Bounded loop, REQ ledger, unattended runs</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>.autopilot/</code></td><td>Autopilot run reports and logs (gitignored)</td><td>autopilot.sh</td></tr>
           </tbody>
         </table></div>
 
@@ -753,6 +798,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td>CI fails on Traceability check</td><td>A merged REQ has no test files. Add tests naming the REQ-ID and TC-ID.</td></tr>
             <tr><td>Review says CHANGES REQUESTED twice</td><td>Stop fixing. The plan or the requirement is wrong: re-plan on Opus, re-approve, rebuild.</td></tr>
             <tr><td>Claude does not know the reviewer agent</td><td>Check <code>.claude/agents/reviewer.md</code> exists (copy it from the kit's <code>templates/project/</code>), then restart <code>claude</code>.</td></tr>
+            <tr><td>Autopilot says "needs jq" or "gh is not authenticated"</td><td><code>sudo apt install jq</code>, <code>gh auth login</code></td></tr>
+            <tr><td>Autopilot skipped a REQ: "no approved plan"</td><td>Level 1 only builds plans you approved. Type <code>next</code>, approve the plan, or run level 2.</td></tr>
             <tr><td>Red on main after a merge</td><td><code>git revert -m 1 MERGE_SHA</code> first, then diagnose on a branch.</td></tr>
             <tr><td>tmux opens inside tmux</td><td>Use the switch command in Phase 2 instead of <code>tmux new</code>.</td></tr>
           </tbody>
@@ -768,7 +815,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.3: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.4: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>
@@ -806,6 +853,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     inputs.forEach(function(el){ v[el.dataset.var] = el.value.trim() || el.dataset.var; });
     var s = STACK[v.STACK] || STACK.python;
     v.TEST = s.TEST; v.WATCH = s.WATCH;
+    v.APCMD = {'1':'AUTOPILOT=build', '2':'AUTOPILOT=plan,build', '3':'AUTOPILOT=plan,build AUTO_MERGE=1'}[v.LEVEL] || 'AUTOPILOT=build';
     return v;
   }
 
@@ -911,7 +959,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
       var on = $('input', li).checked;
       li.classList.toggle('done', on); li.classList.remove('is-next');
       var ph = li.closest('section').dataset.phase;
-      if (ph === 'daily' || ph === 'bug') return;      // repeatable side tracks don't count toward overall
+      if (ph === 'daily' || ph === 'bug' || ph === 'autopilot') return;      // repeatable side tracks don't count toward overall
       total++; if (on) done++; else if (!next) next = li;
     });
     if (next) next.classList.add('is-next');

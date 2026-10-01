@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.3 (2026-10-01).
+Kit version: v2.4 (2026-10-01).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -14,6 +14,7 @@ reference_files/
   scaffold.sh                creates a new project from the templates
   loop.sh                    bounded implement-and-test loop for one Issue (copied into each project)
   req_status.sh              REQ-ID ledger and CI traceability check (copied into each project)
+  autopilot.sh               optional unattended runs over several REQs (copied into each project)
   templates/
     ci.template.yml          CI workflow, one block per stack (scaffold.sh activates one)
     project/                 everything a new project starts with
@@ -33,6 +34,7 @@ reference_files/
 | `scaffold.sh` | No | App name and stack are arguments |
 | `loop.sh` | No | Auto-detects the stack; ID, Issue and cap are arguments |
 | `req_status.sh` | No | Reads the project's own docs, git and Issues |
+| `autopilot.sh` | No | Level, caps and REQs are settings and arguments |
 | `runbook.md` | No | You substitute placeholders in the prompts you paste |
 | `templates/ci.template.yml` | No | scaffold.sh activates the block for your stack |
 | `templates/project/*` | Only to improve the kit | Each PROJECT copy is tailored through the `setup` flow |
@@ -90,6 +92,22 @@ Critical or Major findings block the PR; the loop can fix them, then you review 
 Tests, CI and `req_status.sh` stay the deterministic tester, and you stay the final reviewer at the PR.
 Add a third agent (for example a separate test writer) only when you see the builder writing tests its own code was bound to pass.
 
+## Autopilot (optional, unattended)
+
+`bash scripts/autopilot.sh` runs the build loop for several requirements while you are away.
+The spec docs always stay human; autopilot refuses to start until setup is approved.
+
+| Level | Command | Runs unattended | Still waits for you |
+|---|---|---|---|
+| 1 (default) | `bash scripts/autopilot.sh` | Branch, loop, commit, reviewer, fix rounds, push, PR, for REQs whose plan you approved | Plans, PR merges |
+| 2 | `AUTOPILOT=plan,build bash scripts/autopilot.sh` | Also drafts plans; the reviewer agent approves them | PR merges |
+| 3 | add `AUTO_MERGE=1` | Also waits for CI, merges, runs the after-merge checks, continues | Release |
+
+Safety caps: `MAX_REQS=3`, `MAX_COST=10` (USD), `REVIEW_ROUNDS=2`, `STOP_ON_FAIL=1`.
+Try `DRY_RUN=1` first: it shows what each REQ would go through and changes nothing.
+Each run writes `.autopilot/<run-id>.md` with a "Needs you" list, plus a full log.
+Needs jq and an authenticated gh; level 3 refuses to run without branch protection on main.
+
 ## How the pieces fit together
 
 - **CLAUDE.md** sets the working loop, the ID scheme and the commands (`setup`, `next`, `status`, `audit`, `fix`, `release check`, `wrap up`).
@@ -119,6 +137,11 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+
+## Changes in v2.4
+
+- New `autopilot.sh` (levels 1 to 3, cost and REQ caps, dry run, run report); scaffold.sh copies it into `scripts/`.
+- CLAUDE.md section 8a; `.gitignore` ignores `.autopilot/`; runbook Phase 2d.
 
 ## Changes in v2.3
 
