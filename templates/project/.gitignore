@@ -1,0 +1,29 @@
+# Loop scratch files (scripts/loop.sh)
+PROMPT.md
+FAILURES.txt
+.loop-*
+
+# Personal notes, never shared
+CLAUDE.local.md
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
