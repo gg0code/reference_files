@@ -1,7 +1,10 @@
 # scripts
 
 Project tooling copied from the reference kit by scaffold.sh.
-`loop.sh` runs the bounded implement-and-test loop for one Issue.
-`autopilot.sh` (optional) runs plan, loop, review and PR for several REQs unattended, at the level you choose; see its --help.
+None of them needs a REQ-ID or Issue number: they read the ID from the branch name and the Issue number from `docs/TASKS.md`.
+`start.sh` starts the next REQ (or `start.sh bug "symptom"`), and `start.sh status` shows where you are and the next action.
+`loop.sh` runs the bounded implement-and-test loop for the current branch.
+`pr.sh` opens the PR once the reviewer approves; `pr.sh merge` merges after your review and runs the after-merge checks.
 `req_status.sh` prints the REQ-ID ledger and, with `--strict`, fails if a merged REQ has no tests.
+`autopilot.sh` (optional) runs several REQs unattended at the level you choose; see its `--help`.
 Update them by copying newer versions from the kit, not by editing them here.

@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.4 (2026-10-01).
+Kit version: v2.5 (2026-10-01).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -294,13 +294,18 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
 ### Step 12 - Close setup
 Set `docs/MEMORY.md` line 1 to `Status: APPROVED - <date>` and add the first session-log line.
 Type `setup` once more: Claude should report nothing left at TEMPLATE or DRAFT.
-From here on, every change goes through a branch and a PR.
+From here on, every change goes through a branch and a PR, starting with `bash scripts/start.sh`.
 
 ---
 
-## Phase 2 - Build loop (repeat once per Issue)
+## Phase 2 - Build loop (repeat once per requirement)
 
 **Exit condition = the FULL test suite is GREEN. Not "it looks right." Green.**
+
+You never type a REQ-ID or an Issue number in this phase.
+`scripts/start.sh` picks the next requirement from `docs/TASKS.md` and creates a branch whose name carries the ID (`feat/REQ-003-profile`).
+From then on `loop.sh`, `pr.sh`, `next` and `review` read the ID from the branch name and the Issue number from the TASKS line.
+Lost? `bash scripts/start.sh status` shows the current ID, Issue, plan, review, PR and the next action.
 
 ### First: set up the panes (once, when Phase 2 begins)
 
@@ -308,93 +313,80 @@ From here on, every change goes through a branch and a PR.
 |---|---|---|
 | **claude** | `claude` is already running | you type every prompt here |
 | **test** | the watcher (Python: `ptw .` · Node: `npm test -- --watch`) | **leave it running all day** |
-| **git** | your shell, sitting on `main` | every git/gh command |
+| **git** | your shell, sitting on `main` | every script, git and gh command |
 | **frontend** | your run command once code exists, else `ccusage blocks --live` | view the app |
 
 > **`test` is your traffic light.** It re-runs the tests on every save. You never type in it; you only look at it.
-
-### Find the Issue number
-GitHub numbers Issues in creation order, so `REQ-002` will not reliably be `#2`.
-`docs/TASKS.md` lists it, and one lookup removes all doubt:
-```bash
-gh issue list --search "REQ-00X in:title"
-```
 
 ### The loop, one step at a time
 
 | Step | Pane | Model | Do exactly this |
 |---|---|---|---|
-| 1 | **git** | - | `git checkout main && git pull` |
-| 2 | **git** | - | `git checkout -b feat/REQ-00X-<short-name>` |
-| 3 | **claude** | **`/model opus`** | type `next`, or paste the **Plan** prompt. Plan only, NO code |
-| 4 | **you** | - | ⬛ **STOP. Read the plan. Approve or fix it.** Then set its line 1 to `Status: APPROVED - <date>` |
-| 5 | **git** | - | `git add docs/plans/REQ-00X.md && git commit -m "docs(REQ-00X): approved plan (#N)"` |
-| 6 | **claude** or **git** | **`/model sonnet`** | implement by hand (**Implement** prompt) **or** run the loop (Phase 2b) |
-| 7 | **test** | - | watch it go RED as tests land, then GREEN as code catches up |
-| 8 | **frontend** | - | if there is UI, eyeball it. Be picky |
-| 9 | **git** | - | `git add -A && git commit -m "feat(REQ-00X): <short-name> (#N)"` |
-| 10 | **claude** | reviewer (Opus) | type `review REQ-00X`. The reviewer agent checks the branch; its report is saved to `docs/reviews/REQ-00X.md` and committed |
-| 11 | **claude** or **git** | sonnet | **CHANGES REQUESTED?** Fix the Critical and Major findings (by hand, or `bash scripts/loop.sh <N> REQ-00X`, which reads them), commit `fix(REQ-00X): address review round 1 (#N)`, then `review` again. Maximum 2 rounds |
-| 12 | **git** | - | after **APPROVE**: `git push -u origin feat/REQ-00X-<short-name>` |
-| 13 | **git** | - | `gh pr create` with body `Implements REQ-00X. Closes #N. Review: docs/reviews/REQ-00X.md (APPROVE)` |
-| 14 | **you** | - | ⬛ **STOP. Review the PR.** Read the review report first, then the diff. Checklist: full suite green · regression gate green · review APPROVE · docs and headers updated · traceability intact · hygiene fixes in their own commits |
-| 15 | **git** | - | `gh pr merge --squash --delete-branch` (the Issue auto-closes) |
-| 16 | all | - | **Phase 2c**, then `wrap up` in the claude pane |
+| 1 | **git** | - | `bash scripts/start.sh` - picks the next unticked REQ, finds its Issue, creates the branch, prints what it chose |
+| 2 | **claude** | **`/model opus`** | `next` - drafts `docs/plans/<REQ>.md` for the current branch. Plan only, NO code |
+| 3 | **you** | - | ⬛ **STOP. Read the plan. Approve or fix it.** Then set its line 1 to `Status: APPROVED - <date>` |
+| 4 | **git** | - | `git add docs/plans && git commit -m "docs: approved plan"` |
+| 5 | **git** | **sonnet** | `bash scripts/loop.sh` (Phase 2b), or implement by hand with the **Implement** prompt |
+| 6 | **test** | - | watch it go RED as tests land, then GREEN as code catches up |
+| 7 | **frontend** | - | if there is UI, eyeball it. Be picky |
+| 8 | **git** | - | `git add -A && git commit -m "feat: <summary>"` (the loop prints the exact message with the ID and Issue) |
+| 9 | **claude** | reviewer (Opus) | `review` - the reviewer agent checks the branch; its report is saved to `docs/reviews/<REQ>.md` and committed |
+| 10 | **git** | sonnet | **CHANGES REQUESTED?** `bash scripts/loop.sh` again (it reads the findings), commit, then `review` again. Maximum 2 rounds |
+| 11 | **git** | - | after **APPROVE**: `bash scripts/pr.sh` - pushes and opens the PR (it refuses without an APPROVE) |
+| 12 | **you** | - | ⬛ **STOP. Review the PR.** Read the review report first, then the diff |
+| 13 | **git** | - | `bash scripts/pr.sh merge` - asks you to confirm, waits for CI, merges, runs the after-merge checks (Phase 2c) |
+| 14 | **claude** | opus, then haiku | the traceability audit prompt (Phase 2c), then `wrap up`. Next requirement: back to step 1 |
 
-> **Two hard stops:** step 4 (plan) and step 14 (PR). Loop as much as you like between them, but never cross either without a human "yes."
-> **One agent gate:** no PR until the reviewer says APPROVE (step 10). Two CHANGES REQUESTED rounds in a row means the plan is wrong: re-plan, do not keep fixing.
-> **One hard signal:** step 7 ends only when the **test** pane is green.
+> **Two hard stops:** step 3 (plan) and step 12 (PR). Loop as much as you like between them, but never cross either without a human "yes."
+> **One agent gate:** `pr.sh` will not open a PR until the reviewer says APPROVE. Two CHANGES REQUESTED rounds in a row means the plan is wrong: re-plan, do not keep fixing.
+> **One hard signal:** step 6 ends only when the **test** pane is green.
 
-**Prompts (pasted in pane 1):**
+`start.sh` refuses to start new work while you are on an unfinished branch, so you cannot lose track of a half-done requirement (`FORCE=1` overrides).
+To work on a specific requirement instead of the next one: `bash scripts/start.sh REQ-004`.
 
-Plan - `/model opus`:
+**Prompts (pasted in the claude pane):**
+
+Plan - `/model opus` (or just type `next`):
 ```
-Issue #N / REQ-00X. Write an implementation plan ONLY to docs/plans/REQ-00X.md, starting
-from docs/plans/_TEMPLATE.md: goal, TC-IDs covered, approach, files to touch, risks, and the
-iteration cap. Keep line 1 as "Status: DRAFT". No code yet.
-```
-
-Implement - `/model sonnet`:
-```
-Implement REQ-00X per the approved plan in docs/plans/REQ-00X.md. Write the tests first from
-the TC rows, then the code, until the FULL suite is green. Follow docs/RULES.md section 3 for
-file headers, function doc blocks and directory READMEs.
+Write an implementation plan ONLY for the REQ in the current branch name, to docs/plans/<REQ>.md,
+starting from docs/plans/_TEMPLATE.md: goal, TC-IDs covered, approach, files to touch, risks,
+review focus and the iteration cap. Keep line 1 as "Status: DRAFT". No code yet.
 ```
 
-Commit + PR wording - `/model haiku` (optional):
+Implement by hand - `/model sonnet`:
 ```
-Run `gh issue list --search "REQ-00X in:title"` to find Issue N. Commit as
-"feat(REQ-00X): <short name> (#N)". Open a PR titled "feat(REQ-00X): <short name>",
-body "Implements REQ-00X. Closes #N", with the PR checklist and an "Also fixed" list of any
-chore(hygiene) commits.
+Implement the REQ in the current branch name per its approved plan in docs/plans/. Write the tests
+first from the TC rows, then the code, until the FULL suite is green. Follow docs/RULES.md
+section 3 for file headers, function doc blocks and directory READMEs.
 ```
 
 Review - typed in the claude pane (the reviewer runs on Opus by itself):
 ```
-review REQ-00X
+review
 ```
-You should see the verdict line, the Critical and Major findings, and the report committed as `docs(REQ-00X): review round 1 (#N)`.
+You should see the verdict line, the Critical and Major findings, and the report committed.
 If a finding looks wrong to you, say so: you can overrule the reviewer, but write the reason in the PR body.
 
 ### Unrelated problems found on the way (CLAUDE.md section 10)
-- **Small hygiene** (lint, failing or flaky test, typo, obvious UI defect, under about 20 lines, no behaviour change): fix in its own commit `chore(hygiene): <what> (#N)` on the same branch; list it in the PR.
-- **Anything bigger:** open a `BUG-00X` Issue or add a chore line to `docs/TASKS.md`; do not fix it in this PR.
+- **Small hygiene** (lint, failing or flaky test, typo, obvious UI defect, under about 20 lines, no behaviour change): fix in its own commit `chore(hygiene): <what>` on the same branch; list it in the PR.
+- **Anything bigger:** `bash scripts/start.sh bug "symptom"` later, or add a chore line to `docs/TASKS.md`; do not fix it in this PR.
 
 ### Pausing overnight, resuming tomorrow
 State lives in **git + Issues + tests + docs**, not in the chat.
 
 **Before you stop:** type `wrap up` in the claude pane, then in the git pane:
 ```bash
-git add -A
-git commit -m "wip(REQ-00X): <one line on exactly where you stopped>"
-git push
+git add -A && git commit -m "wip: exactly where I stopped" && git push
 ```
-Personal notes can go in `CLAUDE.local.md` (gitignored).
 
-**Tomorrow:** git pane `git checkout feat/REQ-00X-<short-name>`, restart the watcher in the test pane, then in claude (start on `/model sonnet`):
+**Tomorrow:** restart the watcher in the test pane, then in the git pane:
+```bash
+bash scripts/start.sh status      # which REQ, plan, review and PR state, and the next action
 ```
-Resuming. Before any code: run `git log --oneline -5`, `gh issue view <N>`, `bash scripts/req_status.sh`
-and the full test suite; read docs/MEMORY.md, REQ-00X in docs/01-prd.md and docs/plans/REQ-00X.md.
+and in the claude pane (start on `/model sonnet`):
+```
+Resuming. Before any code: run `bash scripts/start.sh status`, `git log --oneline -5`, `bash scripts/req_status.sh`
+and the full test suite; read docs/MEMORY.md, the current REQ in docs/01-prd.md and its plan in docs/plans/.
 Summarise what is done, what is left, and the next step. Do NOT write code until I approve.
 ```
 
@@ -402,27 +394,24 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
 
 ## Phase 2b - Automate the grind with the LOOP (bounded Ralph)
 
-Steps 6 and 7 are the repetitive part: implement, check the test pane, feed back the failure, repeat.
+Steps 5 and 6 are the repetitive part: implement, check the test pane, feed back the failure, repeat.
 `scripts/loop.sh` automates exactly that inner grind and nothing else.
-It never touches your two human gates.
+It never touches your human gates.
 
 **What it is:** the Ralph loop (Geoffrey Huntley) runs the agent in a shell loop with a **fresh context every pass** (quality degrades past roughly 100 to 150k tokens).
 State survives in files and git, not chat history.
 It is **bounded**: it exits on a **green full suite**, not on the agent deciding it is done, and it stops at an iteration cap.
 
 > **The catch fresh context creates:** each pass sees only files, not your chat.
-> So the plan you approved must live in `docs/plans/REQ-00X.md` with line 1 `Status: APPROVED - <date>`.
+> So the approved plan must live in `docs/plans/<REQ>.md` with line 1 `Status: APPROVED - <date>`.
 > `loop.sh` refuses to run without that, and injects the plan into every pass under "APPROVED PLAN - follow this exactly".
-
-**When to use it:** after step 5 (plan approved and committed), instead of hand-running steps 6 and 7.
 
 | Pane | Fire this |
 |---|---|
-| **git** | `bash scripts/loop.sh <N> REQ-00X` (cap from the plan's "Maximum loop iterations" line, else 8) |
+| **git** | `bash scripts/loop.sh` (cap from the plan's "Maximum loop iterations" line, else 8; `bash scripts/loop.sh 5` to override) |
 | **test** | `watch -n2 'tail -20 .loop-test-out.txt 2>/dev/null'` |
 | **claude** | idle; the loop spawns its own fresh `claude` each pass |
 
-Then resume the manual table at **step 8**.
 After a CHANGES REQUESTED review, run the same command again: the loop feeds the findings into every pass, and lists any finding the builder disputes for you to decide.
 
 **Guardrails built into `loop.sh` (do not remove):**
@@ -435,18 +424,15 @@ After a CHANGES REQUESTED review, run the same command again: the loop feeds the
 
 **Full example (git pane):**
 ```bash
-git checkout main && git pull
-git checkout -b feat/REQ-00X-<short-name>
-git add docs/plans/REQ-00X.md && git commit -m "docs(REQ-00X): approved plan (#N)"
-bash scripts/loop.sh <N> REQ-00X
-# → "OK : SUITE GREEN on iteration k"
-git add -A
-git commit -m "feat(REQ-00X): <short-name> (#N)"
-# claude pane: review REQ-00X   → APPROVE (or fix, re-run the loop, review again)
-git push -u origin feat/REQ-00X-<short-name>
-gh pr create --title "feat(REQ-00X): <short-name>" --body "Implements REQ-00X. Closes #N. Review: docs/reviews/REQ-00X.md (APPROVE)"
-gh pr merge <pr-number> --squash --delete-branch
-git checkout main && git pull       # then Phase 2c
+bash scripts/start.sh                 # next REQ, branch created
+# claude pane: next  → approve the plan (line 1), then:
+git add docs/plans && git commit -m "docs: approved plan"
+bash scripts/loop.sh                  # → "OK : SUITE GREEN on iteration k"
+git add -A && git commit -m "feat(REQ-00X): <summary> (#N)"   # the loop prints this line filled in
+# claude pane: review  → APPROVE (or loop again, commit, review again)
+bash scripts/pr.sh                    # push + PR
+# review the PR on GitHub, then:
+bash scripts/pr.sh merge              # CI, merge, after-merge checks
 ```
 
 ---
@@ -454,19 +440,19 @@ git checkout main && git pull       # then Phase 2c
 ## Phase 2c - 🔴 After EVERY merged PR (do not skip)
 
 A green branch is not a green project.
-Run these five, in order, after every merge.
+`bash scripts/pr.sh merge` already does steps 1 to 3; finish with 4 and 5.
 
 | Step | Pane | Model | Do this |
 |---|---|---|---|
-| 1 | **git** | - | `git checkout main && git pull`, then the **FULL** suite, no filters |
-| 2 | **git** | - | confirm CI is green on `main` (the GitHub check), not just on the branch |
-| 3 | **git** | - | `bash scripts/req_status.sh --strict` - every merged REQ-ID has tests |
+| 1 | **git** | - | on `main`, the **FULL** suite, no filters (done by `pr.sh merge`) |
+| 2 | **git** | - | CI status on `main` (shown by `pr.sh merge`; check GitHub again if it was still running) |
+| 3 | **git** | - | `bash scripts/req_status.sh --strict` - every merged REQ-ID has tests (done by `pr.sh merge`) |
 | 4 | **claude** | **`/model opus`** | paste the **traceability audit** prompt (below) |
 | 5 | **claude** | **`/model haiku`** | `wrap up` - regenerates `docs/REQUIREMENTS_STATUS.md`, ticks TASKS from closed Issues, updates MEMORY |
 
-> Red on `main` after a merge → **revert first, diagnose second:** `git revert -m 1 <merge-sha>`.
-> Only when all five are clean do you start the next Issue.
-> Doc updates after merge (file headers, architecture rows, MEMORY, TASKS) go through a small `docs/` branch and PR, because `main` is protected.
+> Red on `main` after a merge: `pr.sh merge` stops and prints the revert commands. **Revert first, diagnose second.**
+> Only when all five are clean do you run `bash scripts/start.sh` for the next requirement.
+> Doc updates after merge (file headers, architecture rows, MEMORY, TASKS) go through a small branch and PR, because `main` is protected.
 
 Traceability audit - `/model opus`:
 ```
@@ -477,7 +463,7 @@ any failing test, and any architecture row that no longer matches the code.
 Output a markdown table.
 ```
 
-**One-time setup so step 2 cannot be forgotten** (git pane, after CI has run once):
+**One-time setup so a red PR can never merge** (git pane, after CI has run once):
 ```bash
 gh api -X PUT repos/:owner/:repo/branches/main/protection \
   -F required_status_checks[strict]=true \
@@ -486,7 +472,6 @@ gh api -X PUT repos/:owner/:repo/branches/main/protection \
   -F required_pull_request_reviews=null \
   -F restrictions=null
 ```
-Now an un-green PR cannot merge.
 This is also the moment Phase 1's "commit straight to main" ends for good.
 
 ---
@@ -494,11 +479,11 @@ This is also the moment Phase 1's "commit straight to main" ends for good.
 ## Phase 2d - Autopilot (optional, unattended)
 
 Use it when Phase 1 is approved and you want several requirements built while you are away.
-It runs Phase 2 steps 1 to 13 for each REQ in `docs/TASKS.md` and stops at your gates, depending on the level.
+It runs Phase 2 steps 1 to 11 for each REQ in `docs/TASKS.md` and stops at your gates, depending on the level.
 
 | Level | Run in the git pane | You do before | You do after |
 |---|---|---|---|
-| 1 (default) | `bash scripts/autopilot.sh` | approve the plans (`next`, step 3 to 5) | review and merge the PRs, Phase 2c |
+| 1 (default) | `bash scripts/autopilot.sh` | approve the plans (`start.sh` + `next`, steps 1 to 4) | review and merge the PRs, Phase 2c |
 | 2 | `AUTOPILOT=plan,build bash scripts/autopilot.sh` | nothing | review and merge the PRs, Phase 2c |
 | 3 | `AUTOPILOT=plan,build AUTO_MERGE=1 bash scripts/autopilot.sh` | branch protection on (Phase 2c) | read the report, `wrap up` |
 
@@ -521,41 +506,37 @@ When you come back:
 
 ---
 
+
 ## Phase 3 - Bug loop (repeat once per bug)
 
 Same shape as Phase 2, with a sharper exit: **a test that was RED goes GREEN, and the full suite stays GREEN.**
 A bug with no failing test is not fixed; it is hidden.
-
-### The loop, one step at a time
-
-`BUG-00X` = the bug's ID, `#N` = the Issue you file for it, `<cause>` = a short slug.
+You never pick a BUG number: `start.sh bug` takes the next free one, files the Issue and creates `fix/BUG-00X`.
 
 | Step | Pane | Model | Do exactly this |
 |---|---|---|---|
 | 1 | **you** | - | observe the symptom as a real user would (in **frontend** if it is UI) |
-| 2 | **git** | - | `gh issue create --title "BUG-00X: <symptom>" --label bug` with repro steps, expected vs actual |
-| 3 | **git** | - | `git checkout main && git pull` then `git checkout -b fix/BUG-00X` |
-| 4 | **claude** | **`/model sonnet`** | **Reproduce** prompt: reproduce END-TO-END, write a FAILING test, NO fix |
-| 5 | **test** | - | confirm the new test is **RED**. That red is your proof |
-| 6 | **git** | - | commit the failing test alone: `git commit -am "test(BUG-00X): failing test for #N"` |
-| 7 | **claude** | **`/model opus`** | **Localise** prompt: call-map + root-cause hypothesis, no patch |
-| 8 | **claude** | **`/model sonnet`** | **Fix** prompt (minimal fix), or save a plan to `docs/plans/BUG-00X.md`, approve it and run `bash scripts/loop.sh <N> BUG-00X` |
-| 9 | **test** | - | the RED test goes GREEN and the whole suite stays GREEN |
-| 10 | **git** | - | `git commit -am "fix(BUG-00X): <cause> (#N)"` |
-| 11 | **claude** | reviewer (Opus) | `review BUG-00X`; fix findings and review again until **APPROVE** (maximum 2 rounds) |
-| 12 | **git** | - | `git push -u origin fix/BUG-00X` then `gh pr create --title "fix(BUG-00X): <cause>" --body "Fixes #N (BUG-00X). Review: docs/reviews/BUG-00X.md (APPROVE)"` |
-| 13 | **you** | - | ⬛ **STOP. Review the PR**, then `gh pr merge --squash --delete-branch`, then Phase 2c |
+| 2 | **git** | - | `bash scripts/start.sh bug "login fails with an empty password"` - files the Issue, creates the branch; add the steps, expected and actual to the Issue |
+| 3 | **claude** | **`/model sonnet`** | **Reproduce** prompt: reproduce END-TO-END, write a FAILING test, NO fix |
+| 4 | **test** | - | confirm the new test is **RED**. That red is your proof |
+| 5 | **git** | - | commit the failing test alone: `git commit -am "test: failing test for the bug"` |
+| 6 | **claude** | **`/model opus`** | **Localise** prompt: call-map + root-cause hypothesis, no patch |
+| 7 | **claude** | **`/model sonnet`** | **Fix** prompt (minimal fix), or `next` for a plan, approve it, then `bash scripts/loop.sh` |
+| 8 | **test** | - | the RED test goes GREEN and the whole suite stays GREEN |
+| 9 | **git** | - | `git commit -am "fix: <cause>"` |
+| 10 | **claude** | reviewer (Opus) | `review`; fix findings and review again until **APPROVE** (maximum 2 rounds) |
+| 11 | **git** | - | `bash scripts/pr.sh`, review the PR, then `bash scripts/pr.sh merge` |
 
-> **Why two commits (step 6, then step 10):** the failing test lands on its own, so the history proves the bug existed before the fix.
-> **Order that matters:** localise (step 7) comes AFTER the failing test, never before.
+> **Why two commits (step 5, then step 9):** the failing test lands on its own, so the history proves the bug existed before the fix.
+> **Order that matters:** localise (step 6) comes AFTER the failing test, never before.
 > Record the test in `docs/04-testplan.md` section 5 and any lesson in `docs/MEMORY.md`.
 
 **Prompts:**
 
 Reproduce - `/model sonnet`:
 ```
-BUG-00X: <symptom>. Expected <x>, actual <y>. Reproduce it end-to-end as a user would,
-then write a FAILING test that captures exactly this bug. Do NOT fix anything yet;
+The bug in the current branch name: reproduce it end-to-end as a user would, using the steps in its
+GitHub Issue, then write a FAILING test that captures exactly this bug. Do NOT fix anything yet;
 show me the test go red.
 ```
 
@@ -567,8 +548,8 @@ single best hypothesis for the root cause. Don't patch yet.
 
 Fix - `/model sonnet`:
 ```
-Apply the minimal fix for BUG-00X. The failing test must go green and the full suite must
-stay green. Do not weaken or skip any test.
+Apply the minimal fix for the bug in the current branch name. The failing test must go green and
+the full suite must stay green. Do not weaken or skip any test.
 ```
 
 ---
@@ -618,3 +599,17 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `fix <IDs>` | Fixes only those checklist items and re-checks them |
 | `release check` | Re-runs blocking sections, adds an audit-log row |
 | `wrap up` | Regenerates the REQ ledger, syncs TASKS, updates MEMORY |
+
+## Scripts cheat-sheet (git pane; none of them needs an ID)
+
+| Command | What happens |
+|---|---|
+| `bash scripts/start.sh` | Next unticked REQ from TASKS.md: finds its Issue, creates the branch |
+| `bash scripts/start.sh REQ-004` | Start or resume that REQ |
+| `bash scripts/start.sh bug "symptom"` | Next BUG-ID: files the Issue, creates `fix/BUG-00X` |
+| `bash scripts/start.sh status` | Where am I: ID, Issue, plan, review, PR, next action |
+| `bash scripts/loop.sh` | Bounded implement-and-test loop for the current branch |
+| `bash scripts/pr.sh` | Push and open the PR (needs a reviewer APPROVE) |
+| `bash scripts/pr.sh merge` | After your PR review: CI, merge, after-merge checks |
+| `bash scripts/req_status.sh` | Ledger of every REQ |
+| `bash scripts/autopilot.sh` | Optional unattended runs (Phase 2d) |

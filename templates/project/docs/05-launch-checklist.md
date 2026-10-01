@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.4. Release gate. Claude PROPOSES project additions and removals; the user approves each change. -->
+<!-- Template v2.5. Release gate. Claude PROPOSES project additions and removals; the user approves each change. -->
 
 # <Product name> - Launch Checklist
 

@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.4. Mostly reusable. Claude PROPOSES project additions and removals as a list; the user approves each one. Never rewrite wholesale. -->
+<!-- Template v2.5. Mostly reusable. Claude PROPOSES project additions and removals as a list; the user approves each one. Never rewrite wholesale. -->
 
 # Rules
 

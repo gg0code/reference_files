@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.4 (2026-10-01).
+Kit version: v2.5 (2026-10-01).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -12,6 +12,8 @@ reference_files/
   runbook.md                 step-by-step playbook: setup, spec chain, build loop, bug loop, release
   spec-driven-build-guide.html  the runbook as an interactive page: open in a browser
   scaffold.sh                creates a new project from the templates
+  start.sh                   starts the next REQ or a BUG, shows status (copied into each project)
+  pr.sh                      opens the PR after review, merges with after-merge checks (copied into each project)
   loop.sh                    bounded implement-and-test loop for one Issue (copied into each project)
   req_status.sh              REQ-ID ledger and CI traceability check (copied into each project)
   autopilot.sh               optional unattended runs over several REQs (copied into each project)
@@ -32,7 +34,8 @@ reference_files/
 | File | Edit it? | How it varies per project |
 |---|---|---|
 | `scaffold.sh` | No | App name and stack are arguments |
-| `loop.sh` | No | Auto-detects the stack; ID, Issue and cap are arguments |
+| `start.sh`, `pr.sh` | No | Read the ID from the branch and the Issue from TASKS.md |
+| `loop.sh` | No | Auto-detects the stack; ID and Issue come from the branch and TASKS.md |
 | `req_status.sh` | No | Reads the project's own docs, git and Issues |
 | `autopilot.sh` | No | Level, caps and REQs are settings and arguments |
 | `runbook.md` | No | You substitute placeholders in the prompts you paste |
@@ -137,6 +140,13 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+
+## Changes in v2.5
+
+- No more typing REQ-IDs, Issue numbers or BUG-IDs.
+  New `start.sh` (next REQ, `bug "symptom"`, `status`) and `pr.sh` (open PR after APPROVE, `merge` with after-merge checks).
+- `loop.sh` v9 runs with no arguments on a REQ or BUG branch; `next` and `review` use the current branch's ID.
+- Runbook Phases 2, 2b, 2c and 3 and the HTML guide use the ID-free commands; the guide only asks for app, stack, folders and GitHub user.
 
 ## Changes in v2.4
 

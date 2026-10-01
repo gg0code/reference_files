@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v8
-# Usage:  bash scripts/loop.sh <issue-number> <REQ-00X|BUG-00X> [max-iters]
-#   e.g.  bash scripts/loop.sh 12 REQ-001   (the REQ number need not equal the Issue number)
+# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v9
+# Usage:  bash scripts/loop.sh [max-iters]          (ID from the branch, Issue from docs/TASKS.md)
+#         bash scripts/loop.sh <issue-number> <REQ-00X|BUG-00X> [max-iters]   (explicit form)
 #
 # Loops inside an Issue; NEVER loops across a review gate.
 #   - fresh context every iteration (context quality degrades past ~100-150k tokens)
@@ -18,9 +18,11 @@
 #      single version string everywhere.
 #   v8 reads docs/reviews/<ID>.md: a CHANGES REQUESTED review is fed into every pass
 #      so the loop fixes the reviewer's findings; on green it sends you to "review".
+#   v9 no arguments needed: the ID comes from the branch name (feat/REQ-001-x, fix/BUG-002)
+#      and the Issue number from docs/TASKS.md or GitHub.
 set -uo pipefail
 
-LOOP_VERSION="v8"
+LOOP_VERSION="v9"
 
 # ---------- help / usage ----------
 usage() {
@@ -37,18 +39,16 @@ WHAT IT DOES
   created or modified this run.
 
 INVOCATION
-  bash scripts/loop.sh <issue-number> <ID> [max-iters]
+  bash scripts/loop.sh                    on a branch made by start.sh: ID and Issue are found for you
+  bash scripts/loop.sh 5                  same, with an iteration cap of 5
+  bash scripts/loop.sh <issue#> <ID> [N]  explicit form (used by autopilot.sh)
   bash scripts/loop.sh --help
 
-  <issue-number>   GitHub Issue number, e.g. 12
-  <ID>             REQ-00X (feature) or BUG-00X (bug fix)
   [max-iters]      Hard cap. Default: the plan's "Maximum loop iterations: N" line, else 8.
 
   Examples:
-    bash scripts/loop.sh 12 REQ-001
-    bash scripts/loop.sh 12 REQ-001 5
-    TEST_CMD="pytest -q" bash scripts/loop.sh 12 REQ-001
-    PLAN_FILE=docs/plans/REQ-001.md bash scripts/loop.sh 12 REQ-001
+    bash scripts/loop.sh
+    TEST_CMD="pytest -q" bash scripts/loop.sh
 
 ENV OVERRIDES
   TEST_CMD    Force the test command (else auto-detected per stack:
@@ -83,7 +83,7 @@ ONE-TIME SETUP (per machine / workspace)
 
 BEFORE EVERY RUN (per Issue)
   1. On a FEATURE branch (the loop refuses main/master):
-       git checkout -b feat/REQ-001-short-name      (bugs: fix/BUG-001)
+       bash scripts/start.sh                         (bugs: bash scripts/start.sh bug "symptom")
   2. Plan approved and saved to docs/plans/<ID>.md with first line
      "Status: APPROVED - <date>", then committed:
        git add docs/plans/REQ-001.md && git commit -m "docs(REQ-001): approved plan (#12)"
@@ -101,16 +101,28 @@ HELP
 }
 
 case "${1:-}" in
-  -h|--help|help|"") usage; exit 0 ;;
+  -h|--help|help) usage; exit 0 ;;
 esac
-
-ISSUE="${1:?ERROR : issue number required   (usage: bash scripts/loop.sh <issue#> <REQ-00X|BUG-00X>)}"
-ID="${2:?ERROR : REQ-ID or BUG-ID required  (usage: bash scripts/loop.sh <issue#> <REQ-00X|BUG-00X>)}"
-CAP_ARG="${3:-}"
 
 ok()   { echo "    OK    : $*"; }
 err()  { echo "    ERROR : $*" >&2; }
 step() { echo ""; echo "==> $*"; }
+
+if [ $# -ge 2 ]; then
+  ISSUE="$1"; ID="$2"; CAP_ARG="${3:-}"
+else
+  CAP_ARG="${1:-}"
+  _root="$(git rev-parse --show-toplevel 2>/dev/null)" || { err "not inside a git repo"; exit 1; }
+  cd "$_root" || exit 1
+  ID="$(git branch --show-current | grep -oE '(REQ|BUG)-[0-9]{3}' | head -1)"
+  [ -n "$ID" ] || { err "not on a REQ or BUG branch ($(git branch --show-current)). Start work with: bash scripts/start.sh"; exit 1; }
+  ISSUE="$(grep -E "^[[:space:]]*- \[[ x]\] $ID \(#[0-9]+\)" docs/TASKS.md 2>/dev/null | head -1 | sed -nE 's/.*\(#([0-9]+)\).*/\1/p')"
+  if [ -z "$ISSUE" ] && command -v gh >/dev/null 2>&1; then
+    ISSUE="$(gh issue list --search "$ID in:title" --state all --json number --jq '.[0].number // empty' 2>/dev/null)"
+  fi
+  [ -n "$ISSUE" ] || { err "no Issue number for $ID (docs/TASKS.md line '$ID (#N) ...' or a GitHub Issue titled '$ID: ...')"; exit 1; }
+fi
+case "$ISSUE" in ''|*[!0-9]*) err "Issue number must be numeric (got '$ISSUE')"; exit 1 ;; esac
 
 case "$ID" in
   REQ-[0-9]*) KIND="feat"; WHAT="requirement" ;;
@@ -128,7 +140,7 @@ ok "repo  : $ROOT"
 BRANCH="$(git branch --show-current)"
 if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
   err "refusing to loop on '$BRANCH'. Create a branch first:"
-  if [ "$KIND" = feat ]; then echo "            git checkout -b feat/${ID}-short-name"; else echo "            git checkout -b fix/${ID}"; fi
+  echo "            bash scripts/start.sh"
   exit 1
 fi
 ok "branch: $BRANCH"
@@ -156,7 +168,7 @@ $(echo "$HITS" | sed 's/^/        /')"
     err "${ID} looks ALREADY DONE:"
     printf '%s\n' "$DONE_HINTS"
     echo "    Re-running re-implements ${ID} and can create duplicates or conflicts."
-    echo "    If you truly want to run it again:  FORCE=1 bash scripts/loop.sh $ISSUE $ID"
+    echo "    If you truly want to run it again:  FORCE=1 bash scripts/loop.sh"
     exit 1
   fi
   ok "not-done check: no prior ${ID} completion detected"
@@ -178,7 +190,7 @@ elif [ -f go.mod ]; then
   TEST_CMD="go test ./...";   ok "tests : $TEST_CMD   (detected go.mod)"
 else
   err "could not detect a test command for this repo."
-  echo "            Set it explicitly, e.g.:  TEST_CMD=\"pytest\" bash scripts/loop.sh $ISSUE $ID"
+  echo "            Set it explicitly, e.g.:  TEST_CMD=\"pytest\" bash scripts/loop.sh"
   echo "            (use the 'Full test suite' command from CLAUDE.md section 2)"
   exit 1
 fi
@@ -409,16 +421,10 @@ for i in $(seq 1 "$MAX_ITERS"); do
     else
       echo "                    git add -A && git commit -m \"${KIND}(${ID}): <summary> (#${ISSUE})\""
     fi
-    echo "    2. claude pane: review ${ID}        <- the reviewer agent checks the branch"
-    echo "    3. Only after 'Verdict: APPROVE':"
-    echo "                    git push -u origin ${BRANCH}"
-    if [ "$KIND" = feat ]; then
-      echo "                    gh pr create --title \"feat(${ID}): <summary>\" --body \"Implements ${ID}. Closes #${ISSUE}. Review: docs/reviews/${ID}.md (APPROVE)\""
-    else
-      echo "                    gh pr create --title \"fix(${ID}): <cause>\" --body \"Fixes #${ISSUE} (${ID}). Review: docs/reviews/${ID}.md (APPROVE)\""
-    fi
-    echo "    CHANGES REQUESTED? Run this loop again: it reads the findings."
-    echo "  After merge: CLAUDE.md section 7, then 'wrap up'."
+    echo "    2. claude pane: review              <- the reviewer agent checks the branch"
+    echo "    3. APPROVE:     bash scripts/pr.sh"
+    echo "       CHANGES:     bash scripts/loop.sh   (reads the findings), commit, review again"
+    echo "  Where am I, any time: bash scripts/start.sh status"
     exit 0
   fi
 

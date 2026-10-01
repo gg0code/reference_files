@@ -175,9 +175,9 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.4 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.5 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
-      <p class="lede">Every step from an empty folder to a tagged release, using <code>scaffold.sh</code>, the project templates, <code>loop.sh</code> and <code>req_status.sh</code>. Two agents do the work: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b> that checks every branch before its PR. Fill in your project details and every command and prompt below updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
+      <p class="lede">Every step from an empty folder to a tagged release, using <code>scaffold.sh</code>, the project templates, and the scripts <code>start.sh</code>, <code>loop.sh</code> and <code>pr.sh</code>. Two agents do the work: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b> that checks every branch before its PR. Fill in your project details and every command and prompt below updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
       <div class="overall">
         <div class="bar" aria-hidden="true"><i id="overallBar"></i></div>
@@ -188,7 +188,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 
     <form class="vars" id="varsForm" autocomplete="off">
       <h2>Your project</h2>
-      <p>Values in <span style="font-family:var(--mono);color:var(--gate);font-weight:600">yellow</span> in the commands come from here.</p>
+      <p>Fill these once per project. Values in <span style="font-family:var(--mono);color:var(--gate);font-weight:600">yellow</span> in the commands come from here.</p>
       <div class="vgrid">
         <label>App name<input id="v-app" data-var="APP" value="myapp" spellcheck="false"></label>
         <label>Stack
@@ -200,18 +200,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
         <label class="wide">Kit folder<input id="v-kit" data-var="KIT" value="/mnt/c/Users/gaura/Desktop/Projects/reference_files" spellcheck="false"></label>
         <label>GitHub user<input id="v-user" data-var="GHUSER" value="your-user" spellcheck="false"></label>
         <label>Today<input id="v-date" data-var="DATE" value="" spellcheck="false"></label>
-        <hr>
-        <label>Current REQ-ID<input id="v-req" data-var="REQ" value="REQ-001" spellcheck="false"></label>
-        <label>Its Issue #<input id="v-issue" data-var="ISSUE" value="1" spellcheck="false"></label>
-        <label>Short name (branch slug)<input id="v-slug" data-var="SLUG" value="login" spellcheck="false"></label>
-        <label>Current BUG-ID<input id="v-bug" data-var="BUG" value="BUG-001" spellcheck="false"></label>
-        <label>Autopilot level
-          <select id="v-level" data-var="LEVEL">
-            <option value="1">1 - build approved plans</option><option value="2">2 - also plans</option><option value="3">3 - also merge</option>
-          </select>
-        </label>
-        <label>Autopilot cost cap (USD)<input id="v-cost" data-var="COST" value="10" spellcheck="false"></label>
-        <p class="vnote">Change REQ, Issue and slug each time you start a new requirement. Look the Issue up with the command in Phase 4 step 1.</p>
+        <p class="vnote">That is all the page needs. Requirement and bug numbers are never typed: <code>scripts/start.sh</code> picks them from TASKS.md and puts them in the branch name, and every later command reads them from there.</p>
       </div>
     </form>
   </header>
@@ -466,32 +455,30 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
 
       <!-- ================= PHASE 4 ================= -->
       <section class="phase" id="build" data-phase="build">
-        <div class="phase-head"><h2>4 · Build a requirement</h2><span class="when">Repeat for each REQ in TASKS.md. Update REQ, Issue and slug at the top first.</span>
+        <div class="phase-head"><h2>4 · Build a requirement</h2><span class="when">Repeat for each REQ in TASKS.md. Nothing to type in: the scripts find the next REQ and its Issue.</span>
           <span class="confirm" data-reset="build"><button class="btn small warn" type="button">Start next REQ</button></span></div>
-        <div class="callout gatey">Two human stops: the plan (step 3) and the PR (step 10). One agent gate: no PR until the reviewer says APPROVE (step 7). One hard signal: the test pane must be green.</div>
+        <div class="callout gatey">Two human stops: the plan (step 3) and the PR (step 10). One agent gate: <code>pr.sh</code> will not open a PR until the reviewer says APPROVE. One hard signal: the test pane must be green. Lost at any point? <code>bash scripts/start.sh status</code> tells you where you are and what to do next.</div>
         <ol class="steps">
-          <li class="step" data-id="b-branch" data-pane="git">
+          <li class="step" data-id="b-start" data-pane="git">
             <div class="step-body">
-              <div class="step-head"><h3>Confirm the Issue number and branch</h3></div>
-              <pre data-label="bash · git pane">gh issue list --search "{REQ} in:title"     # Issue # is NOT the REQ number
-git checkout main && git pull
-git checkout -b feat/{REQ}-{SLUG}</pre>
+              <div class="step-head"><h3>Start the next requirement</h3></div>
+              <p>Picks the first unticked REQ in <code>docs/TASKS.md</code>, finds its Issue number, and creates the branch (for example <code>feat/REQ-003-profile</code>). The branch name now carries the ID for every later step.</p>
+              <pre data-label="bash · git pane">bash scripts/start.sh</pre>
+              <p class="expect">You should see: <b>Working on REQ-00X Issue #N title</b> and the next action. It refuses if you are still on an unfinished REQ, so nothing gets lost.</p>
             </div>
           </li>
           <li class="step" data-id="b-plan" data-pane="claude" data-model="Opus">
             <div class="step-body">
               <div class="step-head"><h3>Plan only, no code</h3></div>
-              <p>Type <code>next</code>, or paste this:</p>
-              <pre data-label="prompt · claude pane · /model opus" class="prompt">Issue #{ISSUE} / {REQ}. Write an implementation plan ONLY to docs/plans/{REQ}.md, starting
-from docs/plans/_TEMPLATE.md: goal, TC-IDs covered, approach, files to touch, risks, and the
-iteration cap. Keep line 1 as "Status: DRAFT". No code yet.</pre>
+              <p>Claude drafts <code>docs/plans/&lt;REQ&gt;.md</code> for the REQ in the current branch.</p>
+              <pre data-label="prompt · claude pane · /model opus" class="prompt">next</pre>
             </div>
           </li>
           <li class="step gate" data-id="b-plan-gate" data-pane="you">
             <div class="step-body">
               <div class="step-head"><h3>Approve the plan</h3></div>
               <p>Read it. Fix it or ask Claude to revise. When happy, set line 1 to <code>Status: APPROVED - {DATE}</code>. <code>loop.sh</code> refuses a DRAFT plan.</p>
-              <pre data-label="bash · git pane">git add docs/plans/{REQ}.md && git commit -m "docs({REQ}): approved plan (#{ISSUE})"</pre>
+              <pre data-label="bash · git pane">git add docs/plans && git commit -m "docs: approved plan"</pre>
             </div>
           </li>
           <li class="step" data-id="b-loop" data-pane="git" data-model="Sonnet">
@@ -499,81 +486,73 @@ iteration cap. Keep line 1 as "Status: DRAFT". No code yet.</pre>
               <div class="step-head"><h3>Implement: run the loop</h3></div>
               <p>Fresh Claude context each pass, tests first, until the full suite is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running.</p>
               <pre data-label="bash · test pane">{WATCH}</pre>
-              <pre data-label="bash · git pane">bash scripts/loop.sh {ISSUE} {REQ}</pre>
-              <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the list of touched files, and anything it noticed but did not fix. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan on Opus, re-approve, re-run.</p>
-              <p>Prefer to drive it by hand? Paste this in the claude pane instead:</p>
-              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Implement {REQ} per the approved plan in docs/plans/{REQ}.md. Write the tests first from
-the TC rows, then the code, until the FULL suite is green. Follow docs/RULES.md section 3 for
-file headers, function doc blocks and directory READMEs.</pre>
+              <pre data-label="bash · git pane">bash scripts/loop.sh</pre>
+              <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run.</p>
             </div>
           </li>
           <li class="step" data-id="b-eyeball" data-pane="frontend">
             <div class="step-body">
               <div class="step-head"><h3>Look at it</h3></div>
-              <p>If there is UI, run it and be picky: spacing, states, mobile width, dark mode. Small unrelated fixes (lint, typo, flaky test, obvious UI defect, under about 20 lines) go in their own <code>chore(hygiene)</code> commit. Anything bigger becomes a BUG Issue.</p>
+              <p>If there is UI, run it and be picky: spacing, states, mobile width, dark mode. Small unrelated fixes (lint, typo, flaky test, obvious UI defect, under about 20 lines) go in their own <code>chore(hygiene)</code> commit. Anything bigger becomes a bug later.</p>
             </div>
           </li>
           <li class="step" data-id="b-commit" data-pane="git">
             <div class="step-body">
-              <div class="step-head"><h3>Commit locally (do not push yet)</h3></div>
+              <div class="step-head"><h3>Commit locally</h3></div>
+              <p>Use the commit line the loop printed (it already contains the REQ and Issue), or:</p>
               <pre data-label="bash · git pane">git diff
-git add -A && git commit -m "feat({REQ}): {SLUG} (#{ISSUE})"</pre>
+git add -A && git commit -m "feat: what this change does"</pre>
             </div>
           </li>
           <li class="step" data-id="b-review" data-pane="claude" data-agent="reviewer">
             <div class="step-body">
               <div class="step-head"><h3>Review by the second agent</h3></div>
-              <p>The reviewer runs on Opus in a fresh context, can only read, and checks the branch against the plan, the PRD row, the TC rows and RULES.md. Its report is saved verbatim to <code>docs/reviews/{REQ}.md</code> and committed.</p>
-              <pre data-label="prompt · claude pane" class="prompt">review {REQ}</pre>
-              <p class="expect">You should see: <b>Verdict: APPROVE</b> or <b>Verdict: CHANGES REQUESTED</b>, with findings ranked Critical, Major, Minor and the file:line for each.</p>
+              <p>The reviewer runs on Opus in a fresh context, can only read, and checks the branch against the plan, the PRD row, the TC rows and RULES.md. Its report is saved to <code>docs/reviews/&lt;REQ&gt;.md</code> and committed.</p>
+              <pre data-label="prompt · claude pane" class="prompt">review</pre>
+              <p class="expect">You should see: <b>Verdict: APPROVE</b> or <b>Verdict: CHANGES REQUESTED</b>, with findings ranked Critical, Major, Minor.</p>
             </div>
           </li>
           <li class="step" data-id="b-fixreview" data-pane="git" data-model="Sonnet">
             <div class="step-body">
-              <div class="step-head"><h3>If CHANGES REQUESTED: fix, then review again</h3></div>
-              <p>Run the loop again: it reads the findings and fixes the Critical and Major ones, and lists any it disputes for you to decide. Skip this step when the verdict is APPROVE. Maximum 2 rounds; a second CHANGES REQUESTED means the plan is wrong, so re-plan.</p>
-              <pre data-label="bash · git pane">bash scripts/loop.sh {ISSUE} {REQ}
-git add -A && git commit -m "fix({REQ}): address review round 1 (#{ISSUE})"</pre>
-              <pre data-label="prompt · claude pane" class="prompt">review {REQ}</pre>
+              <div class="step-head"><h3>If CHANGES REQUESTED: loop again, then review again</h3></div>
+              <p>The loop reads the findings and fixes the Critical and Major ones, and lists any it disputes for you to decide. Skip this step when the verdict is APPROVE. Maximum 2 rounds; a second CHANGES REQUESTED means the plan is wrong.</p>
+              <pre data-label="bash · git pane">bash scripts/loop.sh
+git add -A && git commit -m "fix: address review findings"</pre>
+              <pre data-label="prompt · claude pane" class="prompt">review</pre>
             </div>
           </li>
           <li class="step" data-id="b-pr" data-pane="git">
             <div class="step-body">
-              <div class="step-head"><h3>After APPROVE: push and open the PR</h3></div>
-              <pre data-label="bash · git pane">git push -u origin feat/{REQ}-{SLUG}
-gh pr create --title "feat({REQ}): {SLUG}" --body "Implements {REQ}. Closes #{ISSUE}. Review: docs/reviews/{REQ}.md (APPROVE)"</pre>
+              <div class="step-head"><h3>Open the PR</h3></div>
+              <p>Pushes and opens the PR with the right title, <code>Closes #N</code> and a link to the review. Refuses until the review says APPROVE.</p>
+              <pre data-label="bash · git pane">bash scripts/pr.sh</pre>
             </div>
           </li>
           <li class="step gate" data-id="b-pr-gate" data-pane="you">
             <div class="step-body">
               <div class="step-head"><h3>Review the PR, then merge</h3></div>
-              <p>Read the review report first, then the diff. You can overrule a finding, but write why in the PR body.</p>
+              <p>Read the review report first, then the diff. You can overrule a finding, but write why in the PR.</p>
               <ul>
                 <li>Full suite green locally and in CI</li>
-                <li>Reviewer verdict APPROVE, report committed</li>
-                <li>Regression gate green</li>
+                <li>Reviewer verdict APPROVE</li>
                 <li>File headers, function doc blocks and READMEs present</li>
                 <li>Architecture row and test plan still match the code</li>
-                <li>Hygiene fixes in their own commits</li>
               </ul>
-              <pre data-label="bash · git pane">gh pr merge --squash --delete-branch</pre>
+              <p>Then merge. It asks you to confirm, waits for CI, merges, and runs the after-merge checks on main (full suite, CI status, traceability).</p>
+              <pre data-label="bash · git pane">bash scripts/pr.sh merge</pre>
             </div>
           </li>
-          <li class="step" data-id="b-after" data-pane="git">
+          <li class="step" data-id="b-after" data-pane="claude" data-model="Opus">
             <div class="step-body">
-              <div class="step-head"><h3>After every merge (do not skip)</h3></div>
-              <p>A green branch is not a green project. Red on main means revert first, diagnose second: <code>git revert -m 1 MERGE_SHA</code>.</p>
-              <pre data-label="bash · git pane">git checkout main && git pull
-{TEST}                                   # FULL suite, no filters
-gh run list --branch main --limit 1      # CI green on main?
-bash scripts/req_status.sh --strict      # every merged REQ has tests</pre>
+              <div class="step-head"><h3>Finish the after-merge checks</h3></div>
+              <p>If <code>pr.sh merge</code> reported main red, revert first: it printed the commands. Otherwise:</p>
               <pre data-label="prompt · claude pane · /model opus" class="prompt">Audit traceability: for every REQ-ID in docs/01-prd.md, list its TC-IDs from
 docs/04-testplan.md and whether each currently PASSES, plus its row in
 docs/02-architecture.md section 8. Flag any REQ-ID with zero passing tests (UNVERIFIABLE),
 any failing test, and any architecture row that no longer matches the code.
 Output a markdown table.</pre>
               <pre data-label="prompt · claude pane · /model haiku" class="prompt">wrap up</pre>
-              <p class="expect">Doc updates after merge (MEMORY, TASKS, the status ledger) go through a small <code>docs/</code> branch and PR, because main is protected. Then press <b>Start next REQ</b> above.</p>
+              <p class="expect">Then press <b>Start next REQ</b> above and go back to step 1.</p>
             </div>
           </li>
         </ol>
@@ -583,6 +562,16 @@ Output a markdown table.</pre>
       <section class="phase" id="autopilot" data-phase="autopilot">
         <div class="phase-head"><h2>4b · Autopilot (optional)</h2><span class="when">Instead of Phase 4, build several REQs unattended. Choose the level at the top.</span>
           <span class="confirm" data-reset="autopilot"><button class="btn small warn" type="button">Clear</button></span></div>
+        <form class="vars" style="margin-bottom:16px" onsubmit="return false">
+          <div class="vgrid">
+            <label>Level
+              <select id="v-level" data-var="LEVEL">
+                <option value="1">1 - build plans I approved, stop at PR</option><option value="2">2 - also write and approve plans</option><option value="3">3 - also merge after green CI</option>
+              </select>
+            </label>
+            <label>Cost cap (USD)<input id="v-cost" data-var="COST" value="10" spellcheck="false"></label>
+          </div>
+        </form>
         <div class="callout gatey">Level 1 builds only plans you approved and stops at the PR. Level 2 lets the reviewer agent approve plans. Level 3 also merges after green CI. The spec docs always stay yours, and anything autopilot cannot decide lands under "Needs you" in its report.</div>
         <ol class="steps">
           <li class="step" data-id="a-dry" data-pane="git">
@@ -608,7 +597,7 @@ gh pr list</pre>
               <ul>
                 <li>"Needs you": each line says what stopped and what to do next.</li>
                 <li>Plans marked <code>by reviewer agent</code>: read them, you did not approve them.</li>
-                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge, then the after-merge checks in Phase 4 step 11.</li>
+                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge with <code>bash scripts/pr.sh merge</code> on that branch, then Phase 4 step 11.</li>
               </ul>
               <pre data-label="prompt · claude pane" class="prompt">wrap up</pre>
             </div>
@@ -618,26 +607,25 @@ gh pr list</pre>
 
       <!-- ================= PHASE 5 ================= -->
       <section class="phase" id="bug" data-phase="bug">
-        <div class="phase-head"><h2>5 · Fix a bug</h2><span class="when">Repeat per bug. Set the BUG-ID and its Issue # at the top.</span>
+        <div class="phase-head"><h2>5 · Fix a bug</h2><span class="when">Repeat per bug. The BUG number is picked for you.</span>
           <span class="confirm" data-reset="bug"><button class="btn small warn" type="button">Start next bug</button></span></div>
         <div class="callout gatey">A bug with no failing test is hidden, not fixed. The failing test is committed on its own, before the fix.</div>
         <ol class="steps">
           <li class="step" data-id="g-issue" data-pane="git">
             <div class="step-body">
-              <div class="step-head"><h3>File the Issue and branch</h3></div>
-              <pre data-label="bash · git pane">gh issue create --title "{BUG}: symptom" --label bug --body "Steps: ... Expected: ... Actual: ..."
-git checkout main && git pull
-git checkout -b fix/{BUG}</pre>
+              <div class="step-head"><h3>File the bug and start its branch</h3></div>
+              <p>Describe the symptom in your own words. The script takes the next free BUG number, files the GitHub Issue and creates <code>fix/BUG-00X</code>. Then add the steps, expected and actual result to that Issue.</p>
+              <pre data-label="bash · git pane">bash scripts/start.sh bug "login fails with an empty password"</pre>
             </div>
           </li>
           <li class="step" data-id="g-repro" data-pane="claude" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Reproduce end to end, write a failing test</h3></div>
-              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">{BUG}: (symptom). Expected (x), actual (y). Reproduce it end-to-end as a user would,
-then write a FAILING test that captures exactly this bug. Do NOT fix anything yet;
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">The bug in the current branch name: reproduce it end-to-end as a user would, using the steps in its
+GitHub Issue, then write a FAILING test that captures exactly this bug. Do NOT fix anything yet;
 show me the test go red.</pre>
               <p>Check the <span class="chip pane test">test</span> pane is RED, then commit the test alone:</p>
-              <pre data-label="bash · git pane">git add -A && git commit -m "test({BUG}): failing test for #{ISSUE}"</pre>
+              <pre data-label="bash · git pane">git add -A && git commit -m "test: failing test for the bug"</pre>
             </div>
           </li>
           <li class="step" data-id="g-local" data-pane="claude" data-model="Opus">
@@ -650,21 +638,20 @@ single best hypothesis for the root cause. Don't patch yet.</pre>
           <li class="step" data-id="g-fix" data-pane="claude" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Minimal fix</h3></div>
-              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Apply the minimal fix for {BUG}. The failing test must go green and the full suite must
-stay green. Do not weaken or skip any test.</pre>
-              <p>Or save an approved plan to <code>docs/plans/{BUG}.md</code> and run <code>bash scripts/loop.sh {ISSUE} {BUG}</code>.</p>
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Apply the minimal fix for the bug in the current branch name. The failing test must go green and
+the full suite must stay green. Do not weaken or skip any test.</pre>
+              <pre data-label="bash · git pane">git add -A && git commit -m "fix: the cause in a few words"</pre>
             </div>
           </li>
           <li class="step gate" data-id="g-pr" data-pane="git">
             <div class="step-body">
-              <div class="step-head"><h3>Commit, review, PR, merge</h3></div>
-              <pre data-label="bash · git pane">git add -A && git commit -m "fix({BUG}): cause (#{ISSUE})"</pre>
-              <pre data-label="prompt · claude pane · reviewer agent" class="prompt">review {BUG}</pre>
+              <div class="step-head"><h3>Review, PR, merge</h3></div>
+              <pre data-label="prompt · claude pane · reviewer agent" class="prompt">review</pre>
               <p>Fix and review again until <b>APPROVE</b> (maximum 2 rounds), then:</p>
-              <pre data-label="bash · git pane">git push -u origin fix/{BUG}
-gh pr create --title "fix({BUG}): cause" --body "Fixes #{ISSUE} ({BUG}). Review: docs/reviews/{BUG}.md (APPROVE)"
-gh pr merge --squash --delete-branch</pre>
-              <p>Then run "After every merge" from Phase 4, and record the test in <code>docs/04-testplan.md</code> section 5.</p>
+              <pre data-label="bash · git pane">bash scripts/pr.sh
+# review the PR on GitHub, then:
+bash scripts/pr.sh merge</pre>
+              <p>Record the test in <code>docs/04-testplan.md</code> section 5.</p>
             </div>
           </li>
         </ol>
@@ -716,15 +703,17 @@ git tag v1.0.0 && git push --tags</pre>
             <div class="step-body">
               <div class="step-head"><h3>Before you stop</h3></div>
               <pre data-label="prompt · claude pane" class="prompt">wrap up</pre>
-              <pre data-label="bash · git pane">git add -A && git commit -m "wip({REQ}): exactly where I stopped" && git push</pre>
+              <pre data-label="bash · git pane">git add -A && git commit -m "wip: exactly where I stopped" && git push</pre>
             </div>
           </li>
-          <li class="step" data-id="d-resume" data-pane="claude" data-model="Sonnet">
+          <li class="step" data-id="d-resume" data-pane="git" data-model="Sonnet">
             <div class="step-body">
-              <div class="step-head"><h3>Next morning</h3></div>
-              <pre data-label="bash · git pane">cd {ROOT}/{APP} && git checkout feat/{REQ}-{SLUG}</pre>
-              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Resuming. Before any code: run `git log --oneline -5`, `gh issue view {ISSUE}`, `bash scripts/req_status.sh`
-and the full test suite; read docs/MEMORY.md, {REQ} in docs/01-prd.md and docs/plans/{REQ}.md.
+              <div class="step-head"><h3>Next morning: where am I?</h3></div>
+              <pre data-label="bash · git pane">cd {ROOT}/{APP}
+bash scripts/start.sh status</pre>
+              <p class="expect">Shows the current REQ or bug, its Issue, plan, review and PR state, and <b>the next action</b>.</p>
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Resuming. Before any code: run `bash scripts/start.sh status`, `git log --oneline -5`, `bash scripts/req_status.sh`
+and the full test suite; read docs/MEMORY.md, the current REQ in docs/01-prd.md and its plan in docs/plans/.
 Summarise what is done, what is left, and the next step. Do NOT write code until I approve.</pre>
             </div>
           </li>
@@ -740,13 +729,28 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           <thead><tr><th>Type</th><th>What happens</th></tr></thead>
           <tbody>
             <tr><td><code>setup</code></td><td>Lists docs still at TEMPLATE or DRAFT and continues the setup order.</td></tr>
-            <tr><td><code>next</code></td><td>Picks the next item in TASKS.md and drafts its plan file.</td></tr>
-            <tr><td><code>review REQ-001</code></td><td>Runs the read-only reviewer agent on the branch; saves its report to <code>docs/reviews/</code> and shows the verdict.</td></tr>
+            <tr><td><code>next</code></td><td>Drafts the plan for the REQ in the current branch (runs <code>start.sh</code> first if you are on main).</td></tr>
+            <tr><td><code>review</code></td><td>Runs the read-only reviewer agent on the current branch; saves its report to <code>docs/reviews/</code> and shows the verdict.</td></tr>
             <tr><td><code>status</code></td><td>Runs the REQ ledger and summarises it with MEMORY and open TASKS in 5 lines.</td></tr>
             <tr><td><code>audit</code></td><td>Goes through the launch checklist with evidence. Fixes nothing.</td></tr>
             <tr><td><code>fix A3, B1</code></td><td>Fixes only those checklist items and re-checks them with the same tool.</td></tr>
             <tr><td><code>release check</code></td><td>Re-runs the blocking sections and adds an audit-log row.</td></tr>
             <tr><td><code>wrap up</code></td><td>Regenerates <code>docs/REQUIREMENTS_STATUS.md</code>, ticks TASKS from closed Issues, updates MEMORY.</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3 class="sub">Scripts you run in the git pane (none needs an ID)</h3>
+        <div class="tablewrap"><table class="ref">
+          <thead><tr><th>Run</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr><td><code>bash scripts/start.sh</code></td><td>Next unticked REQ from TASKS.md: finds its Issue, creates the branch.</td></tr>
+            <tr><td><code>bash scripts/start.sh status</code></td><td>Where am I: ID, Issue, plan, review, PR, and the next action.</td></tr>
+            <tr><td><code>bash scripts/start.sh bug "symptom"</code></td><td>Next free BUG number: files the Issue, creates <code>fix/BUG-00X</code>.</td></tr>
+            <tr><td><code>bash scripts/start.sh REQ-004</code></td><td>Start or resume a specific requirement instead of the next one.</td></tr>
+            <tr><td><code>bash scripts/loop.sh</code></td><td>Bounded implement-and-test loop for the current branch.</td></tr>
+            <tr><td><code>bash scripts/pr.sh</code></td><td>Push and open the PR (needs a reviewer APPROVE).</td></tr>
+            <tr><td><code>bash scripts/pr.sh merge</code></td><td>After your PR review: CI, merge, after-merge checks on main.</td></tr>
+            <tr><td><code>bash scripts/req_status.sh</code></td><td>Ledger of every requirement: plan, review, merged, Issue, PR, tests.</td></tr>
           </tbody>
         </table></div>
 
@@ -767,7 +771,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/plans/REQ-00X.md</code></td><td>Approved plan the loop enforces, with a review focus</td><td>Claude drafts, you approve</td></tr>
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
             <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>
-            <tr><td><code>scripts/loop.sh</code>, <code>req_status.sh</code>, <code>autopilot.sh</code></td><td>Bounded loop, REQ ledger, unattended runs</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>scripts/*.sh</code></td><td>start, loop, pr, req_status, autopilot</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.autopilot/</code></td><td>Autopilot run reports and logs (gitignored)</td><td>autopilot.sh</td></tr>
           </tbody>
         </table></div>
@@ -790,8 +794,11 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>project template not found</code></td><td>Run <code>scaffold.sh</code> from inside the kit by its full path; keep <code>templates/</code> next to it.</td></tr>
             <tr><td>scaffold says CI NOT created</td><td>Re-run with a stack: <code>bash {KIT}/scaffold.sh {APP} {STACK}</code>. It keeps your files.</td></tr>
             <tr><td><code>plan ... is not approved</code></td><td>Change line 1 of the plan to <code>Status: APPROVED - {DATE}</code> and commit.</td></tr>
-            <tr><td><code>refusing to loop on 'main'</code></td><td><code>git checkout -b feat/{REQ}-{SLUG}</code></td></tr>
-            <tr><td><code>looks ALREADY DONE</code></td><td>It is merged or its Issue is closed. Only after a revert: <code>FORCE=1 bash scripts/loop.sh {ISSUE} {REQ}</code></td></tr>
+            <tr><td><code>refusing to loop on 'main'</code> or <code>not on a REQ or BUG branch</code></td><td><code>bash scripts/start.sh</code> (or <code>start.sh status</code> to see where you are)</td></tr>
+            <tr><td><code>you are on REQ-00X, which is not merged yet</code></td><td>Finish that one first (<code>start.sh status</code> shows the next action), or <code>FORCE=1 bash scripts/start.sh</code>.</td></tr>
+            <tr><td><code>no reviewer APPROVE yet</code> from pr.sh</td><td>Type <code>review</code> in the claude pane; fix and review again if it asks for changes.</td></tr>
+            <tr><td><code>no Issue number for REQ-00X</code></td><td>Its line in <code>docs/TASKS.md</code> must read <code>- [ ] REQ-00X (#N) title</code>.</td></tr>
+            <tr><td><code>looks ALREADY DONE</code></td><td>It is merged or its Issue is closed. Only after a revert: <code>FORCE=1 bash scripts/loop.sh</code></td></tr>
             <tr><td>Loop stopped at the cap</td><td>The plan was wrong. Read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan on Opus, re-approve, re-run.</td></tr>
             <tr><td><code>pytest not found on PATH</code></td><td><code>source .venv/bin/activate</code>, then re-run.</td></tr>
             <tr><td>Loop runs but writes no files</td><td>Run <code>claude</code> once in the repo and accept the trust dialog.</td></tr>
@@ -815,7 +822,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.4: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.5: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>
