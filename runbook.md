@@ -105,18 +105,24 @@ gh issue list        # must run clean
 You want Issues creatable straight from the PRD.
 
 ### 0c. Launch the session
+WezTerm (`.wezterm.lua`) already opens WSL inside a tmux session called `main`, so do not run `tmux new` from there (that nests tmux).
+Create a separate session for the project and switch to it:
 ```bash
 cd <your app>
-tmux new -s <your app>
+tmux new-session -d -s <your app> -c "$PWD" && tmux switch-client -t <your app>
 ```
+Outside tmux (a plain shell), `tdev <your app>` from `.bashrc` does the same.
 
-### tmux - the 4-pane layout
+### tmux - the 4-pane layout (keys from the kit's `.tmux.conf`)
+The prefix is **Ctrl-a**, not Ctrl-b.
 ```
-Ctrl-b %          # split vertical → 2 panes
-Ctrl-b "          # split the focused pane horizontal
-Ctrl-b ← / →      # move focus, repeat " to get 4 panes
+Ctrl-a |          # split left/right → 2 panes
+Ctrl-a -          # split the focused pane top/bottom → repeat to get 4 panes
+Ctrl-h/j/k/l      # move between panes (no prefix; also works across nvim splits)
+Ctrl-a H/J/K/L    # resize (hold to repeat) · Ctrl-a m zooms one pane
+Ctrl-a T          # name the pane: claude, test, git, frontend
 ```
-Name panes: `Ctrl-b :` then `select-pane -T claude`.
+Or right-click a pane and pick its role from the menu (Claude, Development, Tests, Git, Logs); that names and colours it.
 
 ### PANE MAP - which step runs where
 
