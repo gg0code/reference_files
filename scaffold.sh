@@ -78,6 +78,10 @@ for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh da
   [ -f "$KIT_DIR/$s" ] || die "kit script missing: $KIT_DIR/$s"
 done
 ok "kit found: $KIT_DIR"
+if grep -l $'\r' "$KIT_DIR"/*.sh >/dev/null 2>&1; then
+  die "the kit's scripts have Windows line endings (CRLF), usually from cloning with Windows git.
+            Fix: sed -i 's/\r\$//' \"$KIT_DIR\"/*.sh   (better: re-clone the kit inside WSL; see readme 'Getting the kit')"
+fi
 
 case "$STACK" in
   ""|node|python|go|rust) ;;

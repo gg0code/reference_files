@@ -32,7 +32,8 @@ reference_files/
       docs/                  00-idea, 01-prd, 02-architecture, 03-ui-design, 03-wireframe/,
                              04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, MCP, plans/, reviews/
       src/  tests/  scripts/ each with a README.md
-  .bashrc  .tmux.conf  .wezterm.lua   your machine setup (not used by the scripts)
+  .bashrc  .tmux.conf  .wezterm.lua   optional terminal setup (four-pane layout; not used by the scripts)
+  .gitattributes             keeps LF line endings so the bash scripts work after any clone
 ```
 
 ## Do I edit these files?
@@ -54,10 +55,34 @@ reference_files/
 Inside each new project, Claude tailors the copied files for you.
 The first session finds every doc still marked `Status: TEMPLATE` and walks you through them in order, with your approval at each step.
 
+## Getting the kit (once per machine)
+
+Everything runs from a local copy of this kit: `scaffold.sh` copies `templates/` and the scripts into each new project, so the kit must be on your machine first.
+The kit lives in its own GitHub repository. Clone it inside WSL (not with Windows git), so scripts keep their Unix line endings:
+
+```bash
+mkdir -p ~/kits ~/projects
+git clone https://github.com/<owner>/reference_files.git ~/kits/reference_files
+git -C ~/kits/reference_files pull      # later: get kit updates
+```
+
+- Private kit: the owner adds you as a collaborator (repo Settings > Collaborators), and `gh auth login` lets `git clone` use your login.
+- Received a zip instead: unzip it to `~/kits/reference_files` so that `~/kits/reference_files/scaffold.sh` exists.
+- Keep projects in `~/projects` (Linux side): tests and builds are much faster there than under `/mnt/c`, and Windows editors still open them through `\\wsl$`.
+- `.gitattributes` forces LF line endings, so even a Windows clone does not break the bash scripts.
+
+### Publishing the kit (owner, once)
+```bash
+cd ~/kits/reference_files
+git init -b main && git add -A && git commit -m "kit v2.9"
+gh repo create reference_files --private --source=. --remote=origin --push
+```
+After each kit change: commit, `git push`, and tell users to `git pull`.
+
 ## New project in five steps
 
-1. One-time machine setup (below), once per machine.
-2. From your projects root: `bash /path/to/reference_files/scaffold.sh <appname> <node|python|go|rust>`.
+1. Get the kit (above) and do the one-time machine setup (below), once per machine.
+2. From your projects root (`cd ~/projects`): `bash ~/kits/reference_files/scaffold.sh <appname> <node|python|go|rust>`.
    It creates the folder, git repo, template docs, scripts, CI, first commit, and a private GitHub repo.
 3. `cd <appname>`, start `claude`, accept the trust dialog, and type `setup`.
 4. Follow the setup order Claude proposes: idea, PRD, architecture and UI design, test plan and TASKS, then proposed changes to RULES and the launch checklist.
@@ -151,6 +176,7 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 
 - Improve `templates/project/` when a project's MEMORY.md records a lesson under "Lessons for the template".
 - Bump the version line in CLAUDE.md and the doc headers when you do.
+- Users get a new kit version with `git -C ~/kits/reference_files pull`; new projects then use it.
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.

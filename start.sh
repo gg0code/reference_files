@@ -155,6 +155,7 @@ kit_check() {
     [ -f "scripts/$f" ] || { n=$((n+1)); if [ "$f" = autopilot.sh ] || [ "$f" = dashboard.py ]; then wrn "scripts/$f missing (optional)"; else bad "scripts/$f missing: copy it from the kit"; fi; }
   done
   [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, gate, req_status, autopilot, dashboard"
+  if grep -l $'\r' scripts/*.sh >/dev/null 2>&1; then bad "scripts/*.sh have Windows line endings (CRLF). Fix: sed -i 's/\r\$//' scripts/*.sh"; fi
   for t in PROMPT.md FAILURES.txt .autopilot/ CLAUDE.local.md .kit/; do
     grep -qxF "$t" .gitignore 2>/dev/null || wrn ".gitignore does not list $t"
   done

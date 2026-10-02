@@ -211,8 +211,9 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
             <option value="python">python</option><option value="node">node</option><option value="go">go</option><option value="rust">rust</option>
           </select>
         </label>
-        <label class="wide">Projects folder (WSL path)<input id="v-root" data-var="ROOT" value="/mnt/c/Users/gaura/Desktop/Projects" spellcheck="false"></label>
-        <label class="wide">Kit folder<input id="v-kit" data-var="KIT" value="/mnt/c/Users/gaura/Desktop/Projects/reference_files" spellcheck="false"></label>
+        <label class="wide">Projects folder (WSL path)<input id="v-root" data-var="ROOT" value="~/projects" spellcheck="false"></label>
+        <label class="wide">Kit folder (where you cloned the kit)<input id="v-kit" data-var="KIT" value="~/kits/reference_files" spellcheck="false"></label>
+        <label class="wide">Kit repo (GitHub)<input id="v-kitrepo" data-var="KITREPO" value="https://github.com/your-user/reference_files.git" spellcheck="false"></label>
         <label>GitHub user<input id="v-user" data-var="GHUSER" value="your-user" spellcheck="false"></label>
         <label>Today<input id="v-date" data-var="DATE" value="" spellcheck="false"></label>
         <p class="vnote">That is all the page needs. Requirement and bug numbers are never typed: <code>scripts/start.sh</code> picks them from TASKS.md and puts them in the branch name, and every later command reads them from there.</p>
@@ -323,6 +324,17 @@ gh auth login
 git config --global --list | grep -E 'user|default'</pre>
             </div>
           </li>
+          <li class="step" data-id="m-kit" data-pane="git" data-once="1">
+            <div class="step-body">
+              <div class="step-head"><h3>Get the kit</h3></div>
+              <p>Every later step reads the kit from your machine: <code>scaffold.sh</code> copies its templates and scripts into each new project. Clone it once, inside WSL (not from Windows), so the scripts keep their Unix line endings. Put the address in <b>Kit repo</b> above; for a private kit, the owner adds you as a collaborator first.</p>
+              <pre data-label="bash · git pane">mkdir -p ~/kits ~/projects
+git clone {KITREPO} {KIT}          # private repo: gh auth login (previous step) makes this work
+ls {KIT}/scaffold.sh               # check: the file is there</pre>
+              <p>Received the kit as a zip instead? Unzip it so that <code>{KIT}/scaffold.sh</code> exists. Later, to get kit updates: <code>git -C {KIT} pull</code>. New projects use the new kit; existing ones are upgraded by hand (readme, "Updating the kit").</p>
+              <p class="expect">Keep projects on the Linux side (<code>~/projects</code>): builds and tests run several times faster there than on <code>/mnt/c</code>. Your Windows editor still opens them through <code>\\wsl$</code>.</p>
+            </div>
+          </li>
           <li class="step" data-id="m-tools" data-pane="git" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Claude Code, jq, and your stack's tools</h3></div>
@@ -334,12 +346,16 @@ sudo apt install jq tmux
           </li>
           <li class="step" data-id="m-dotfiles" data-pane="git" data-once="1">
             <div class="step-body">
-              <div class="step-head"><h3>Link the kit's dotfiles (optional)</h3></div>
-              <p>Makes the copies in the kit the live ones, so one edit updates both.</p>
-              <pre data-label="bash · git pane">ln -sf {KIT}/.bashrc     ~/.bashrc
+              <div class="step-head"><h3>Use the kit's terminal setup (optional)</h3></div>
+              <p>The kit's <code>.bashrc</code>, <code>.tmux.conf</code> and <code>.wezterm.lua</code> give you the four-pane layout used in this guide. Linking makes the kit's copies the live ones, so <code>git -C {KIT} pull</code> updates them too. Your current files are kept as <code>*.before-kit</code>; to go back, copy them over.</p>
+              <pre data-label="bash · git pane">for f in .bashrc .tmux.conf; do [ -e ~/$f ] && [ ! -L ~/$f ] && cp ~/$f ~/$f.before-kit; done
+ln -sf {KIT}/.bashrc     ~/.bashrc
 ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
-cp {KIT}/.wezterm.lua /mnt/c/Users/gaura/.wezterm.lua   # WezTerm reads it from Windows
-source ~/.bashrc && tmux source-file ~/.tmux.conf</pre>
+WINHOME="$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')")"
+[ -e "$WINHOME/.wezterm.lua" ] && cp "$WINHOME/.wezterm.lua" "$WINHOME/.wezterm.lua.before-kit"
+cp {KIT}/.wezterm.lua "$WINHOME/.wezterm.lua"     # WezTerm reads it from your Windows home
+source ~/.bashrc && tmux source-file ~/.tmux.conf 2>/dev/null; true</pre>
+              <p>Already have a <code>.bashrc</code> you like? Skip the link and add one line to yours instead: <code>source {KIT}/.bashrc</code>.</p>
             </div>
           </li>
           <li class="step" data-id="m-mcp" data-pane="git" data-once="1">

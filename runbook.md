@@ -60,8 +60,10 @@ Each prompt below names the model to switch to.
 ### Where to start
 Open your terminal in the folder that will **hold** the project, not inside it (the project folder does not exist yet), for example `~/Projects`.
 
-### 0-prereq. One-time machine setup
-See `readme.md` > "One-time machine setup".
+### 0-prereq. Get the kit and set up the machine (once)
+1. Get the kit: clone its GitHub repo inside WSL, e.g. `git clone https://github.com/<owner>/reference_files.git ~/kits/reference_files` (details: `readme.md` > "Getting the kit").
+   Every command below that says `reference_files/` means that folder.
+2. Machine setup: `readme.md` > "One-time machine setup".
 Skipping the git identity is the number one cause of `src refspec main does not match any`: with no identity the first commit fails, so no `main` branch exists to push.
 Verify: `git config --global --list | grep -E 'user|default'`
 

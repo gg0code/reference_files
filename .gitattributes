@@ -1,0 +1,5 @@
+# Keep Unix line endings: bash scripts and dotfiles break with Windows CRLF ($'\r': command not found).
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

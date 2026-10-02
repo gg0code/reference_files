@@ -161,8 +161,18 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 alias home='cd ~'
 alias cdrive='cd /mnt/c'
-alias desktop='cd /mnt/c/Users/gaura/Desktop'
-alias downloads='cd /mnt/c/Users/gaura/Downloads'
+# Windows home folder (works for any Windows user name); cached so new shells stay fast
+if [ -z "${WINHOME:-}" ]; then
+    if [ -s "$HOME/.cache/winhome" ]; then WINHOME="$(cat "$HOME/.cache/winhome")"
+    elif command -v cmd.exe >/dev/null 2>&1; then
+        WINHOME="$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')" 2>/dev/null)"
+        [ -n "$WINHOME" ] && mkdir -p "$HOME/.cache" && printf '%s' "$WINHOME" > "$HOME/.cache/winhome"
+    fi
+fi
+export WINHOME
+alias desktop='cd "$WINHOME/Desktop"'
+alias downloads='cd "$WINHOME/Downloads"'
+alias kit='cd "${KIT_DIR:-$HOME/kits/reference_files}"'
 
 mkcd() {
     mkdir -p -- "$1" && cd -- "$1"
