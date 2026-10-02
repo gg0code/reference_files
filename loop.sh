@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v12
+# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v13
 # Usage:  bash scripts/loop.sh [max-iters]          (ID from the branch, Issue from docs/TASKS.md)
 #         bash scripts/loop.sh <issue-number> <REQ-00X|BUG-00X> [max-iters]   (explicit form)
 #
@@ -23,9 +23,10 @@
 #   v10 runs scripts/doclint.sh in front of the detected test command; TEST_CMD may use && (bash -c).
 #   v11 marks the prompt NON-INTERACTIVE RUN so Claude skips the MCP setup check (docs/MCP.md).
 #   v12 the exit condition is scripts/gate.sh (docs, lint, format, types, tests, coverage) when it exists.
+#   v13 writes progress events to .kit/events.jsonl for the dashboard (scripts/dashboard.py).
 set -uo pipefail
 
-LOOP_VERSION="v12"
+LOOP_VERSION="v13"
 
 # ---------- help / usage ----------
 usage() {
@@ -113,6 +114,13 @@ esac
 ok()   { echo "    OK    : $*"; }
 err()  { echo "    ERROR : $*" >&2; }
 step() { echo ""; echo "==> $*"; }
+
+# kit_event <kind> <id> <message> [extra-json]: one line in .kit/events.jsonl for the dashboard (scripts/dashboard.py)
+kit_event() {
+  local m; m="$(printf '%s' "${3:-}" | tr -d '\n\r\t' | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  mkdir -p .kit 2>/dev/null && printf '{"ts":"%s","src":"%s","kind":"%s","id":"%s","msg":"%s"%s}\n' \
+    "$(date +%Y-%m-%dT%H:%M:%S%z)" "$(basename "$0" .sh)" "$1" "${2:-}" "$m" "${4:+,$4}" >> .kit/events.jsonl 2>/dev/null || true
+}
 
 if [ $# -ge 2 ]; then
   ISSUE="$1"; ID="$2"; CAP_ARG="${3:-}"
@@ -361,8 +369,11 @@ list_generated_files() {
 }
 
 # ---------- the loop ----------
+kit_event loop_start "$ID" "Building started (up to $MAX_ITERS attempts)" "\"pid\":$$,\"max\":$MAX_ITERS"
+trap 'kit_event loop_end "$ID" "Building stopped" "\"pid\":$$,\"result\":\"stopped\""' INT TERM
 for i in $(seq 1 "$MAX_ITERS"); do
   step "Iteration $i/$MAX_ITERS  (fresh context)"
+  kit_event iter "$ID" "Attempt $i of $MAX_ITERS: Claude is writing code" "\"pid\":$$,\"iter\":$i,\"max\":$MAX_ITERS"
 
   ITER_START=$(date +%s)
   if [ "$HAVE_JQ" = 1 ]; then
@@ -408,7 +419,9 @@ for i in $(seq 1 "$MAX_ITERS"); do
   fi
 
   step "Iteration $i - running: $TEST_CMD"
+  kit_event check "$ID" "Attempt $i of $MAX_ITERS: running the quality checks" "\"pid\":$$,\"iter\":$i,\"max\":$MAX_ITERS,\"cost\":${cost:-0}"
   if bash -c "$TEST_CMD" > .loop-test-out.txt 2>&1; then
+    kit_event loop_end "$ID" "Building finished: all checks green after $i attempt(s)" "\"pid\":$$,\"result\":\"green\",\"iter\":$i,\"max\":$MAX_ITERS"
     tail -5 .loop-test-out.txt
     ok "SUITE GREEN on iteration $i"
     NOTICED="$(grep -A50 -i '^Noticed' FAILURES.txt 2>/dev/null)"
@@ -450,6 +463,8 @@ for i in $(seq 1 "$MAX_ITERS"); do
   { tail -40 .loop-test-out.txt; grep -A50 -iE '^(Noticed|Disputed)' FAILURES.txt 2>/dev/null; } > .loop-failures.tmp
   mv .loop-failures.tmp FAILURES.txt
   err "tests RED after iteration $i - feeding failures back"
+  NFAIL="$(grep -cE '^[[:space:]]+FAIL[[:space:]]' .loop-test-out.txt 2>/dev/null)"
+  kit_event iter_red "$ID" "Attempt $i of $MAX_ITERS: ${NFAIL:-some} check(s) still failing, trying again" "\"pid\":$$,\"iter\":$i,\"max\":$MAX_ITERS"
   tail -8 .loop-test-out.txt | sed 's/^/            /'
 done
 
@@ -457,6 +472,7 @@ done
 echo ""
 echo "=============================================="
 err "STOPPED at the ${MAX_ITERS}-iteration cap - suite still RED."
+kit_event loop_end "$ID" "Building stopped after $MAX_ITERS attempts: the plan needs rework" "\"pid\":$$,\"result\":\"cap\""
 echo "=============================================="
 usage_summary "$MAX_ITERS"
 echo "----------------------------------------------"

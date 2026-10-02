@@ -16,6 +16,13 @@ warn() { echo "    WARN  : $*"; }
 err()  { echo "    ERROR : $*" >&2; }
 die()  { err "$*"; exit 1; }
 
+# kit_event <kind> <id> <message> [extra-json]: one line in .kit/events.jsonl for the dashboard (scripts/dashboard.py)
+kit_event() {
+  local m; m="$(printf '%s' "${3:-}" | tr -d '\n\r\t' | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  mkdir -p .kit 2>/dev/null && printf '{"ts":"%s","src":"%s","kind":"%s","id":"%s","msg":"%s"%s}\n' \
+    "$(date +%Y-%m-%dT%H:%M:%S%z)" "$(basename "$0" .sh)" "$1" "${2:-}" "$m" "${4:+,$4}" >> .kit/events.jsonl 2>/dev/null || true
+}
+
 case "${1:-}" in -h|--help|help) sed -n '2,11p' "$0"; exit 0 ;; esac
 
 command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 || die "gh is not installed or not authenticated (gh auth login)"
@@ -69,6 +76,7 @@ Checklist:
 - [ ] Architecture row and test plan still match the code
 - [ ] Hygiene fixes in their own chore(hygiene) commits" || die "gh pr create failed"
   echo ""
+  kit_event pr_open "$ID" "Ready for your review: pull request opened for $TITLE"
   echo "  NEXT: review the PR on GitHub (review file first, then the diff)."
   echo "        When you are happy: bash scripts/pr.sh merge"
 }
@@ -98,6 +106,7 @@ merge_pr() {
   gh pr checks "$pr" --watch --fail-fast || die "CI is not green on PR #$pr - not merged"
   gh pr merge "$pr" --squash --delete-branch || die "merge failed"
   ok "PR #$pr merged; Issue #$ISSUE closes"
+  kit_event merged "$ID" "Live: $TITLE is merged into the main code"
   git checkout -q "$BASE" && git pull -q --ff-only || die "could not update $BASE"
 
   echo ""; echo "==> After-merge checks on $BASE (CLAUDE.md section 7)"
@@ -107,6 +116,7 @@ merge_pr() {
   else
     tail -15 /tmp/pr-sh-tests.$$; rm -f /tmp/pr-sh-tests.$$
     err "MAIN IS RED after merging $ID. Revert first, diagnose second:"
+    kit_event main_red "$ID" "Problem: the main code fails its checks after merging $TITLE - revert needed"
     echo "        git checkout -b revert/$ID && git revert -m 1 \$(git log -1 --format=%H) && bash scripts/pr.sh"
     exit 1
   fi

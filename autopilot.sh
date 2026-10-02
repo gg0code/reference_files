@@ -57,6 +57,13 @@ err()  { echo "    ERROR : $*" >&2; }
 step() { echo ""; echo "==> $*"; }
 die()  { err "$*"; exit 1; }
 
+# kit_event <kind> <id> <message> [extra-json]: one line in .kit/events.jsonl for the dashboard (scripts/dashboard.py)
+kit_event() {
+  local m; m="$(printf '%s' "${3:-}" | tr -d '\n\r\t' | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  mkdir -p .kit 2>/dev/null && printf '{"ts":"%s","src":"%s","kind":"%s","id":"%s","msg":"%s"%s}\n' \
+    "$(date +%Y-%m-%dT%H:%M:%S%z)" "$(basename "$0" .sh)" "$1" "${2:-}" "$m" "${4:+,$4}" >> .kit/events.jsonl 2>/dev/null || true
+}
+
 PLAN_LEVEL=0; case ",$AUTOPILOT," in *,plan,*) PLAN_LEVEL=1 ;; esac
 case ",$AUTOPILOT," in *,build,*) ;; *) die "AUTOPILOT must include 'build' (got '$AUTOPILOT')" ;; esac
 for n in MAX_REQS REVIEW_ROUNDS; do
@@ -131,6 +138,14 @@ $prompt" --model "$model" --output-format json --permission-mode acceptEdits)
   [ -n "$disallowed" ] && args+=(--disallowedTools "$disallowed")
   [ "$sysf" != "-" ]   && args+=(--append-system-prompt "$(cat "$sysf")")
   info "claude [$label] on $model ..."
+  local kid kmsg; kid="$(printf '%s' "$label" | grep -oE '(REQ|BUG)-[0-9]{3}' | head -1)"
+  case "$label" in
+    plan-review*) kmsg="Autopilot: the reviewer agent is checking the plan" ;;
+    plan*)        kmsg="Autopilot: writing the plan" ;;
+    review*)      kmsg="Autopilot: the reviewer agent is checking the code (round ${label##*r})" ;;
+    *)            kmsg="Autopilot: $label" ;;
+  esac
+  kit_event autopilot "$kid" "$kmsg" "\"pid\":$$"
   if ! claude "${args[@]}" > .autopilot/resp.json 2>>"$LOG"; then
     err "claude [$label] failed (see $LOG)"; return 1
   fi
@@ -167,12 +182,13 @@ record() {  # record <req> <issue> <plan-by> <rounds> <verdict> <pr> <outcome> <
   ROWS="${ROWS}| $1 | #$2 | $3 | $4 | $5 | $6 | $7 | $8 |
 "
 }
-needs_you() { NEEDS_YOU="${NEEDS_YOU}- **$1**: $2
+needs_you() { kit_event needs_you "$1" "Autopilot needs you: $2"; NEEDS_YOU="${NEEDS_YOU}- **$1**: $2
 "; }
 
 finish() {
   local code=$?
   rm -f "$LOCK"
+  kit_event autopilot_end "" "Autopilot finished (cost \$$TOTAL_COST). Report: $REPORT" "\"pid\":$$,\"cost\":${TOTAL_COST:-0}"
   {
     echo "# Autopilot run ${RUN_ID}"
     echo ""
@@ -203,6 +219,7 @@ finish() {
   exit "$code"
 }
 trap finish EXIT
+kit_event autopilot_start "" "Autopilot started ($( [ "$AUTO_MERGE" = 1 ] && echo "level 3: builds and merges" || { [ "$PLAN_LEVEL" = 1 ] && echo "level 2: plans and builds" || echo "level 1: builds approved plans"; } ), up to $MAX_REQS feature(s), cost cap \$$MAX_COST)" "\"pid\":$$"
 
 # ---------- choose REQs ----------
 step "Choosing requirements"

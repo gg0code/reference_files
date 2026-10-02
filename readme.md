@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.8 (2026-10-02).
+Kit version: v2.9 (2026-10-02).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -15,6 +15,7 @@ reference_files/
   start.sh                   starts the next REQ or a BUG, shows status (copied into each project)
   pr.sh                      opens the PR after review, merges with after-merge checks (copied into each project)
   doclint.sh                 enforces file headers, function doc blocks, folder READMEs, file size and layers (copied into each project)
+  dashboard.py               live ZeroZeta dashboard: progress, needs-you, buttons; phone access with a PIN (copied into each project)
   gate.sh                    the quality gate: doclint, lint, format, types, tests, coverage; --full adds audits (copied into each project)
   loop.sh                    bounded implement-and-test loop for one Issue (copied into each project)
   req_status.sh              REQ-ID ledger and CI traceability check (copied into each project)
@@ -41,6 +42,7 @@ reference_files/
 | `scaffold.sh` | No | App name and stack are arguments |
 | `start.sh`, `pr.sh` | No | Read the ID from the branch and the Issue from TASKS.md |
 | `loop.sh` | No | Auto-detects the stack; ID and Issue come from the branch and TASKS.md |
+| `dashboard.py` | No | Reads the project's TASKS, plans, reviews, git, GitHub and `.kit/events.jsonl` |
 | `gate.sh` | No | Auto-detects the stack; limits live in each project's `pyproject.toml` |
 | `templates/stacks/*` | Only to improve the kit | scaffold.sh copies them for the chosen stack |
 | `req_status.sh` | No | Reads the project's own docs, git and Issues |
@@ -152,6 +154,13 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+- To bring a v2.8 project up to v2.9 (dashboard), from the project root:
+  ```bash
+  cp <kit>/dashboard.py <kit>/loop.sh <kit>/gate.sh <kit>/pr.sh <kit>/start.sh <kit>/autopilot.sh scripts/
+  grep -qxF '.kit/' .gitignore || echo '.kit/' >> .gitignore
+  git add -A && git commit -m "chore(kit): live dashboard (kit v2.9)"
+  python3 scripts/dashboard.py
+  ```
 - To bring a v2.7 project up to v2.8 (quality gate), from the project root (Python):
   ```bash
   cp <kit>/gate.sh <kit>/doclint.sh <kit>/loop.sh <kit>/pr.sh <kit>/autopilot.sh <kit>/start.sh scripts/
@@ -167,6 +176,17 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v2.9
+
+Goal: anyone, including people who do not read code, can see and steer the build, from a computer or a phone.
+
+- New `dashboard.py` (Python standard library only, ZeroZeta theme and logo): features live out of total, "Right now" with the build attempt, every feature on a six-stop rail (Plan, Approved, Building, Checking, Your review, Live), "Needs you", recent activity in plain language, specification status, and a Haiku-written summary for non-technical readers.
+  Buttons: read and approve a plan, build, fix and rebuild, open for review, merge (after confirmation), start or switch a feature, run the checks, summarise. Writing code, `review` and `explain` stay in Claude.
+- Phone access: `--lan` with a 6-digit PIN (lockout after 5 wrong tries), installable to the home screen; `--read-only` for observers. Runbook Phase 2e covers WSL mirrored networking, Tailscale for access away from home, and Claude Code Remote Control for talking to Claude from the phone.
+- `loop.sh` v13, `gate.sh`, `pr.sh`, `start.sh` and `autopilot.sh` write plain-language progress events to `.kit/events.jsonl` (gitignored; scaffold.sh adds it to existing projects).
+- `start.sh` resumes an existing branch for a REQ even if its name differs; `start.sh check` lists the dashboard.
+- Guide: a "Dashboard and phone" section, tips and a reference row. Runbook: Phase 2e.
 
 ## Changes in v2.8
 

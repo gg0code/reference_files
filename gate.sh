@@ -46,6 +46,13 @@ missing() { echo "==> $1: '$2' not found. Install: $3"; row FAIL "$1" "'$2' not 
 note()    { row WARN "$1" "$2"; WARNS=$((WARNS+1)); }
 have()    { command -v "$1" >/dev/null 2>&1; }
 
+# kit_event <kind> <id> <message> [extra-json]: one line in .kit/events.jsonl for the dashboard (scripts/dashboard.py)
+kit_event() {
+  local m; m="$(printf '%s' "${3:-}" | tr -d '\n\r\t' | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  mkdir -p .kit 2>/dev/null && printf '{"ts":"%s","src":"%s","kind":"%s","id":"%s","msg":"%s"%s}\n' \
+    "$(date +%Y-%m-%dT%H:%M:%S%z)" "$(basename "$0" .sh)" "$1" "${2:-}" "$m" "${4:+,$4}" >> .kit/events.jsonl 2>/dev/null || true
+}
+
 STACK=""
 if   [ -f pyproject.toml ] || [ -f requirements.txt ]; then STACK=python
 elif [ -f package.json ]; then STACK=node
@@ -137,6 +144,11 @@ if [ $FULL = 1 ]; then
   elif [ -n "${CI:-}" ]; then note secrets "gitleaks not on PATH here; the CI workflow runs its own gitleaks step"
   else note secrets "gitleaks not installed locally (CI still scans). Install: https://github.com/gitleaks/gitleaks#installing"; fi
 fi
+
+GID="$(git branch --show-current 2>/dev/null | grep -oE '(REQ|BUG)-[0-9]{3}' | head -1)"
+FAILED_STEPS="$(printf '%s' "$SUMMARY" | awk '$1=="FAIL"{print $2}' | paste -sd, - | sed 's/,/, /g')"
+if [ "$FAILS" -gt 0 ]; then kit_event gate "$GID" "Quality checks: $FAILS failing ($FAILED_STEPS)" "\"ok\":false,\"fails\":$FAILS"
+else kit_event gate "$GID" "Quality checks: all passing" "\"ok\":true,\"fails\":0"; fi
 
 echo ""
 echo "  GATE SUMMARY"

@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.8 (2026-10-02).
+Kit version: v2.9 (2026-10-02).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -10,7 +10,7 @@ A copy-paste runbook for the full traceability loop:
 Substitute your own values wherever these appear.
 Pick a small first app (5 to 6 requirements) so a full run fits in one session.
 
-**Phases:** 0 setup · 1 specification · 2 build loop (2b automated loop, 2c after every merge, 2d autopilot) · 3 bug loop · 4 release.
+**Phases:** 0 setup · 1 specification · 2 build loop (2b automated loop, 2c after every merge, 2d autopilot, 2e dashboard and phone) · 3 bug loop · 4 release.
 
 **Development paths.** Phases 0 and 1 (setup and specification) are always done with you. Each requirement is then built along one of five paths, and you can switch between requirements:
 
@@ -591,6 +591,61 @@ When you come back:
 ---
 
 
+## Phase 2e - Live dashboard and phone (optional)
+
+A plain-language view of the whole build, for you and for people who do not read code.
+It shows how many features are live, what is being built right now (attempt 3 of 6, checks failing or passing), every feature on a six-stop rail (Plan, Approved, Building, Checking, Your review, Live), what needs a person, recent activity, and the specification status.
+It is styled in the ZeroZeta theme and works on a phone.
+
+### Start it (frontend pane)
+```bash
+python3 scripts/dashboard.py              # this computer only: http://localhost:8765
+python3 scripts/dashboard.py --lan        # also your phone: prints a phone address and a 6-digit PIN
+python3 scripts/dashboard.py --read-only  # watch only, for sharing a screen with others
+```
+Python standard library only; nothing to install. Leave it running in the frontend pane.
+The scripts (`start.sh`, `loop.sh`, `gate.sh`, `pr.sh`, `autopilot.sh`) write one plain-language line per step to `.kit/events.jsonl` (gitignored); the dashboard reads it with docs/TASKS.md, the plans, the reviews, git and GitHub.
+
+### What the buttons do
+| Button | Runs | Shown when |
+|---|---|---|
+| Read and approve | sets the plan's line 1 to `Status: APPROVED - <date> (dashboard)` and commits it, after you tick "I have read the plan" | a plan is DRAFT |
+| Build / Fix and rebuild | `bash scripts/loop.sh` | plan approved, or the reviewer asked for changes |
+| Open for review | `bash scripts/pr.sh` | reviewer APPROVE and walkthrough written |
+| Merge | `YES=1 bash scripts/pr.sh merge`, after you confirm you read the review, walkthrough and changes | PR open |
+| Start / Switch to it | `bash scripts/start.sh` / `bash scripts/start.sh REQ-00X` | nothing in progress / another feature checked out |
+| Run the quality checks | `bash scripts/gate.sh` | always |
+| Summarise progress | `claude -p --model haiku` writes a four-sentence summary for non-technical readers | always |
+
+Steps that need Claude itself (`next`, `review`, `explain`, writing code) are listed under "Needs you" with the word to type.
+The dashboard refuses to build, switch or merge while a build is running, and refuses plan or PR actions for a feature that is not checked out.
+
+### On your phone
+1. **At home, same Wi-Fi.** Start with `--lan`, open the printed address on the phone, enter the PIN, then "Add to Home Screen".
+   Scripts run in WSL, which hides them from the network by default. Once per machine, in Windows:
+   ```
+   # C:\Users\<you>\.wslconfig
+   [wsl2]
+   networkingMode=mirrored
+   ```
+   Then in PowerShell (as administrator):
+   ```powershell
+   wsl --shutdown
+   New-NetFirewallRule -DisplayName "Build dashboard 8765" -Direction Inbound -Protocol TCP -LocalPort 8765 -Action Allow
+   Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow
+   ```
+   Mirrored networking needs Windows 11 22H2 or later. Use the Windows Wi-Fi address (`ipconfig`) on the phone.
+2. **Away from home (recommended).** Install Tailscale (free personal plan) on the PC and the phone and sign in to both with the same account.
+   With mirrored networking on, open `http://<PC's Tailscale address>:8765`. The dashboard is never exposed to the internet.
+3. **Talk to Claude from the phone.** Start Claude with `claude --remote-control` (or type `/rc` in a running session) and scan the QR code with the Claude app.
+   The session keeps running on your PC; the phone is a window into it. Needs a Pro, Max, Team or Enterprise subscription login.
+4. **Read the code changes** in the GitHub mobile app before you press Merge.
+
+Security: the PIN is required for every phone request (5 wrong tries lock that device out for 15 minutes); sessions end when the dashboard stops.
+Do not port-forward 8765 on your router. Use Tailscale instead.
+
+---
+
 ## Phase 3 - Bug loop (repeat once per bug)
 
 Same shape as Phase 2, with a sharper exit: **a test that was RED goes GREEN, and the full suite stays GREEN.**
@@ -703,3 +758,4 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `bash scripts/pr.sh merge` | After your PR review: CI, merge, after-merge checks |
 | `bash scripts/req_status.sh` | Ledger of every REQ |
 | `bash scripts/autopilot.sh` | Optional unattended runs (Phase 2d) |
+| `python3 scripts/dashboard.py [--lan]` | Live dashboard on the computer, or also the phone with a PIN (Phase 2e) |

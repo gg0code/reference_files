@@ -21,6 +21,13 @@ warn() { echo "    WARN  : $*"; }
 err()  { echo "    ERROR : $*" >&2; }
 die()  { err "$*"; exit 1; }
 
+# kit_event <kind> <id> <message> [extra-json]: one line in .kit/events.jsonl for the dashboard (scripts/dashboard.py)
+kit_event() {
+  local m; m="$(printf '%s' "${3:-}" | tr -d '\n\r\t' | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  mkdir -p .kit 2>/dev/null && printf '{"ts":"%s","src":"%s","kind":"%s","id":"%s","msg":"%s"%s}\n' \
+    "$(date +%Y-%m-%dT%H:%M:%S%z)" "$(basename "$0" .sh)" "$1" "${2:-}" "$m" "${4:+,$4}" >> .kit/events.jsonl 2>/dev/null || true
+}
+
 case "${1:-}" in -h|--help|help) sed -n '2,15p' "$0"; exit 0 ;; esac
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repo"
@@ -144,11 +151,11 @@ kit_check() {
   if [ -f .claude/settings.json ] && python3 -m json.tool .claude/settings.json >/dev/null 2>&1; then pass ".claude/settings.json (pre-approved read-only commands for the reviewer)"
   else wrn ".claude/settings.json missing or invalid JSON: the reviewer will ask permission for every command"; fi
   n=0
-  for f in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh; do
-    [ -f "scripts/$f" ] || { n=$((n+1)); if [ "$f" = autopilot.sh ]; then wrn "scripts/$f missing (optional)"; else bad "scripts/$f missing: copy it from the kit"; fi; }
+  for f in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh dashboard.py; do
+    [ -f "scripts/$f" ] || { n=$((n+1)); if [ "$f" = autopilot.sh ] || [ "$f" = dashboard.py ]; then wrn "scripts/$f missing (optional)"; else bad "scripts/$f missing: copy it from the kit"; fi; }
   done
-  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, gate, req_status, autopilot"
-  for t in PROMPT.md FAILURES.txt .autopilot/ CLAUDE.local.md; do
+  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, gate, req_status, autopilot, dashboard"
+  for t in PROMPT.md FAILURES.txt .autopilot/ CLAUDE.local.md .kit/; do
     grep -qxF "$t" .gitignore 2>/dev/null || wrn ".gitignore does not list $t"
   done
   if [ -f .github/workflows/ci.yml ]; then pass ".github/workflows/ci.yml (CI)"; else bad "no CI: re-run the kit's scaffold.sh with a stack (it keeps your files)"; fi
@@ -247,9 +254,12 @@ start_req() {   # start_req [REQ-00X]
   [ -n "$issue" ] || die "no Issue number for $id: add '(#N)' to its line in docs/TASKS.md"
   title="$(title_for "$id" "$issue")"
   guard_unfinished "$id"
-  checkout_branch "feat/${id}-$(slug "$title")"
+  local existing; existing="$(git branch --format='%(refname:short)' --list "feat/${id}" "feat/${id}-*" | head -1)"
+  [ -n "$existing" ] || existing="$(git branch -r --format='%(refname:short)' --list "origin/feat/${id}" "origin/feat/${id}-*" | head -1 | sed 's|^origin/||')"
+  checkout_branch "${existing:-feat/${id}-$(slug "$title")}"   # resume an existing branch whatever its slug
   echo ""
   echo "  Working on $id  Issue #$issue  $title"
+  kit_event start "$id" "Started work on: $title"
   show_status | sed -n '/next   :/p'
 }
 
@@ -280,6 +290,7 @@ Actual:
   checkout_branch "fix/${id}"
   echo ""
   echo "  Working on $id  Issue #$issue  $symptom"
+  kit_event bug "$id" "Bug reported and being fixed: $symptom"
   echo "  next   : add the steps to the Issue, then in the claude pane: reproduce $id end-to-end and write a FAILING test (runbook Phase 3)"
 }
 

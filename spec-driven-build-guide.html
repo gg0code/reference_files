@@ -190,9 +190,9 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.8 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.9 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
-      <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Fill in your project details and every command updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
+      <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Fill in your project details and every command updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
       <div class="overall">
         <div class="bar" aria-hidden="true"><i id="overallBar"></i></div>
@@ -231,6 +231,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
       <a href="#autopilot" data-phase="autopilot">4b · Autopilot<small></small><span class="mini"><i></i></span></a>
       <a href="#bug" data-phase="bug">5 · Fix a bug<small></small><span class="mini"><i></i></span></a>
       <a href="#release" data-phase="release">6 · Release<small></small><span class="mini"><i></i></span></a>
+      <a href="#dashboard" data-phase="dashboard">Dashboard &amp; phone<small></small><span class="mini"><i></i></span></a>
       <a href="#daily" data-phase="daily">Pause / resume<small></small><span class="mini"><i></i></span></a>
       <a href="#tips" data-phase="tips">Tips</a>
       <a href="#reference" data-phase="reference">Reference</a>
@@ -807,6 +808,50 @@ git tag v1.0.0 && git push --tags</pre>
       </section>
 
       <!-- ================= DAILY ================= -->
+      <section class="phase" id="dashboard" data-phase="dashboard">
+        <div class="phase-head"><h2>Dashboard and phone</h2><span class="when">Optional. Watch the whole build in plain language, and act on it, from your computer or your phone.</span>
+          <span class="confirm" data-reset="dashboard"><button class="btn small warn" type="button">Clear</button></span></div>
+        <ol class="steps">
+          <li class="step" data-id="w-start" data-pane="frontend">
+            <div class="step-body">
+              <div class="step-head"><h3>Start the dashboard</h3></div>
+              <p>A ZeroZeta-styled page that shows how many features are live, what is being built right now, each feature on its journey (Plan, Approved, Building, Checking, Your review, Live), what needs you, and recent activity. Buttons approve plans (after you read them), build, open for review, merge (after you confirm), start or switch features, and run the checks. Python only, nothing to install.</p>
+              <pre data-label="bash · frontend pane">cd {ROOT}/{APP}
+python3 scripts/dashboard.py          # http://localhost:8765 on this computer</pre>
+              <p class="expect">You should see: the page with your project name, the progress band and "Needs you". It updates every few seconds while the scripts run.</p>
+            </div>
+          </li>
+          <li class="step" data-id="w-wsl" data-pane="you" data-once="1">
+            <div class="step-body">
+              <div class="step-head"><h3>Once per computer: let your phone reach WSL</h3></div>
+              <p>Scripts run inside WSL, which is hidden from your network by default. Add this file in Windows, then run the PowerShell lines as administrator. Needs Windows 11 22H2 or later.</p>
+              <pre data-label="file · C:\Users\you\.wslconfig">[wsl2]
+networkingMode=mirrored</pre>
+              <pre data-label="powershell · as administrator">wsl --shutdown
+New-NetFirewallRule -DisplayName "Build dashboard 8765" -Direction Inbound -Protocol TCP -LocalPort 8765 -Action Allow
+Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow</pre>
+              <p>Away from home: install <b>Tailscale</b> (free personal plan) on the PC and the phone, same account. It is a private network, so nothing is exposed to the internet. Never port-forward 8765 on your router.</p>
+            </div>
+          </li>
+          <li class="step" data-id="w-phone" data-pane="frontend">
+            <div class="step-body">
+              <div class="step-head"><h3>Open it on your phone</h3></div>
+              <pre data-label="bash · frontend pane">python3 scripts/dashboard.py --lan     # prints a phone address and a 6-digit PIN</pre>
+              <p>Open the printed address (at home: the Windows Wi-Fi address from <code>ipconfig</code>; away: the PC's Tailscale address), type the PIN, then use "Add to Home Screen" so it opens like an app with the ZeroZeta icon. Use <code>--read-only</code> when you share it with someone who should only watch.</p>
+              <p class="expect">You should see: the same page on the phone. Five wrong PINs lock that phone out for 15 minutes.</p>
+            </div>
+          </li>
+          <li class="step" data-id="w-rc" data-pane="claude">
+            <div class="step-body">
+              <div class="step-head"><h3>Talk to Claude from the phone (Remote Control)</h3></div>
+              <p>The dashboard does not write code or run <code>review</code> and <code>explain</code>: Claude does. To reach the Claude session on your PC from your phone, start Claude with Remote Control and scan the QR code with the Claude app. Claude keeps running on your PC; the phone is a window into it. Needs a Pro, Max, Team or Enterprise subscription login.</p>
+              <pre data-label="bash · claude pane">claude --remote-control              # or type /rc inside a running session</pre>
+              <p>Read code changes in the GitHub mobile app before you press Merge on the dashboard.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
       <section class="phase" id="daily" data-phase="daily">
         <div class="phase-head"><h2>Pause and resume</h2><span class="when">State lives in git, Issues, tests and docs, never in the chat.</span>
           <span class="confirm" data-reset="daily"><button class="btn small warn" type="button">Clear</button></span></div>
@@ -868,6 +913,14 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           <div class="tip"><h4>Autopilot: dry run, then caps</h4><p><code>DRY_RUN=1</code> first, then keep <code>MAX_REQS</code> and <code>MAX_COST</code> low until you trust it. Read <code>.autopilot/&lt;run&gt;.md</code> "Needs you" first when you return.</p></div>
         </div>
 
+        <h3 class="sub">Dashboard and phone</h3>
+        <div class="tips">
+          <div class="tip"><h4>Leave it open in the frontend pane</h4><p>It refreshes every few seconds, so a glance tells you whether a build is on attempt 2 or waiting for you. Pausing the browser tab pauses the polling.</p></div>
+          <div class="tip"><h4>"Needs you" is the to-do list</h4><p>It only lists what waits for a person. If it says "Nothing is waiting for you", the machines are busy or the work is done.</p></div>
+          <div class="tip"><h4>Read before you approve</h4><p>"Read and approve" opens the plan first and asks you to tick that you read it. Approving a plan you did not read is how the wrong thing gets built.</p></div>
+          <div class="tip"><h4>Share progress safely</h4><p>For a client or manager, use <code>--read-only</code> with Tailscale, or the "Summarise progress" text, which is written for non-technical readers.</p></div>
+        </div>
+
         <h3 class="sub">Staying safe</h3>
         <div class="tips">
           <div class="tip"><h4>Lost? Ask the script</h4><p><code>bash scripts/start.sh status</code> shows the current REQ, plan, review, PR and the exact next action.</p></div>
@@ -905,6 +958,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>bash scripts/start.sh</code></td><td>Next unticked REQ from TASKS.md: finds its Issue, creates the branch.</td></tr>
             <tr><td><code>bash scripts/start.sh status</code></td><td>Where am I: ID, Issue, plan, review, PR, and the next action.</td></tr>
             <tr><td><code>bash scripts/start.sh check</code></td><td>Is the kit installed and active in this project: PASS / WARN / FAIL per item.</td></tr>
+            <tr><td><code>python3 scripts/dashboard.py</code></td><td>Live dashboard at http://localhost:8765. <code>--lan</code> adds phone access with a PIN; <code>--read-only</code> hides the buttons.</td></tr>
             <tr><td><code>bash scripts/gate.sh</code></td><td>The quality gate: doclint, lint and complexity, format, strict types, full tests, 85% coverage of <code>service.py</code>. <code>--full</code> adds the dependency audit and secrets scan.</td></tr>
             <tr><td><code>bash scripts/doclint.sh</code></td><td>Folder READMEs, file headers with <code>REQ-IDs:</code>, function doc blocks with <code>Calls:</code> (<code>Called by:</code> optional), files under 300 lines, <code>service.py</code> free of web and database imports. Add <code>--changed</code> for this branch only.</td></tr>
             <tr><td><code>bash scripts/start.sh bug "symptom"</code></td><td>Next free BUG number: files the Issue, creates <code>fix/BUG-00X</code>.</td></tr>
@@ -991,7 +1045,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.8: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.9: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>
@@ -1135,7 +1189,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
       var on = $('input', li).checked;
       li.classList.toggle('done', on); li.classList.remove('is-next');
       var ph = li.closest('section').dataset.phase;
-      if (ph === 'daily' || ph === 'bug' || ph === 'autopilot') return;      // repeatable side tracks don't count toward overall
+      if (ph === 'daily' || ph === 'bug' || ph === 'autopilot' || ph === 'dashboard') return;      // repeatable side tracks don't count toward overall
       total++; if (on) done++; else if (!next) next = li;
     });
     if (next) next.classList.add('is-next');

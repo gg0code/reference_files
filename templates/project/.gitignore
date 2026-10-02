@@ -4,6 +4,9 @@ FAILURES.txt
 .loop-*
 .autopilot/
 CLAUDE.local.md
+.kit/
+
+# (.kit/ holds the dashboard's local event log and job output)
 
 # graphify project map (generated; rebuild with /graphify .)
 graphify-out/

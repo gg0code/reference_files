@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.8
+# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.9
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
 #   bash /path/to/reference_files/scaffold.sh <app-name> [node|python|go|rust]
@@ -19,7 +19,7 @@
 #   templates/project/        CLAUDE.md, .claude/, .mcp.json, docs/ (incl. MCP.md), src/, tests/, scripts/README.md, .gitignore
 #   templates/ci.template.yml CI workflow with one block per stack
 #   templates/stacks/<stack>/ per-stack starter files (python: pyproject.toml with the gate settings)
-#   start.sh, loop.sh, pr.sh, doclint.sh, gate.sh, req_status.sh, autopilot.sh   copied into <app>/scripts/
+#   start.sh, loop.sh, pr.sh, doclint.sh, gate.sh, req_status.sh, autopilot.sh, dashboard.py   copied into <app>/scripts/
 #
 # PREREQUISITE - once per machine, before this script:
 #   git config --global user.name  "Your Name"
@@ -53,7 +53,7 @@ die()  { echo ""; echo "ERROR : $*" >&2; echo "Aborted. Nothing further was run.
 trap 'err "unexpected failure at line $LINENO (command: $BASH_COMMAND)"; exit 1' ERR
 
 echo "=============================================="
-echo " scaffold.sh v2.8 - project: $APP${STACK:+  (stack: $STACK)}"
+echo " scaffold.sh v2.9 - project: $APP${STACK:+  (stack: $STACK)}"
 echo "=============================================="
 
 # ---------- 0. Preflight ----------
@@ -74,7 +74,7 @@ ok "git identity: $GIT_NAME <$GIT_MAIL>"
 
 [ -d "$TPL" ]    || die "project template not found at $TPL (keep scaffold.sh inside the kit folder)"
 [ -f "$CI_TPL" ] || die "CI template not found at $CI_TPL"
-for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh; do
+for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh dashboard.py; do
   [ -f "$KIT_DIR/$s" ] || die "kit script missing: $KIT_DIR/$s"
 done
 ok "kit found: $KIT_DIR"
@@ -128,18 +128,20 @@ done < <(find "$TPL" -type f -print0 | sort -z)
 if [ "$kept" -gt 0 ] && [ "$created" -gt 0 ]; then printf '%s' "$kept_list"; fi
 ok "template files: $created created, $kept kept (existing files are never overwritten)"
 mkdir -p docs/plans || die "could not create docs/plans"
-# graphify's project map is generated per machine: never commit it (docs/MCP.md)
-if ! grep -qxF 'graphify-out/' .gitignore 2>/dev/null; then
-  printf '\n# graphify project map (generated; rebuild with /graphify .)\ngraphify-out/\n' >> .gitignore || die "could not update .gitignore"
-  ok ".gitignore: added graphify-out/"
-fi
+# generated per machine, never committed: graphify's map (docs/MCP.md) and the dashboard's event log (.kit/)
+for ign in graphify-out/ .kit/; do
+  if ! grep -qxF "$ign" .gitignore 2>/dev/null; then
+    printf '\n%s\n' "$ign" >> .gitignore || die "could not update .gitignore"
+    ok ".gitignore: added $ign"
+  fi
+done
 [ -f .mcp.json ] && ok "MCP servers: .mcp.json (chrome-devtools, playwright, graphify; see docs/MCP.md)"
 grep -q '@docs/MCP.md' CLAUDE.md 2>/dev/null || warn "CLAUDE.md does not load docs/MCP.md: add the line '@docs/MCP.md' to its section 0"
 
 # ---------- 3. Tooling scripts + CI ----------
 step "Step 3/6  Tooling scripts and CI"
 mkdir -p scripts || die "could not create scripts/"
-for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh; do
+for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh dashboard.py; do
   if [ -f "scripts/$s" ]; then
     if cmp -s "$KIT_DIR/$s" "scripts/$s"; then
       ok "scripts/$s is current"
@@ -197,8 +199,8 @@ git add -A || die "git add failed"
 if git diff --cached --quiet; then
   warn "nothing new to commit - working tree already matches HEAD"
 else
-  git commit -qm "chore: scaffold from project template v2.8" || die "git commit failed"
-  ok "committed: chore: scaffold from project template v2.8"
+  git commit -qm "chore: scaffold from project template v2.9" || die "git commit failed"
+  ok "committed: chore: scaffold from project template v2.9"
 fi
 COMMITS="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 [ "$COMMITS" -ge 1 ] || die "no commit exists - a push would fail with 'src refspec main does not match any'"
@@ -287,6 +289,7 @@ cat <<NEXT
                                                   # Claude lists any missing MCP prerequisite with its install command (docs/MCP.md)
     4. After CI has run once, turn on branch protection (runbook.md Phase 2c).
     5. Then, for each requirement: bash scripts/start.sh   (start.sh status shows where you are)
+    6. Watch it all, on the computer or phone: python3 scripts/dashboard.py [--lan]   (runbook.md Phase 2e)
 
   Sanity check:
     git log --oneline    # >= 1 commit
