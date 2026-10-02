@@ -99,13 +99,34 @@ def base_ref() -> str:
     return "HEAD"
 
 
+WINDOWS = os.name == "nt"   # the kit runs inside Ubuntu (WSL), macOS or Linux, not in native Windows Python
+BASH = os.environ.get("KIT_BASH", "bash")
+
+
 def pid_alive(pid: int) -> bool:
-    """True if a process with this id is running."""
+    """True if a process with this id is running.
+    Never on native Windows Python: there os.kill() would terminate the process instead of checking it."""
+    if WINDOWS:
+        return False
     try:
         os.kill(pid, 0)
         return True
     except (OSError, ValueError):
         return False
+
+
+def event_age(e: dict) -> float:
+    """Seconds since an event was written (large if the time cannot be read)."""
+    try:
+        return time.time() - dt.datetime.strptime(str(e.get("ts", "")), "%Y-%m-%dT%H:%M:%S%z").timestamp()
+    except ValueError:
+        return 1e9
+
+
+def still_running(pid: int, last: dict) -> bool:
+    """A loop or autopilot run with no end event is running if its process lives
+    (on native Windows Python, where processes cannot be checked safely: if it wrote something in the last 20 minutes)."""
+    return event_age(last) < 1200 if WINDOWS else pid_alive(pid)
 
 
 class GhCache:
@@ -305,7 +326,7 @@ def running_loops(events: list[dict]) -> tuple[dict, dict]:
             started.pop(pid, None)
     loops = {}
     for pid, e in started.items():
-        if pid_alive(pid):
+        if still_running(pid, latest.get(pid, e)):
             loops[e.get("id", "")] = latest.get(pid, e)
     return loops, last_result
 
@@ -318,7 +339,8 @@ def autopilot_state(events: list[dict]) -> dict:
             run_e = e
         elif e.get("kind") == "autopilot_end" and run_e and e.get("pid") == run_e.get("pid"):
             run_e = None
-    running = bool(run_e and pid_alive(run_e.get("pid", 0)))
+    last_ap = next((e for e in reversed(events) if e.get("src") == "autopilot"), run_e)
+    running = bool(run_e and still_running(run_e.get("pid", 0), last_ap or run_e))
     needs: list[str] = []
     reports = sorted(glob.glob(os.path.join(ROOT, ".autopilot", "*.md")))
     if reports:
@@ -449,13 +471,13 @@ def act(action: str, rid: str) -> tuple[bool, str]:
         record("plan_approved", rid, "Plan approved from the dashboard")
         return True, "Plan approved and committed." if code == 0 else "Plan approved (commit it in the git pane)."
     jobs = {
-        "run_loop": ("loop", f"Building {rid}", ["bash", "scripts/loop.sh"], None),
-        "open_pr": ("pr", f"Opening {rid} for your review", ["bash", "scripts/pr.sh"], None),
+        "run_loop": ("loop", f"Building {rid}", [BASH, "scripts/loop.sh"], None),
+        "open_pr": ("pr", f"Opening {rid} for your review", [BASH, "scripts/pr.sh"], None),
         "merge_pr": ("merge", f"Merging {rid} and running the after-merge checks",
-                     ["bash", "scripts/pr.sh", "merge"], {"YES": "1"}),
-        "start_next": ("start", "Starting the next feature", ["bash", "scripts/start.sh"], None),
-        "switch": ("switch", f"Switching to {rid}", ["bash", "scripts/start.sh", rid], {"FORCE": "1"}),
-        "run_gate": ("gate", "Running the quality checks", ["bash", "scripts/gate.sh"], None),
+                     [BASH, "scripts/pr.sh", "merge"], {"YES": "1"}),
+        "start_next": ("start", "Starting the next feature", [BASH, "scripts/start.sh"], None),
+        "switch": ("switch", f"Switching to {rid}", [BASH, "scripts/start.sh", rid], {"FORCE": "1"}),
+        "run_gate": ("gate", "Running the quality checks", [BASH, "scripts/gate.sh"], None),
     }
     if action == "summarise":
         if not shutil.which("claude"):
@@ -465,7 +487,7 @@ def act(action: str, rid: str) -> tuple[bool, str]:
                   "of plain English, say what was done recently, what is happening now, and what needs the owner. "
                   "No jargon, no IDs unless needed. Events (oldest first):\n" + evts)
         err = JOBS.start("summary", "Writing a plain-English summary",
-                         ["bash", "-c", 'claude -p "$ZZ_PROMPT" --model haiku > .kit/summary.txt'],
+                         [BASH, "-c", 'claude -p "$ZZ_PROMPT" --model haiku > .kit/summary.txt'],
                          {"ZZ_PROMPT": prompt})
         return (not err), err or "Summary is being written."
     if action not in jobs:
@@ -626,7 +648,7 @@ def main() -> None:
     except OSError:
         print(f"  Port {ARGS.port} is busy: the dashboard is probably already running. "
               f"Open http://localhost:{ARGS.port}, or use --port 8766.")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     print(f"\n  ZeroZeta build dashboard {VERSION} - {os.path.basename(ROOT)}")
     print(f"  On this computer : http://localhost:{ARGS.port}")
     if ARGS.lan:

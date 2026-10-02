@@ -59,7 +59,8 @@ The first session finds every doc still marked `Status: TEMPLATE` and walks you 
 
 Everything runs from a local copy of this kit: `scaffold.sh` copies `templates/` and the scripts into each new project, so the kit must be on your machine first.
 The kit lives in its own GitHub repository. Clone it in a terminal: on Mac or Linux the normal Terminal; on Windows inside Ubuntu (WSL, installed with `wsl --install -d Ubuntu`), not with Windows Git, so the scripts keep their Unix line endings.
-The guide (`spec-driven-build-guide.html`) asks for your computer type first and shows only the matching steps.
+On Windows the kit runs in Ubuntu (WSL). CMD can be the window, but the kit's scripts are bash: type `wsl ~` in CMD first, then use the commands as written.
+The guide (`spec-driven-build-guide.html`) asks for your computer type first, shows only the matching steps, and converts Windows folders such as `C:\Users\you\Desktop\Projects` to the form Ubuntu uses (`/mnt/c/Users/you/Desktop/Projects`).
 
 ```bash
 mkdir -p ~/kits ~/projects
@@ -118,7 +119,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh  # uv, for graphify
 uv tool install "graphifyy[mcp]" && graphify install
 ```
 
-On Windows, run the scripts from WSL or Git Bash; they are bash scripts.
+On Windows, run the scripts in Ubuntu (WSL); they are bash scripts.
 
 ## Two agents
 

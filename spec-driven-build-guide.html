@@ -77,6 +77,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 .vgrid .wide{grid-column:1/-1}
 .vgrid hr{grid-column:1/-1;border:0;border-top:1px dashed var(--line);margin:4px 0}
 .vnote{grid-column:1/-1;font-size:12px;color:var(--faint);margin:0}
+#rootPreview,#kitPreview{color:var(--accent);font-family:var(--mono);font-size:11.5px;word-break:break-all}
 .vgrid .hint{font-size:11.5px;color:var(--faint);font-weight:400;line-height:1.35}
 .vgrid .verr{font-size:12px;color:#B42318;font-weight:500;min-height:0}
 .vgrid .vwarn{font-size:12px;color:#9A5A00;font-weight:500}
@@ -89,7 +90,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 .ospick label:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--surface)}
 .vbar{grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:10px;margin-top:2px}
 #vSave:disabled{opacity:.55;cursor:default}
-.vstatus{font-size:12.5px;color:var(--muted);flex:1;min-width:200px}
+.vstatus{font-size:12.5px;color:var(--muted);flex:1 1 100%;min-width:200px;word-break:break-word}
 .vstatus.dirty{color:#9A5A00;font-weight:600}
 .vstatus.ok{color:var(--accent)}
 .os-hide{display:none!important}
@@ -234,8 +235,8 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
             <option value="python">python</option><option value="node">node</option><option value="go">go</option><option value="rust">rust</option>
           </select><span class="hint">The language your app is written in. Python is the kit's default.</span>
         </label>
-        <label class="wide">Folder for your projects<input id="v-root" data-var="ROOT" value="~/projects" spellcheck="false"><span class="hint" data-os="windows">Inside Ubuntu, not on C:. <code>~</code> means your Ubuntu home folder. Leave <code>~/projects</code> unless you have a reason.</span><span class="hint" data-os="mac linux"><code>~</code> means your home folder. Leave <code>~/projects</code> unless you have a reason.</span><span class="verr" data-err="ROOT"></span></label>
-        <label class="wide">Folder for the kit<input id="v-kit" data-var="KIT" value="~/kits/reference_files" spellcheck="false"><span class="hint">Where step "Get the kit" puts the kit. Leave as is unless you already have the kit somewhere else.</span><span class="verr" data-err="KIT"></span></label>
+        <label class="wide">Folder for your projects<input id="v-root" data-var="ROOT" value="" placeholder="C:\Users\gaura\Desktop\Projects" spellcheck="false"><span class="hint"><span data-os="windows">e.g. <code>C:\Users\gaura\Desktop\Projects</code></span><span data-os="mac">e.g. <code>/Users/gaura/Projects</code></span><span data-os="linux">e.g. <code>/home/gaura/projects</code></span> (your app's folder is created inside it)</span><span class="hint" id="rootPreview"></span><span class="verr" data-err="ROOT"></span></label>
+        <label class="wide">Folder for the kit<input id="v-kitdir" data-var="KITDIR" value="" placeholder="C:\Users\gaura\Desktop\Projects\kits" spellcheck="false"><span class="hint"><span data-os="windows">e.g. <code>C:\Users\gaura\Desktop\Projects\kits</code></span><span data-os="mac">e.g. <code>/Users/gaura/Projects/kits</code></span><span data-os="linux">e.g. <code>/home/gaura/projects/kits</code></span> (the kit's <code>reference_files</code> folder is created inside it)</span><span class="hint" id="kitPreview"></span><span class="verr" data-err="KITDIR"></span></label>
         
         <label class="wide">Your GitHub user name<input id="v-user" data-var="GHUSER" value="your-user" spellcheck="false"><span class="hint">As shown on github.com after you sign in (top-right menu). Used for your project repos and, by default, for the kit address below.</span><span class="vwarn" data-warn="GHUSER"></span></label>
         <label class="wide">Kit address on GitHub<input id="v-kitrepo" data-var="KITREPO" value="https://github.com/your-user/reference_files.git" spellcheck="false"><span class="hint" id="kitHint">Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link (it ends in .git). Got a zip instead? Leave it; the step explains.</span><span class="vwarn" data-warn="KITREPO"></span></label>
@@ -342,6 +343,17 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
       <section class="phase" id="machine" data-phase="machine">
         <div class="phase-head"><h2>0 · Machine setup</h2><span class="when">Once per computer. Skip if done.</span></div>
         <p class="osnote" data-os="windows">Showing steps for <b>Windows</b>. The kit's scripts are written for Linux, so on Windows everything runs inside <b>Ubuntu</b>, a Linux system Windows installs for you (Microsoft calls this WSL). After step 1 you type every command in this guide into the Ubuntu window, never into PowerShell, unless a step says PowerShell.</p>
+        <div class="osnote" data-os="windows">
+          <b>Using CMD (Command Prompt)?</b> CMD is fine as the window, but it cannot run the kit's scripts itself: they are bash scripts that run in Ubuntu. Type one command to switch the CMD window into Ubuntu, then paste every command exactly as this guide shows it.
+          <div class="tablewrap"><table class="ref">
+            <thead><tr><th>You want</th><th>Type in CMD</th></tr></thead>
+            <tbody>
+              <tr><td>Work in Ubuntu (stay there for the session)</td><td><code>wsl ~</code> &nbsp;then all commands as shown; <code>exit</code> returns to CMD</td></tr>
+              <tr><td>One command without switching</td><td><code>wsl bash -lc "cd {ROOT}/{APP} &amp;&amp; bash scripts/start.sh status"</code></td></tr>
+              <tr><td>Never in CMD</td><td><code>bash scripts/...</code>, <code>source</code>, <code>ln</code>, <code>apt</code>, paths starting with <code>~</code> or <code>/mnt/c</code>: they only work inside Ubuntu</td></tr>
+            </tbody>
+          </table></div>
+        </div>
         <p class="osnote" data-os="mac">Showing steps for <b>Mac</b>. Every command runs in the <b>Terminal</b> app (Applications &gt; Utilities &gt; Terminal), or in WezTerm if you install it in step 6.</p>
         <p class="osnote" data-os="linux">Showing steps for <b>Linux</b> (Ubuntu or Debian; on other distributions use your package manager instead of <code>apt</code>). Every command runs in your terminal.</p>
         <ol class="steps">
@@ -352,7 +364,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
               <pre data-label="powershell · as administrator">wsl --install -d Ubuntu</pre>
               <p>After the restart, open <b>Ubuntu</b> from the Start menu. It asks for a new user name and password for Ubuntu (the password does not show while you type; that is normal). Then install the basic tools:</p>
               <pre data-label="bash · Ubuntu window">sudo apt update &amp;&amp; sudo apt install -y git curl unzip jq tmux gh nodejs npm python3</pre>
-              <p class="expect">You should see: a prompt like <code>you@PC:~$</code>. That is Ubuntu. Your Windows files are reachable at <code>/mnt/c/Users/&lt;you&gt;</code>, but keep projects in Ubuntu's own folders (the defaults above): tests run several times faster there, and VS Code opens them with its WSL extension.</p>
+              <p class="expect">You should see: a prompt like <code>you@PC:~$</code>. That is Ubuntu. Ubuntu reaches your Windows drive C: as <code>/mnt/c</code>, so a folder you typed above as <code>C:\Users\gaura\Desktop\Projects</code> appears in the commands as <code>/mnt/c/Users/gaura/Desktop/Projects</code>. The guide converts it for you.</p>
             </div>
           </li>
           <li class="step" data-id="m-mac-brew" data-once="1" data-os="mac">
@@ -388,7 +400,7 @@ git config --global --list | grep -E 'user|default'</pre>
             <div class="step-body">
               <div class="step-head"><h3>Get the kit</h3></div>
               <p>Every later step reads the kit from your machine: <code>scaffold.sh</code> copies its templates and scripts into each new project. Put its address in <b>Kit address on GitHub</b> above and save; for a private kit, the owner adds you as a collaborator first.<span data-os="windows"> Clone it in the Ubuntu window, not with Windows Git or GitHub Desktop, so the scripts keep their Linux line endings.</span></p>
-              <pre data-label="bash · terminal">mkdir -p {ROOT} $(dirname {KIT})
+              <pre data-label="bash · terminal">mkdir -p {ROOT} {KITPARENT}       # creates both folders if they do not exist yet
 git clone {KITREPO} {KIT}          # private repo: gh auth login (previous step) makes this work
 ls {KIT}/scaffold.sh               # check: the file is there</pre>
               <p>Received the kit as a zip instead? Unzip it so that <code>{KIT}/scaffold.sh</code> exists. Later, to get kit updates: <code>git -C {KIT} pull</code>. New projects use the new kit; existing ones are upgraded by hand (readme, "Updating the kit").</p>
@@ -1176,6 +1188,9 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   var ua = navigator.userAgent || '';
   defaults.OS = /Mac/i.test(ua) ? 'mac' : (/Win/i.test(ua) ? 'windows' : 'linux');
   var saved = store.get('vars', {});
+  // older versions stored example folders and the full kit path: start those fields empty
+  if (saved.ROOT === '~/projects') delete saved.ROOT;
+  delete saved.KIT;
   function autoRepo(user){ return 'https://github.com/' + (user || 'your-user') + '/reference_files.git'; }
   // an old saved address that still has the example user follows the saved user name
   if (saved.KITREPO && /your-user/.test(saved.KITREPO) && saved.GHUSER && saved.GHUSER !== 'your-user') saved.KITREPO = autoRepo(saved.GHUSER);
@@ -1207,9 +1222,16 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   kitHint();
 
   // read the form as typed (not yet applied)
+  // C:\Users\me\Projects (as typed on Windows) -> /mnt/c/Users/me/Projects (as Ubuntu sees it)
+  function toLinux(p, os){
+    p = (p || '').trim().replace(/^["']|["']$/g, '');
+    var m = p.match(/^([A-Za-z]):[\\\/]?(.*)$/);
+    if (m && os === 'windows') p = '/mnt/' + m[1].toLowerCase() + '/' + m[2].replace(/\\/g, '/');
+    return p.replace(/\/+$/, '');
+  }
   function formValues(){
     var f = {};
-    formInputs.forEach(function(el){ f[el.dataset.var] = el.value.trim(); });
+    formInputs.forEach(function(el){ f[el.dataset.var] = el.value.trim().replace(/^["']|["']$/g, ''); });
     var o = osRadios.filter(function(r){ return r.checked; })[0];
     f.OS = o ? o.value : '';
     f.DATE = iso;
@@ -1218,15 +1240,13 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   function check(f){
     var err = {}, warn = {};
     if (!/^[a-z0-9][a-z0-9-]{0,38}$/.test(f.APP)) err.APP = 'Use lowercase letters, digits and hyphens, starting with a letter or digit.';
-    ['ROOT','KIT'].forEach(function(k){
+    ['ROOT','KITDIR'].forEach(function(k){
       var v = f[k];
-      if (!v) err[k] = 'Required.';
-      else if (/\s/.test(v)) err[k] = 'No spaces, please: commands would break. Try ~/projects.';
-      else if (/^[A-Za-z]:[\\\/]/.test(v)) err[k] = 'That is a Windows path. Use an Ubuntu path such as ~/projects.';
-      else if (!/^(~|\/)/.test(v)) err[k] = 'Start with ~/ (your home folder) or /.';
-      else if (f.OS === 'mac' && /^\/mnt\//.test(v)) err[k] = '/mnt/... paths exist only on Windows. On a Mac use ~/projects.';
+      if (!v) err[k] = 'Required. Type the folder, e.g. the example below the field.';
+      else if (/\s/.test(v)) err[k] = 'No spaces, please: commands would break. Choose or create a folder without spaces.';
+      else if (/^[A-Za-z]:/.test(v) && f.OS !== 'windows') err[k] = 'That is a Windows path. On this computer use a path like /Users/you/Projects.';
+      else if (!/^([A-Za-z]:|~|\/)/.test(v)) err[k] = 'Use a full path, e.g. the example below the field.';
     });
-    if (f.KIT && f.ROOT && f.KIT.replace(/\/$/,'') === f.ROOT.replace(/\/$/,'')) err.KIT = 'Use a different folder from the projects folder.';
     if (!f.OS) err.OS = 'Choose your computer.';
     if (!/^(https:\/\/|git@)\S+$/.test(f.KITREPO)) warn.KITREPO = 'Does not look like a GitHub address. Fine if you got the kit as a zip.';
     else if (/your-user/.test(f.KITREPO)) warn.KITREPO = 'Put your GitHub user name above and this updates itself, or paste the address you were given.';
@@ -1249,9 +1269,20 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   }
   function idleStatus(){
     if (!everSaved) status('dirty', 'Using example values. Check each field, then press Save.');
-    else status('ok', 'Saved. Commands use: <b>' + esc(applied.APP) + '</b> · ' + esc(applied.STACK) + ' · ' + esc(OSNAME[applied.OS] || applied.OS) + ' · projects in <code>' + esc(applied.ROOT) + '</code>');
+    else status('ok', 'Saved. Commands use: <b>' + esc(applied.APP) + '</b> · ' + esc(applied.STACK) + ' · ' + esc(OSNAME[applied.OS] || applied.OS) + ' · app folder <code>' + esc(toLinux(applied.ROOT, applied.OS) + '/' + applied.APP) + '</code> · kit <code>' + esc(toLinux(applied.KITDIR, applied.OS) + '/reference_files') + '</code>');
+  }
+  var PH = {windows:['C:\\Users\\gaura\\Desktop\\Projects','C:\\Users\\gaura\\Desktop\\Projects\\kits'],
+            mac:['/Users/gaura/Projects','/Users/gaura/Projects/kits'], linux:['/home/gaura/projects','/home/gaura/projects/kits']};
+  function previews(){
+    var f = formValues(), os = f.OS || applied.OS;
+    var r = toLinux(f.ROOT, os), k = toLinux(f.KITDIR, os);
+    $('#rootPreview').textContent = r ? 'App folder will be: ' + r + '/' + (f.APP || 'myapp') : '';
+    $('#kitPreview').textContent = k ? 'Kit will be: ' + k + '/reference_files' : '';
+    $('#v-root').placeholder = (PH[os] || PH.windows)[0];
+    $('#v-kitdir').placeholder = (PH[os] || PH.windows)[1];
   }
   function onFormEdit(){
+    previews();
     showCheck(check(formValues()));
     if (isDirty()) status('dirty', 'Not saved yet: the commands still use your previous values. Press Save to update them.');
     else idleStatus();
@@ -1268,6 +1299,9 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
       v[k] = form.contains(el) ? (applied[k] || defaults[k] || k) : (el.value.trim() || k);
     });
     v.OS = applied.OS;
+    v.ROOT = toLinux(applied.ROOT, applied.OS) || '<projects-folder>';
+    v.KITPARENT = toLinux(applied.KITDIR, applied.OS) || '<kit-folder>';
+    v.KIT = v.KITPARENT + '/reference_files';
     var s = STACK[v.STACK] || STACK.python;
     v.TEST = s.TEST; v.WATCH = s.WATCH;
     v.APCMD = {'1':'AUTOPILOT=build', '2':'AUTOPILOT=plan,build', '3':'AUTOPILOT=plan,build AUTO_MERGE=1'}[v.LEVEL] || 'AUTOPILOT=build';
@@ -1343,6 +1377,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   });
   formInputs.forEach(function(el){ el.addEventListener('input', onFormEdit); el.addEventListener('change', onFormEdit); });
   osRadios.forEach(function(r){ r.addEventListener('change', function(){ onFormEdit(); applyOS(); }); });
+  $('#v-app').addEventListener('input', previews);
   // settings elsewhere on the page (autopilot level, cost cap) still apply as you type
   inputs.filter(function(el){ return !form.contains(el); }).forEach(function(el){
     el.addEventListener('input', function(){
@@ -1448,7 +1483,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     $$('section.phase').forEach(function(s){ io.observe(s); });
   }
 
-  render(); applyOS(); loadProgress(); showCheck(check(formValues())); idleStatus();
+  render(); applyOS(); loadProgress(); previews(); if (everSaved) showCheck(check(formValues())); idleStatus();
 })();
 </script>
 </body>
