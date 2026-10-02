@@ -167,6 +167,21 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
   li.step{grid-template-columns:28px minmax(0,1fr);padding:12px}
   .wrap{padding-inline:16px}
 }
+/* paths and tips (v2.8) */
+.paths{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:0 0 18px}
+.path{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 14px 12px}
+.path h3{font-size:16px;margin:0 0 4px}
+.path .who{font-size:12.5px;color:var(--faint);margin:0 0 8px}
+.path p{font-size:14px;margin:0 0 8px}
+.path ul{margin:0;padding-left:18px;font-size:13.5px;color:var(--muted)}
+.path.rec{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.path .tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin-bottom:6px}
+.tips{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.tip{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tip h4{font-size:14.5px;margin:0 0 6px}
+.tip p{font-size:13.5px;color:var(--muted);margin:0 0 6px}
+.tip p:last-child{margin-bottom:0}
+.lede a{color:var(--accent)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
@@ -175,9 +190,9 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.7 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.8 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
-      <p class="lede">Every step from an empty folder to a tagged release, using <code>scaffold.sh</code>, the project templates, and the scripts <code>start.sh</code>, <code>loop.sh</code> and <code>pr.sh</code>. Two agents do the work: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b> that checks every branch before its PR. Fill in your project details and every command and prompt below updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
+      <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Fill in your project details and every command updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
       <div class="overall">
         <div class="bar" aria-hidden="true"><i id="overallBar"></i></div>
@@ -207,6 +222,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 
   <div class="layout">
     <nav class="rail" id="rail" aria-label="Phases">
+      <a href="#paths" data-phase="paths">Start here · Paths</a>
       <a href="#machine" data-phase="machine">0 · Machine<small></small><span class="mini"><i></i></span></a>
       <a href="#create" data-phase="create">1 · Create project<small></small><span class="mini"><i></i></span></a>
       <a href="#session" data-phase="session">2 · Open session<small></small><span class="mini"><i></i></span></a>
@@ -216,6 +232,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
       <a href="#bug" data-phase="bug">5 · Fix a bug<small></small><span class="mini"><i></i></span></a>
       <a href="#release" data-phase="release">6 · Release<small></small><span class="mini"><i></i></span></a>
       <a href="#daily" data-phase="daily">Pause / resume<small></small><span class="mini"><i></i></span></a>
+      <a href="#tips" data-phase="tips">Tips</a>
       <a href="#reference" data-phase="reference">Reference</a>
       <div class="legend">
         <span><span class="chip pane claude">claude</span> prompts to Claude</span>
@@ -228,6 +245,68 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
     </nav>
 
     <main>
+      <!-- ================= PATHS ================= -->
+      <section class="phase" id="paths" data-phase="paths">
+        <div class="phase-head"><h2>Start here · Choose your development path</h2><span class="when">Read once. You can switch paths between requirements at any time.</span></div>
+        <p>Phases 0 to 3 are the same for everyone: machine setup, the project, and the specification (idea, PRD, architecture, UI design, test plan, Issues). The specification is never automated: it is where you decide what gets built. The paths differ only in how each requirement is built after that.</p>
+        <div class="paths">
+          <div class="path">
+            <span class="tag">Most hands-on</span>
+            <h3>A · Guided</h3>
+            <p class="who">For: a tricky REQ, learning a new library, or when you want to see every line written.</p>
+            <p>Claude implements in the chat with the <b>Implement</b> prompt from the runbook, one step at a time. You run <code>bash scripts/gate.sh</code> yourself. Then review, explain and PR as in path B.</p>
+            <ul><li>You approve: plan, every step, PR, merge</li><li>Speed: slowest · Cost: lowest</li><li>Guide: Phase 4, step "Implement" done by hand</li></ul>
+          </div>
+          <div class="path rec">
+            <span class="tag">Recommended · default</span>
+            <h3>B · Assisted, one REQ at a time</h3>
+            <p class="who">For: your first project, and any REQ that touches money, security or data.</p>
+            <p><code>start.sh</code> → <code>next</code> (plan) → you approve → <code>loop.sh</code> builds until the gate is green → <code>review</code> → <code>explain</code> → <code>pr.sh</code> → you review the PR → <code>pr.sh merge</code>.</p>
+            <ul><li>You approve: plan, PR, merge</li><li>You read: the walkthrough, which teaches you the code</li><li>Guide: Phase 4</li></ul>
+          </div>
+          <div class="path">
+            <span class="tag">Semi-attended</span>
+            <h3>C · Autopilot level 1</h3>
+            <p class="who">For: a batch of well-understood REQs after you have done 3 or 4 by hand.</p>
+            <p>You approve the plans first. <code>bash scripts/autopilot.sh</code> then runs branch, loop, commit, reviewer, fix rounds and PR for each, while you are away.</p>
+            <ul><li>You approve: plans, then every PR and merge</li><li>Afterwards: type <code>explain</code> on each branch before merging</li><li>Guide: Phase 4b</li></ul>
+          </div>
+          <div class="path">
+            <span class="tag">Unattended build</span>
+            <h3>D · Autopilot level 2</h3>
+            <p class="who">For: simple, low-risk REQs (screens, CRUD, reports) on a mature project.</p>
+            <p><code>AUTOPILOT=plan,build</code>: autopilot also drafts the plans and the reviewer agent approves them (marked "by reviewer agent"). You only review and merge the PRs.</p>
+            <ul><li>You approve: PRs and merges</li><li>Read those plans when you return</li><li>Guide: Phase 4b</li></ul>
+          </div>
+          <div class="path">
+            <span class="tag">Fully unattended</span>
+            <h3>E · Autopilot level 3</h3>
+            <p class="who">For: experienced use only, with branch protection on and a strong test suite.</p>
+            <p>Adds <code>AUTO_MERGE=1</code>: waits for green CI, merges, runs the after-merge checks and continues. Stops on anything it cannot decide and lists it under "Needs you".</p>
+            <ul><li>You approve: the release</li><li>Refuses to run without branch protection on main</li><li>Guide: Phase 4b</li></ul>
+          </div>
+          <div class="path">
+            <span class="tag">Any time</span>
+            <h3>Bug path</h3>
+            <p class="who">For: anything that behaves wrongly, found by you, a user or a test.</p>
+            <p><code>start.sh bug "symptom"</code> files the Issue and branch. Reproduce end to end, write a FAILING test, then fix with path A or B. A bug with no failing test is hidden, not fixed.</p>
+            <ul><li>Never through autopilot</li><li>Guide: Phase 5</li></ul>
+          </div>
+        </div>
+        <div class="tablewrap"><table class="ref">
+          <thead><tr><th>Who decides</th><th>A Guided</th><th>B Assisted</th><th>C Level 1</th><th>D Level 2</th><th>E Level 3</th></tr></thead>
+          <tbody>
+            <tr><td>Spec docs (idea to test plan)</td><td>you</td><td>you</td><td>you</td><td>you</td><td>you</td></tr>
+            <tr><td>Plan per REQ</td><td>you</td><td>you</td><td>you</td><td>reviewer agent</td><td>reviewer agent</td></tr>
+            <tr><td>Code is done</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td></tr>
+            <tr><td>Code review</td><td>reviewer + you</td><td>reviewer + you</td><td>reviewer, then you</td><td>reviewer, then you</td><td>reviewer</td></tr>
+            <tr><td>Merge</td><td>you</td><td>you</td><td>you</td><td>you</td><td>CI + autopilot</td></tr>
+            <tr><td>Release</td><td>you</td><td>you</td><td>you</td><td>you</td><td>you</td></tr>
+          </tbody>
+        </table></div>
+        <p class="expect">A good progression: path B for the walking skeleton and the first 3 or 4 REQs, reading every walkthrough; then path C for batches of similar REQs; level 2 or 3 only once you trust the test suite. Always try <code>DRY_RUN=1 bash scripts/autopilot.sh</code> first.</p>
+      </section>
+
       <!-- ================= PHASE 0 ================= -->
       <section class="phase" id="machine" data-phase="machine">
         <div class="phase-head"><h2>0 · Machine setup</h2><span class="when">Once per computer. Skip if done.</span></div>
@@ -509,7 +588,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
           <li class="step" data-id="b-loop" data-pane="git" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Implement: run the loop</h3></div>
-              <p>Fresh Claude context each pass, tests first, until the full suite is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running.</p>
+              <p>Fresh Claude context each pass, tests first, until the quality gate (<code>bash scripts/gate.sh</code>: docs, lint, complexity, format, types, full tests) is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running.</p>
               <pre data-label="bash · test pane">{WATCH}</pre>
               <pre data-label="bash · git pane">bash scripts/loop.sh</pre>
               <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run.</p>
@@ -518,7 +597,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
           <li class="step" data-id="b-eyeball" data-pane="frontend">
             <div class="step-body">
               <div class="step-head"><h3>Look at it</h3></div>
-              <p>If there is UI, run it and be picky: spacing, states, mobile width, dark mode. Missing folder READMEs, file headers or function doc blocks already turned the loop red, because <code>doclint.sh</code> runs in front of the tests. Small unrelated fixes (lint, typo, flaky test, obvious UI defect, under about 20 lines) go in their own <code>chore(hygiene)</code> commit. Anything bigger becomes a bug later.</p>
+              <p>If there is UI, run it and be picky: spacing, states, mobile width, dark mode. Missing docs, complex functions, missing type hints and format problems already turned the loop red, because the loop's exit condition is <code>gate.sh</code>. Check the UI against <code>03-ui-design.md</code>. Small unrelated fixes (lint, typo, flaky test, obvious UI defect, under about 20 lines) go in their own <code>chore(hygiene)</code> commit. Anything bigger becomes a bug later.</p>
             </div>
           </li>
           <li class="step" data-id="b-commit" data-pane="git">
@@ -544,6 +623,14 @@ git add -A && git commit -m "feat: what this change does"</pre>
               <pre data-label="bash · git pane">bash scripts/loop.sh
 git add -A && git commit -m "fix: address review findings"</pre>
               <pre data-label="prompt · claude pane" class="prompt">review</pre>
+            </div>
+          </li>
+          <li class="step" data-id="b-explain" data-pane="claude" data-model="Sonnet">
+            <div class="step-body">
+              <div class="step-head"><h3>Read the walkthrough</h3></div>
+              <p>After APPROVE, Claude explains the change in plain language and appends it to <code>docs/reviews/&lt;ID&gt;.md</code>: what the user can now do, each file changed and why, the path a request takes (route, service, repository), and where to look if it breaks.</p>
+              <pre data-label="prompt · claude pane" class="prompt">explain</pre>
+              <p class="expect">Read it before the PR. If you cannot follow it, ask Claude to simplify the code now: this is the moment it is cheapest.</p>
             </div>
           </li>
           <li class="step" data-id="b-pr" data-pane="git">
@@ -745,6 +832,51 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
         </ol>
       </section>
 
+      <!-- ================= TIPS ================= -->
+      <section class="phase" id="tips" data-phase="tips">
+        <div class="phase-head"><h2>Tips</h2><span class="when">Habits that keep the code easy to understand and the work cheap.</span></div>
+
+        <h3 class="sub">Understanding your code</h3>
+        <div class="tips">
+          <div class="tip"><h4>Read every walkthrough</h4><p>Type <code>explain</code> after each APPROVE and read it before the PR. It names the files, the path a request takes, and where to look if it breaks. Ten walkthroughs in, you know your codebase.</p></div>
+          <div class="tip"><h4>If you cannot follow the diff, do not merge</h4><p>Ask in the claude pane: <i>"Simplify this change so a returning developer can follow it. Keep behaviour and tests the same."</i> Simplifying before merge costs minutes; after, it costs a bug.</p></div>
+          <div class="tip"><h4>Find where a change goes</h4><p>Open the change map, <code>docs/02-architecture.md</code> section 3a. Rules are in <code>service.py</code>, storage in <code>repository.py</code>, pages and APIs in <code>routes.py</code>. Or search the REQ-ID: <code>grep -rn REQ-004 src tests docs</code>.</p></div>
+          <div class="tip"><h4>Ask "who calls this?" before changing it</h4><p>With graphify connected, ask Claude for the callers and impact of a function. Without it, use your editor's Find References. Do not trust a <code>Called by:</code> line you did not just check.</p></div>
+        </div>
+
+        <h3 class="sub">Keeping requirements small</h3>
+        <div class="tips">
+          <div class="tip"><h4>One REQ, one page of plan, about 300 lines of diff</h4><p>If a plan does not fit on a page or the PR is much bigger, split the REQ in the PRD (new REQ-IDs, never renumber). Small PRs are the ones you can actually review.</p></div>
+          <div class="tip"><h4>Build the walking skeleton first</h4><p>Before REQ-001: an empty app with config, logging, <code>/health</code>, a green gate, green CI and one real deploy. Deployment surprises cost minutes on day one and days at release.</p></div>
+          <div class="tip"><h4>Hitting the loop cap means the plan is wrong</h4><p>Do not raise the cap and re-run. Read <code>FAILURES.txt</code> and <code>git diff</code>, then fix the plan with <code>next</code>, re-approve, and run again.</p></div>
+          <div class="tip"><h4>Two CHANGES REQUESTED rounds: stop</h4><p>The plan or the requirement is unclear. Re-plan instead of a third fix round.</p></div>
+        </div>
+
+        <h3 class="sub">Quality gate</h3>
+        <div class="tips">
+          <div class="tip"><h4>Fix style automatically, logic by hand</h4><p><code>uv run ruff check --fix . &amp;&amp; uv run ruff format .</code> clears most lint and format errors. Complexity, type and test failures need a real fix.</p></div>
+          <div class="tip"><h4>Never loosen the gate to get green</h4><p>No raised limits, <code>GATE_SKIP</code>, <code>noqa</code> or <code>type: ignore</code> without your approval and a written reason. The reviewer treats an unexplained one as Major.</p></div>
+          <div class="tip"><h4>Function too complex?</h4><p>Ask Claude to split it into named steps or use early returns. A function you can read top to bottom without scrolling is the target.</p></div>
+          <div class="tip"><h4>Type errors are documentation</h4><p>A strict-typing error usually means the code is unclear about what it receives or returns. Fix the type, do not silence it.</p></div>
+        </div>
+
+        <h3 class="sub">Cost, models and sessions</h3>
+        <div class="tips">
+          <div class="tip"><h4>Right model for the job</h4><p>Opus for PRD, architecture, plans and bug localisation; Sonnet for building; Haiku for commits, PR bodies and Issues. Switch with <code>/model</code>.</p></div>
+          <div class="tip"><h4>Fresh sessions are cheaper and smarter</h4><p>Start a new claude session per REQ. State lives in git, Issues and docs, so nothing is lost. Use <code>/compact</code> when a long session slows down.</p></div>
+          <div class="tip"><h4>Keep MEMORY.md short</h4><p>It is read every session. Under about 150 lines; <code>wrap up</code> archives old session log lines.</p></div>
+          <div class="tip"><h4>Autopilot: dry run, then caps</h4><p><code>DRY_RUN=1</code> first, then keep <code>MAX_REQS</code> and <code>MAX_COST</code> low until you trust it. Read <code>.autopilot/&lt;run&gt;.md</code> "Needs you" first when you return.</p></div>
+        </div>
+
+        <h3 class="sub">Staying safe</h3>
+        <div class="tips">
+          <div class="tip"><h4>Lost? Ask the script</h4><p><code>bash scripts/start.sh status</code> shows the current REQ, plan, review, PR and the exact next action.</p></div>
+          <div class="tip"><h4>Main is red after a merge</h4><p>Revert first, diagnose second. <code>pr.sh merge</code> prints the revert command.</p></div>
+          <div class="tip"><h4>Secrets never in files</h4><p>Keys go in <code>.env</code> (gitignored) and paid MCP servers use <code>claude mcp add --scope local</code>. CI runs gitleaks on every PR.</p></div>
+          <div class="tip"><h4>Something feels off with Claude</h4><p>Ask: <i>"Which project files have you read this session?"</i>. If CLAUDE.md, RULES, TASKS, MEMORY and MCP are not listed, quit and restart <code>claude</code> from the project folder.</p></div>
+        </div>
+      </section>
+
       <!-- ================= REFERENCE ================= -->
       <section class="phase" id="reference" data-phase="reference">
         <div class="phase-head"><h2>Reference</h2><span class="when">Commands, files, models and fixes at a glance.</span></div>
@@ -760,6 +892,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>audit</code></td><td>Goes through the launch checklist with evidence. Fixes nothing.</td></tr>
             <tr><td><code>fix A3, B1</code></td><td>Fixes only those checklist items and re-checks them with the same tool.</td></tr>
             <tr><td><code>release check</code></td><td>Re-runs the blocking sections and adds an audit-log row.</td></tr>
+            <tr><td><code>explain</code></td><td>After APPROVE: appends a plain-language walkthrough to <code>docs/reviews/&lt;ID&gt;.md</code> (files changed, request path, where to look if it breaks).</td></tr>
+            <tr><td><code>mcp</code></td><td>Re-runs the MCP setup check and lists any missing server with its install command.</td></tr>
             <tr><td><code>wrap up</code></td><td>Regenerates <code>docs/REQUIREMENTS_STATUS.md</code>, ticks TASKS from closed Issues, updates MEMORY.</td></tr>
           </tbody>
         </table></div>
@@ -771,7 +905,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>bash scripts/start.sh</code></td><td>Next unticked REQ from TASKS.md: finds its Issue, creates the branch.</td></tr>
             <tr><td><code>bash scripts/start.sh status</code></td><td>Where am I: ID, Issue, plan, review, PR, and the next action.</td></tr>
             <tr><td><code>bash scripts/start.sh check</code></td><td>Is the kit installed and active in this project: PASS / WARN / FAIL per item.</td></tr>
-            <tr><td><code>bash scripts/doclint.sh</code></td><td>Folder READMEs, file headers with <code>REQ-IDs:</code>, function doc blocks with <code>Calls:</code> and <code>Called by:</code>. Add <code>--changed</code> for this branch only.</td></tr>
+            <tr><td><code>bash scripts/gate.sh</code></td><td>The quality gate: doclint, lint and complexity, format, strict types, full tests, 85% coverage of <code>service.py</code>. <code>--full</code> adds the dependency audit and secrets scan.</td></tr>
+            <tr><td><code>bash scripts/doclint.sh</code></td><td>Folder READMEs, file headers with <code>REQ-IDs:</code>, function doc blocks with <code>Calls:</code> (<code>Called by:</code> optional), files under 300 lines, <code>service.py</code> free of web and database imports. Add <code>--changed</code> for this branch only.</td></tr>
             <tr><td><code>bash scripts/start.sh bug "symptom"</code></td><td>Next free BUG number: files the Issue, creates <code>fix/BUG-00X</code>.</td></tr>
             <tr><td><code>bash scripts/start.sh REQ-004</code></td><td>Start or resume a specific requirement instead of the next one.</td></tr>
             <tr><td><code>bash scripts/loop.sh</code></td><td>Bounded implement-and-test loop for the current branch.</td></tr>
@@ -838,6 +973,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td>Autopilot says "needs jq" or "gh is not authenticated"</td><td><code>sudo apt install jq</code>, <code>gh auth login</code></td></tr>
             <tr><td>Autopilot skipped a REQ: "no approved plan"</td><td>Level 1 only builds plans you approved. Type <code>next</code>, approve the plan, or run level 2.</td></tr>
             <tr><td>Loop red with <code>D1</code>, <code>D2</code> or <code>D3</code> lines</td><td>doclint: add the folder README, the <code>REQ-IDs:</code> header line, or the function doc block (formats in <code>docs/RULES.md</code> section 3). Generated files go in <code>.doclintignore</code>.</td></tr>
+            <tr><td>Loop red with <code>D4</code> or <code>D5</code></td><td>D4: split the file by responsibility. D5: move web, template or database code out of <code>service.py</code> into <code>routes.py</code> or <code>repository.py</code>.</td></tr>
+            <tr><td>Gate red on lint, format or types</td><td>Auto-fix style first: <code>uv run ruff check --fix . &amp;&amp; uv run ruff format .</code>. Complexity or type errors need a real fix; never add <code>noqa</code> or <code>type: ignore</code> without a reason.</td></tr>
             <tr><td>The reviewer asks permission for every command</td><td><code>.claude/settings.json</code> is missing: copy it from the kit's <code>templates/project/.claude/</code>.</td></tr>
             <tr><td>Red on main after a merge</td><td><code>git revert -m 1 MERGE_SHA</code> first, then diagnose on a branch.</td></tr>
             <tr><td>tmux opens inside tmux</td><td>Use the switch command in Phase 2 instead of <code>tmux new</code>.</td></tr>
@@ -854,7 +991,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.7: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.8: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>

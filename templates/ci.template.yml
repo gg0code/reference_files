@@ -1,88 +1,80 @@
-# ci.template.yml - kit template, version v2.6
-#
-# scaffold.sh turns this into .github/workflows/ci.yml for the stack you name:
-#   bash scaffold.sh <app> node|python|go|rust
-# It uncomments the lines between the matching #>>> STACK and #<<< STACK markers.
-# To do it by hand: copy this file to .github/workflows/ci.yml and remove the leading "# "
-# from the lines inside ONE stack block.
-#
-# Philosophy, identical for every stack:
-# - Run the FULL regression suite on every PR and every push to main, never only the new tests.
-#   A branch suite proves the new REQ works; only the full suite proves earlier REQ-IDs still work.
-# - The doc-lint (scripts/doclint.sh, docs/RULES.md section 3) runs first for every stack.
-# - The traceability step fails the build if a merged REQ-ID has no test files.
-# - The job is named "test"; branch protection requires that check (see runbook.md Phase 2c).
-name: test
+# CI workflow template.   Kit v2.8
+# scaffold.sh activates ONE stack block by removing "# " from the lines between its markers
+# (#>>> STACK:<stack> ... #<<< STACK:<stack>) and writes the result to .github/workflows/ci.yml.
+# Every stack runs the same gate as loop.sh and pr.sh: bash scripts/gate.sh --full
+# (doclint, lint, format, types, tests, coverage floor, dependency audit),
+# then a secrets scan and the traceability check (every merged REQ has tests).
+name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  gate:
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history, so the traceability check can read merged REQ commits
+          fetch-depth: 0          # full history: req_status.sh reads commits, gitleaks scans history
 
-      # Every stack: documentation conventions first (README per folder, file headers, function blocks)
-      - name: Doc lint
-        run: |
-          if [ -f scripts/doclint.sh ]; then bash scripts/doclint.sh; else echo "scripts/doclint.sh not found - skipped"; fi
+      #>>> STACK:python
+      # - uses: astral-sh/setup-uv@v6
+      # - name: Install (locked)
+      #   run: uv sync --locked
+      # - name: Full regression suite
+      #   run: bash scripts/gate.sh --full
+      #<<< STACK:python
 
-      # Node / npm
       #>>> STACK:node
       # - uses: actions/setup-node@v4
       #   with:
-      #     node-version: '20'
-      #     cache: 'npm'
-      # - name: Install
+      #     node-version: 20
+      #     cache: npm
+      # - name: Install (locked)
       #   run: npm ci
       # - name: Full regression suite
-      #   run: npm test
+      #   run: bash scripts/gate.sh --full
       #<<< STACK:node
 
-      # Python / pytest (pyproject.toml with a [dev] extra, or requirements.txt)
-      #>>> STACK:python
-      # - uses: actions/setup-python@v5
-      #   with:
-      #     python-version: '3.12'
-      #     cache: 'pip'
-      # - name: Install
-      #   run: |
-      #     python -m pip install --upgrade pip
-      #     if [ -f pyproject.toml ]; then pip install -e ".[dev]"; fi
-      #     if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      #     pip install pytest
-      # - name: Full regression suite
-      #   run: pytest
-      #<<< STACK:python
-
-      # Go
       #>>> STACK:go
       # - uses: actions/setup-go@v5
       #   with:
-      #     go-version: '1.22'
+      #     go-version: stable
+      # - name: Install vulnerability checker
+      #   run: go install golang.org/x/vuln/cmd/govulncheck@latest
       # - name: Full regression suite
-      #   run: go test ./...
+      #   run: bash scripts/gate.sh --full
       #<<< STACK:go
 
-      # Rust / Cargo
       #>>> STACK:rust
       # - uses: dtolnay/rust-toolchain@stable
+      #   with:
+      #     components: rustfmt, clippy
+      # - name: Install dependency auditor
+      #   run: cargo install cargo-audit --locked
       # - name: Full regression suite
-      #   run: cargo test
+      #   run: bash scripts/gate.sh --full
       #<<< STACK:rust
 
-      # Every stack: REQ ledger in the job summary, and fail if a merged REQ-ID has no tests.
-      - name: Traceability check
-        run: |
-          if [ -f scripts/req_status.sh ]; then
-            bash scripts/req_status.sh --strict | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "scripts/req_status.sh not found - traceability check skipped"
-          fi
+      - name: Secrets scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Organisation-owned repos also need GITLEAKS_LICENSE (free for personal accounts).
+
+      - name: Traceability (every merged REQ has tests)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/req_status.sh --strict

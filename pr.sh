@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pr.sh - open the PR for the current branch, or merge it and run the after-merge checks.   VERSION: v1
+# pr.sh - open the PR for the current branch, or merge it and run the after-merge checks.   VERSION: v2
 #
 #   bash scripts/pr.sh           push and open the PR (refuses until docs/reviews/<ID>.md says APPROVE)
 #   bash scripts/pr.sh merge     after YOUR review of the PR (asks you to confirm; YES=1 skips the question):
@@ -43,7 +43,8 @@ open_pr() {
 $dirty"
   vl="$( [ -f "$REVIEW" ] && grep -m1 -v '^[[:space:]]*$' "$REVIEW")"
   case "$vl" in
-    "Verdict: APPROVE"*) round="$(echo "$vl" | grep -oE 'round [0-9]+')"; ok "review: $vl" ;;
+    "Verdict: APPROVE"*) round="$(echo "$vl" | grep -oE 'round [0-9]+')"; ok "review: $vl"
+      grep -q '^## Walkthrough' "$REVIEW" || warn "no walkthrough in $REVIEW yet: in the claude pane type 'explain' (CLAUDE.md section 5 step 6)" ;;
     *)
       if [ "${FORCE:-0}" = 1 ]; then
         warn "no APPROVE review ($REVIEW: ${vl:-missing}) - opening anyway because FORCE=1"
@@ -61,9 +62,9 @@ Review: ${REVIEW} (${vl:-none}${round:+, $round}).
 ${note}
 
 Checklist:
-- [ ] Full suite green locally and in CI
+- [ ] Quality gate green locally (bash scripts/gate.sh) and in CI
 - [ ] Regression gate green
-- [ ] Reviewer verdict APPROVE (read ${REVIEW} first)
+- [ ] Reviewer verdict APPROVE (read ${REVIEW} first, walkthrough at its end)
 - [ ] File headers, function doc blocks and READMEs present
 - [ ] Architecture row and test plan still match the code
 - [ ] Hygiene fixes in their own chore(hygiene) commits" || die "gh pr create failed"
@@ -74,6 +75,7 @@ Checklist:
 
 detect_test_cmd() {
   local t=""
+  if [ -f scripts/gate.sh ] && [ "${NO_GATE:-0}" != 1 ]; then echo "bash scripts/gate.sh --full"; return; fi   # TEST_CMD becomes its test step
   if [ -n "${TEST_CMD:-}" ]; then echo "$TEST_CMD"; return; fi
   if [ -f package.json ]; then t="npm test"
   elif [ -f pyproject.toml ] || [ -f pytest.ini ] || [ -f requirements.txt ] || compgen -G "tests/test_*.py" >/dev/null 2>&1; then t="pytest"

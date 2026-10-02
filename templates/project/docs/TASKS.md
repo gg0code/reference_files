@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.6. Build ORDER only. Status lives in the GitHub Issue. A REQ line is ticked only when its Issue is closed; `wrap up` syncs the ticks from `gh issue list --state all`. -->
+<!-- Template v2.8. Build ORDER only. Status lives in the GitHub Issue. A REQ line is ticked only when its Issue is closed; `wrap up` syncs the ticks from `gh issue list --state all`. -->
 
 # Tasks
 
@@ -17,6 +17,8 @@ How to read this file:
 - [ ] RULES.md and 05-launch-checklist.md tailored (proposed changes approved)
 - [ ] `bash scripts/start.sh check` passes; CI green once; branch protection on
 - [ ] Wireframe in `docs/03-wireframe/` with `data-req` tags
+- [ ] Walking skeleton (chore, before REQ-001): the empty app with `config.py`, logging, `GET /health`, one feature folder shape,
+      the gate green, CI green, and one deploy to the real host. Deployment problems found now cost minutes; at release they cost days.
 
 ## Phase 1 - Core (Must)
 - [ ] REQ-001 (#N) <title>

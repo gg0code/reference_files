@@ -1,31 +1,44 @@
-# Loop and autopilot scratch files (scripts/loop.sh, scripts/autopilot.sh)
+# Kit scratch files (loop.sh, autopilot.sh) - never commit
 PROMPT.md
 FAILURES.txt
 .loop-*
 .autopilot/
-
-# Personal notes and settings, never shared (.claude/agents/ IS shared)
 CLAUDE.local.md
-.claude/settings.local.json
 
-# Secrets and local environment
+# graphify project map (generated; rebuild with /graphify .)
+graphify-out/
+
+# Secrets: commit .env.example with names only, never values
 .env
 .env.*
 !.env.example
 
 # Python
-__pycache__/
-*.pyc
 .venv/
+__pycache__/
+*.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+dist/
+build/
 
 # Node
 node_modules/
-dist/
 coverage/
 
-# OS and editors
+# Go / Rust
+/bin/
+target/
+
+# Local databases and OS / editor files
+*.sqlite3
+*.db
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
+.vscode/

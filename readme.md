@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.7 (2026-10-02).
+Kit version: v2.8 (2026-10-02).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -14,12 +14,14 @@ reference_files/
   scaffold.sh                creates a new project from the templates
   start.sh                   starts the next REQ or a BUG, shows status (copied into each project)
   pr.sh                      opens the PR after review, merges with after-merge checks (copied into each project)
-  doclint.sh                 enforces file headers, function doc blocks and folder READMEs (copied into each project)
+  doclint.sh                 enforces file headers, function doc blocks, folder READMEs, file size and layers (copied into each project)
+  gate.sh                    the quality gate: doclint, lint, format, types, tests, coverage; --full adds audits (copied into each project)
   loop.sh                    bounded implement-and-test loop for one Issue (copied into each project)
   req_status.sh              REQ-ID ledger and CI traceability check (copied into each project)
   autopilot.sh               optional unattended runs over several REQs (copied into each project)
   templates/
-    ci.template.yml          CI workflow, one block per stack (scaffold.sh activates one)
+    ci.template.yml          CI workflow, one block per stack (scaffold.sh activates one); runs gate.sh --full
+    stacks/python/           pyproject.toml with the gate limits (ruff, mypy strict, pytest, coverage)
     project/                 everything a new project starts with
       CLAUDE.md              the project constitution (FIXED + FILL IN sections)
       .claude/agents/reviewer.md   the second agent: read-only code reviewer (Opus)
@@ -39,6 +41,8 @@ reference_files/
 | `scaffold.sh` | No | App name and stack are arguments |
 | `start.sh`, `pr.sh` | No | Read the ID from the branch and the Issue from TASKS.md |
 | `loop.sh` | No | Auto-detects the stack; ID and Issue come from the branch and TASKS.md |
+| `gate.sh` | No | Auto-detects the stack; limits live in each project's `pyproject.toml` |
+| `templates/stacks/*` | Only to improve the kit | scaffold.sh copies them for the chosen stack |
 | `req_status.sh` | No | Reads the project's own docs, git and Issues |
 | `autopilot.sh` | No | Level, caps and REQs are settings and arguments |
 | `runbook.md` | No | You substitute placeholders in the prompts you paste |
@@ -148,6 +152,13 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+- To bring a v2.7 project up to v2.8 (quality gate), from the project root (Python):
+  ```bash
+  cp <kit>/gate.sh <kit>/doclint.sh <kit>/loop.sh <kit>/pr.sh <kit>/autopilot.sh <kit>/start.sh scripts/
+  # merge the [tool.*] sections and [dependency-groups] of <kit>/templates/stacks/python/pyproject.toml into pyproject.toml
+  uv sync && bash scripts/gate.sh          # expect findings in existing code: fix them in chore(quality) commits
+  ```
+  Replace the test step in `.github/workflows/ci.yml` with `bash scripts/gate.sh --full`, and copy the v2.8 sections of CLAUDE.md, RULES.md and the docs you want.
 - To bring a v2.6 project up to v2.7 (MCP), from the project root:
   ```bash
   cp <kit>/templates/project/.mcp.json .
@@ -156,6 +167,26 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v2.8
+
+Goal: code a returning developer can read, and a change that has one obvious home.
+
+- New `gate.sh`: one quality gate (doclint, ruff lint and format, mypy strict, full tests, 85% coverage of `service.py`; `--full` adds pip-audit and gitleaks).
+  loop.sh v12, autopilot.sh v3, pr.sh v2 and CI run it, so the loop cannot finish complex, untyped or undocumented code.
+- New `templates/stacks/python/pyproject.toml`: complexity 8, max 5 args, 8 branches, 40 statements, no `print`, no blind `except`, no commented-out code, strict typing. scaffold.sh v2.8 copies it and creates `uv.lock`.
+- New `templates/ci.template.yml`: every stack runs `gate.sh --full`, then gitleaks, then `req_status.sh --strict`.
+- doclint v2: `Called by:` is optional (it rots; use graphify or Find References), `Calls: none` for leaf functions, D4 file size (300 lines), D5 Python `service.py` imports no web, template or database library.
+- RULES.md: simplicity first (design for the PRD's scale, no abstraction without a second use), layer rules, an "Enforced by the quality gate" table, wrong-layer and unreadable code are now Major findings, never loosen the gate.
+- 02-architecture.md: default Python stack (FastAPI, Jinja2 + HTMX, SQLModel, Alembic), default feature-folder structure, section 3a change map, section 10 operations.
+- 05-launch-checklist.md: new blocking section O (operations: config validation, /health, structured logs, error tracking, migrations, backups, deploy and rollback, lockfile), A9 change map, A10 no unexplained suppressions.
+- 04-testplan.md: behaviour-level tests, service coverage floor, migration, startup-config and health checks. 01-prd.md: maintainability and operability NFR rows.
+- TASKS.md: walking skeleton before REQ-001. MEMORY.md: 150-line cap with archiving.
+- New complete `templates/project/.claude/agents/reviewer.md`: ordered steps (diff, plan and specs, `gate.sh`, `doclint --changed`, security greps, traceability, earlier findings), layer, readability and simplicity checks, and the exact report format scripts parse.
+- New complete `templates/project/.claude/settings.json`: pre-approves read-only git and gh commands, the kit scripts (including `gate.sh`) and test runners; denies force-push, `reset --hard`, `rm -rf` and reading `.env` files.
+- Complete project template set: `.gitignore` (kit scratch files, `graphify-out/`, `.env`, Python/Node/Go/Rust build output), `src/`, `tests/`, `scripts/` READMEs, `docs/plans/_TEMPLATE.md` (one-page plan with layers, migrations, dependencies, review focus), `docs/reviews/README.md`, `docs/03-wireframe/README.md`.
+- Guide: the opening paragraph and a new "Start here" section compare the five development paths (guided, assisted, autopilot levels 1 to 3) plus the bug path, with a who-decides table; a new Tips section; `explain` and `mcp` in the reference. Runbook: the same path table at the top.
+- CLAUDE.md: the gate is the full test suite; new working-loop step and command `explain` (walkthrough appended to the review file); pr.sh warns and `start.sh status` reminds when it is missing.
 
 ## Changes in v2.7
 

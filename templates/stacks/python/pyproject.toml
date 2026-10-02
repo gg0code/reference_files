@@ -1,0 +1,82 @@
+# pyproject.toml - project settings and the quality-gate configuration.   Kit v2.8
+# Created by scaffold.sh for the python stack. Runtime dependencies are added after
+# docs/02-architecture.md is approved (`uv add <package>`), never before.
+# The tool settings below are the mechanical side of docs/RULES.md section 2:
+# change a limit only with an approved decision in 02-architecture.md section 9.
+
+[project]
+name = "__APP__"
+version = "0.1.0"
+description = "See docs/01-prd.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.6",
+  "mypy>=1.11",
+  "pip-audit>=2.7",
+]
+
+# ---------- ruff: lint + format (RULES.md section 2) ----------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["docs"]   # Markdown code samples in docs/ are examples, not project code
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F",   # pycodestyle and pyflakes: errors, unused imports and variables
+  "I",             # import order
+  "N",             # naming conventions
+  "UP",            # modern Python syntax
+  "B",             # likely bugs
+  "SIM",           # simpler equivalents
+  "RET",           # clear returns
+  "C90",           # cyclomatic complexity (max-complexity below)
+  "PL",            # pylint: too many args, branches, statements, returns
+  "S",             # security (bandit rules), includes try-except-pass
+  "BLE",           # no blind `except Exception` that hides errors
+  "T20",           # no print() left in code (use logging)
+  "ERA",           # no commented-out code
+]
+ignore = [
+  "PLR2004",       # "magic number": too noisy for small apps
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 8
+max-statements = 40
+max-returns = 4
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR0913", "PLR0915"]   # tests use assert and may be longer
+
+# ---------- mypy: strict typing (RULES.md section 2) ----------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+warn_unreachable = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# ---------- pytest + coverage (04-testplan.md section 1) ----------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q --strict-markers"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true

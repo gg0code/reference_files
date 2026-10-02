@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.7 (2026-10-02).
+Kit version: v2.8 (2026-10-02).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -11,6 +11,19 @@ Substitute your own values wherever these appear.
 Pick a small first app (5 to 6 requirements) so a full run fits in one session.
 
 **Phases:** 0 setup · 1 specification · 2 build loop (2b automated loop, 2c after every merge, 2d autopilot) · 3 bug loop · 4 release.
+
+**Development paths.** Phases 0 and 1 (setup and specification) are always done with you. Each requirement is then built along one of five paths, and you can switch between requirements:
+
+| Path | How a REQ is built | You approve | Where |
+|---|---|---|---|
+| A Guided | Claude implements in chat with the Implement prompt, step by step; you run the gate | plan, each step, PR, merge | Phase 2, step 5 by hand |
+| **B Assisted (default)** | `start.sh` → `next` → approve plan → `loop.sh` → `review` → `explain` → `pr.sh` → `pr.sh merge` | plan, PR, merge | Phase 2 |
+| C Autopilot level 1 | you approve plans; autopilot builds, reviews and opens PRs unattended | plans, PRs, merges | Phase 2d |
+| D Autopilot level 2 | autopilot drafts plans too; the reviewer agent approves them | PRs, merges | Phase 2d |
+| E Autopilot level 3 | also merges after green CI and runs the after-merge checks | the release | Phase 2d |
+| Bug path | `start.sh bug "symptom"`, failing test first, then fix with A or B | plan, PR, merge | Phase 3 |
+
+Recommended: path B for the walking skeleton and the first 3 or 4 REQs, reading every walkthrough; path C for batches of similar REQs; D or E only once you trust the test suite.
 
 **Two agents.** The **builder** is your main Claude session plus `scripts/loop.sh`: it plans, writes tests and code, and fixes findings.
 The **reviewer** is a second, read-only agent (`.claude/agents/reviewer.md`, Opus, fresh context) that checks every branch before its PR and returns a verdict: APPROVE or CHANGES REQUESTED.
@@ -222,6 +235,23 @@ At the start of each interactive session Claude checks which servers are connect
 
 **Paid servers** (Firecrawl, Perplexity) are not in `.mcp.json`. Add them per user with `claude mcp add --scope local ...` (commands in `docs/MCP.md` section 3), so API keys never reach git.
 
+
+### 0i. The quality gate (what "done" means)
+`bash scripts/gate.sh` is the single definition of "the code is acceptable". loop.sh, autopilot.sh, `pr.sh merge` and CI all run it.
+
+| Step | Checks | Python tool |
+|---|---|---|
+| doclint | README per folder, file headers, `Calls:` lines, files under 300 lines, `service.py` free of web and database imports | `scripts/doclint.sh` |
+| lint | complexity 8, max 5 args, 8 branches, 40 statements, no `print`, no blind `except`, no commented-out code, security patterns | ruff |
+| format | one formatting style | ruff format |
+| types | strict type hints on everything in `src/` | mypy |
+| tests + coverage | the full suite, and 85% of `service.py` | pytest, pytest-cov |
+| audit, secrets (`--full`) | known-vulnerable dependencies, leaked keys | pip-audit, gitleaks |
+
+For Python, the limits live in `pyproject.toml` (scaffold.sh creates it from `templates/stacks/python/`).
+Run `uv sync` once after scaffolding so the tools are installed. To fix style problems automatically: `uv run ruff check --fix . && uv run ruff format .`
+Never loosen a limit to get green; change one only through a decision in 02-architecture.md section 9.
+
 ---
 
 ## Phase 1 - Specification (the doc chain)
@@ -380,12 +410,13 @@ Lost? `bash scripts/start.sh status` shows the current ID, Issue, plan, review, 
 | 4 | **git** | - | `git add docs/plans && git commit -m "docs: approved plan"` |
 | 5 | **git** | **sonnet** | `bash scripts/loop.sh` (Phase 2b), or implement by hand with the **Implement** prompt |
 | 6 | **test** | - | watch it go RED as tests land, then GREEN as code catches up |
-| 7 | **frontend** | - | if there is UI, eyeball it. Be picky. Missing READMEs, file headers or function doc blocks already turned the loop red (doclint runs in front of the tests) |
+| 7 | **frontend** | - | if there is UI, check it against 03-ui-design.md. Missing docs, lint, complexity, format or type errors already turned the loop red (the loop's exit condition is `bash scripts/gate.sh`) |
 | 8 | **git** | - | `git add -A && git commit -m "feat: <summary>"` (the loop prints the exact message with the ID and Issue) |
 | 9 | **claude** | reviewer (Opus) | `review` - the reviewer agent checks the branch; its report is saved to `docs/reviews/<REQ>.md` and committed |
 | 10 | **git** | sonnet | **CHANGES REQUESTED?** `bash scripts/loop.sh` again (it reads the findings), commit, then `review` again. Maximum 2 rounds |
-| 11 | **git** | - | after **APPROVE**: `bash scripts/pr.sh` - pushes and opens the PR (it refuses without an APPROVE) |
-| 12 | **you** | - | ⬛ **STOP. Review the PR.** Read the review report first, then the diff |
+| 10b | **claude** | sonnet | after **APPROVE**: `explain` - Claude appends a plain-language walkthrough to the review file: files changed, the path a request takes, where to look if it breaks. Read it: this is how you learn your codebase |
+| 11 | **git** | - | `bash scripts/pr.sh` - pushes and opens the PR (it refuses without an APPROVE, and warns without a walkthrough) |
+| 12 | **you** | - | ⬛ **STOP. Review the PR.** Read the review report and walkthrough first, then the diff. If you cannot follow the diff, ask Claude to simplify it before merging |
 | 13 | **git** | - | `bash scripts/pr.sh merge` - asks you to confirm, waits for CI, merges, runs the after-merge checks (Phase 2c) |
 | 14 | **claude** | opus, then haiku | the traceability audit prompt (Phase 2c), then `wrap up`. Next requirement: back to step 1 |
 
@@ -482,6 +513,7 @@ git add docs/plans && git commit -m "docs: approved plan"
 bash scripts/loop.sh                  # → "OK : SUITE GREEN on iteration k"
 git add -A && git commit -m "feat(REQ-00X): <summary> (#N)"   # the loop prints this line filled in
 # claude pane: review  → APPROVE (or loop again, commit, review again)
+# claude pane: explain → walkthrough appended to docs/reviews/<ID>.md
 bash scripts/pr.sh                    # push + PR
 # review the PR on GitHub, then:
 bash scripts/pr.sh merge              # CI, merge, after-merge checks
@@ -650,6 +682,7 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `audit` | Launch checklist, evidence only, no fixes |
 | `fix <IDs>` | Fixes only those checklist items and re-checks them |
 | `release check` | Re-runs blocking sections, adds an audit-log row |
+| `explain [ID]` | After APPROVE: plain-language walkthrough of the change, appended to the review file |
 | `wrap up` | Regenerates the REQ ledger, syncs TASKS, updates MEMORY |
 | `mcp` | Re-runs the MCP setup check (docs/MCP.md) and lists what is missing |
 | `/mcp` | Claude Code's own panel: connection status of each MCP server, approve or reconnect |
@@ -663,7 +696,8 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `bash scripts/start.sh bug "symptom"` | Next BUG-ID: files the Issue, creates `fix/BUG-00X` |
 | `bash scripts/start.sh status` | Where am I: ID, Issue, plan, review, PR, next action |
 | `bash scripts/start.sh check` | Is the kit installed and active here, MCP servers included: PASS / WARN / FAIL per item |
-| `bash scripts/doclint.sh` | README per folder, file headers, function doc blocks (`--changed`: this branch only) |
+| `bash scripts/gate.sh` | The quality gate: doclint, lint, format, types, full tests, service coverage (`--full` adds dependency audit and secrets) |
+| `bash scripts/doclint.sh` | README per folder, file headers, function doc blocks, file size, layers (`--changed`: this branch only) |
 | `bash scripts/loop.sh` | Bounded implement-and-test loop for the current branch |
 | `bash scripts/pr.sh` | Push and open the PR (needs a reviewer APPROVE) |
 | `bash scripts/pr.sh merge` | After your PR review: CI, merge, after-merge checks |

@@ -1,4 +1,5 @@
 # src
 
-Application source code.
-Every file starts with a header naming what it does and the REQ-IDs it serves (docs/RULES.md section 3).
+The application code.
+The layout follows docs/02-architecture.md section 3: one folder per feature area under `app/features/`, each with `routes.py`, `service.py`, `repository.py` and `models.py`.
+To find where a change goes, use the change map in docs/02-architecture.md section 3a.

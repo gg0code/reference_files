@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.6. Drafted by Claude (Opus) from 00-idea.md, approved by the user. REQ-IDs are permanent and never renumbered. -->
+<!-- Template v2.8. Drafted by Claude (Opus) from 00-idea.md, approved by the user. REQ-IDs are permanent and never renumbered. -->
 
 # <Product name> - Product Requirements
 
@@ -34,6 +34,8 @@ Priority uses MoSCoW: Must, Should, Could.
 | REQ-0NN | Accessibility | e.g. WCAG 2.1 AA |
 | REQ-0NN | Privacy / compliance | |
 | REQ-0NN | Reliability / offline | |
+| REQ-0NN | Maintainability | e.g. a change to one feature touches only that feature's folder and its tests; every file passes the quality gate |
+| REQ-0NN | Operability | e.g. errors are reported to the maintainer within minutes; a release can be rolled back in under 10 minutes |
 
 ## 6. User stories
 - As a <role>, I can <action> so that <benefit>. (REQ-00X)

@@ -1,5 +1,6 @@
 Status: TEMPLATE
-<!-- Template v2.6. Claude keeps this current at the end of every task and on `wrap up`. Facts only, dated, short. Review it: the next session trusts it. -->
+<!-- Template v2.8. Claude keeps this current at the end of every task and on `wrap up`. Facts only, dated, short. Review it: the next session trusts it.
+     Keep this file under about 150 lines: it is read every session. On `wrap up`, move session log lines older than a month to docs/archive/MEMORY-<year>.md. -->
 
 # Memory
 

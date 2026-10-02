@@ -1,5 +1,4 @@
-# docs/03-wireframe
+# 03-wireframe
 
-Navigable HTML wireframe of every screen in 03-ui-design.md section 9.
-Each interactive element carries `data-req="REQ-00X"` so the screen traces back to the PRD.
-Start at `index.html`.
+The navigable HTML wireframe (`index.html`), built from docs/03-ui-design.md during setup.
+Every element that serves a requirement carries `data-req="REQ-00X"`.

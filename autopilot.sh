@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# autopilot.sh - unattended builder for several REQs in a row.        VERSION: v2
+# autopilot.sh - unattended builder for several REQs in a row.        VERSION: v3
 #
 # Optional. The normal, attended flow (runbook.md Phase 2) is unchanged; this script
 # only automates the steps between your human gates, at the level you choose.
@@ -32,9 +32,10 @@
 # One-time setup: run `claude` interactively in this repo once and accept the trust dialog.
 # Requires: claude, git, gh (authenticated), jq.
 # v2: every prompt starts with "NON-INTERACTIVE RUN" so Claude skips the MCP setup check (docs/MCP.md).
+# v3: builds must pass scripts/gate.sh (docs, lint, format, types, tests) when it exists.
 set -uo pipefail
 
-AP_VERSION="v2"
+AP_VERSION="v3"
 AUTOPILOT="${AUTOPILOT:-build}"
 AUTO_MERGE="${AUTO_MERGE:-0}"
 MAX_REQS="${MAX_REQS:-3}"
@@ -85,8 +86,11 @@ elif [ -f pyproject.toml ] || [ -f pytest.ini ] || [ -f requirements.txt ] || co
 elif [ -f Cargo.toml ]; then TEST_CMD="cargo test"
 elif [ -f go.mod ]; then TEST_CMD="go test ./..."
 else die "cannot detect the test command; set TEST_CMD=... (CLAUDE.md section 2)"; fi
-if [ -z "${TEST_CMD_SET:-}" ] && [ -f scripts/doclint.sh ] && [ "${NO_DOCLINT:-0}" != 1 ]; then TEST_CMD="bash scripts/doclint.sh && $TEST_CMD"; fi
 TEST_LAST="${TEST_CMD##*&& }"; TEST_BIN="${TEST_LAST%% *}"   # the real test runner, for the reviewer's allowlist
+if [ -f scripts/gate.sh ] && [ "${NO_GATE:-0}" != 1 ]; then
+  [ -n "${TEST_CMD_SET:-}" ] && export GATE_TEST_CMD="$TEST_CMD"
+  TEST_CMD="bash scripts/gate.sh"                              # docs, lint, format, types, tests (RULES.md section 2)
+elif [ -z "${TEST_CMD_SET:-}" ] && [ -f scripts/doclint.sh ] && [ "${NO_DOCLINT:-0}" != 1 ]; then TEST_CMD="bash scripts/doclint.sh && $TEST_CMD"; fi
 
 if [ "$AUTO_MERGE" = 1 ]; then
   if ! gh api "repos/{owner}/{repo}/branches/${BASE_BRANCH}/protection" >/dev/null 2>&1; then
@@ -156,7 +160,7 @@ reviewer_sysprompt() {   # reviewer.md without its YAML front matter
   awk 'NR==1&&/^---$/{fm=1;next} fm&&/^---$/{fm=0;next} !fm' .claude/agents/reviewer.md > .autopilot/reviewer.sys.md
   echo .autopilot/reviewer.sys.md
 }
-RO_TOOLS="Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git merge-base:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(gh issue view:*),Bash(${TEST_BIN}:*),Bash(bash scripts/doclint.sh:*),Bash(bash scripts/req_status.sh:*),Bash(bash scripts/start.sh status)"
+RO_TOOLS="Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git merge-base:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(gh issue view:*),Bash(${TEST_BIN}:*),Bash(bash scripts/doclint.sh:*),Bash(bash scripts/gate.sh:*),Bash(bash scripts/req_status.sh:*),Bash(bash scripts/start.sh status)"
 RO_DENY="Edit,Write,NotebookEdit,Bash(git commit:*),Bash(git push:*),Bash(git checkout:*),Bash(git reset:*),Bash(rm:*)"
 
 record() {  # record <req> <issue> <plan-by> <rounds> <verdict> <pr> <outcome> <reason>

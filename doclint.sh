@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# doclint.sh - enforce the documentation conventions in docs/RULES.md section 3.   VERSION: v1
+# doclint.sh - enforce the documentation conventions in docs/RULES.md section 3.   VERSION: v2
 #
 #   bash scripts/doclint.sh               lint src/ and tests/ (or DOCLINT_PATHS="src tests lib")
 #   bash scripts/doclint.sh --changed     only files and folders changed on this branch vs main
@@ -9,14 +9,18 @@
 #   D1  every directory has a README.md
 #   D2  every source file has a header in its first 25 lines containing "REQ-IDs:"
 #   D3  every function has a doc block right above it (JS/TS/Go/Rust/shell) or a docstring (Python).
-#       In source code the block must contain "Calls:" and "Called by:".
+#       In source code the block must contain "Calls:" ("Calls: none" for leaf functions).
+#       "Called by:" is optional (it goes stale; use graphify or Find References instead).
 #       In test files (tests/ or test_* / *_test / *.test.* / *.spec.*) any doc block is enough.
+#   D4  no source file over DOCLINT_MAX_LINES lines (default 300; RULES.md aims for about 200). Tests exempt.
+#   D5  Python layers: a service.py (or services/*.py) imports no web, template or database library,
+#       so business rules stay plain functions (RULES.md section 2, 02-architecture.md section 3).
 # Supported: Python (AST), JavaScript/TypeScript, Go, Rust, shell (pattern based).
 # Other file types get D1 and D2 only. Skip files with patterns in .doclintignore (one glob per line).
 # Needs python3.
 set -uo pipefail
 
-case "${1:-}" in -h|--help) sed -n '2,17p' "$0"; exit 0 ;; esac
+case "${1:-}" in -h|--help) sed -n '2,21p' "$0"; exit 0 ;; esac
 command -v python3 >/dev/null 2>&1 || { echo "ERROR : doclint needs python3" >&2; exit 2; }
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT" || exit 2
@@ -51,9 +55,16 @@ def is_test(p):
     b = os.path.basename(p)
     return p.startswith("tests/") or "/tests/" in p or b.startswith("test_") or re.search(r"(_test|\.test|\.spec)\.[a-z]+$", b) is not None
 
+MAX_LINES = int(os.environ.get("DOCLINT_MAX_LINES", "300"))
+# D5: libraries a business-rules module must not import (web, templates, database, HTTP clients)
+LAYER_BANNED = set(os.environ.get("DOCLINT_SERVICE_BANNED",
+    "fastapi starlette flask django jinja2 sqlalchemy sqlmodel alembic psycopg psycopg2 asyncpg sqlite3 pymongo redis requests httpx").split())
+
 def need_calls(text):
-    t = text.lower()
-    return "calls:" in t and "called by:" in t
+    return re.search(r"(?im)^\s*(\*|//|///|#)?\s*calls:", text) is not None
+
+def is_service(p):
+    return p.endswith("/service.py") or p == "service.py" or "/services/" in p
 
 def add(p, line, rule, msg):
     problems.append(f"{p}:{line}: {rule} {msg}")
@@ -121,11 +132,23 @@ for f in files:
     if not any("REQ-IDs:" in l for l in lines[:25]):
         add(f, 1, "D2", "file header missing a 'REQ-IDs:' line in the first 25 lines")
     test = is_test(f)
+    if not test and len(lines) > MAX_LINES:
+        add(f, MAX_LINES + 1, "D4", f"file has {len(lines)} lines (limit {MAX_LINES}); split it by responsibility")
     if ext == ".py":
         try:
             tree = ast.parse(text)
         except SyntaxError as e:
             add(f, e.lineno or 1, "D3", "cannot parse (syntax error)"); continue
+        if is_service(f) and not test:
+            for node in ast.walk(tree):
+                mods = []
+                if isinstance(node, ast.Import):
+                    mods = [a.name for a in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                    mods = [node.module]
+                for m in mods:
+                    if m.split(".")[0] in LAYER_BANNED:
+                        add(f, node.lineno, "D5", f"service layer imports '{m}': move web, template and database code to routes.py / repository.py")
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if node.name.startswith("__") and node.name.endswith("__") and node.name != "__init__":
@@ -134,7 +157,7 @@ for f in files:
                 if not doc:
                     add(f, node.lineno, "D3", f"function '{node.name}' has no docstring")
                 elif not test and not need_calls(doc):
-                    add(f, node.lineno, "D3", f"docstring of '{node.name}' needs 'Calls:' and 'Called by:' lines")
+                    add(f, node.lineno, "D3", f"docstring of '{node.name}' needs a 'Calls:' line ('Calls: none' if it calls nothing of ours)")
         continue
     style, rx, name_group = None, None, None
     if ext in {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"}: style, rx = "js", JS_FN
@@ -155,7 +178,7 @@ for f in files:
         if not block:
             add(f, i + 1, "D3", f"function '{name}' has no doc block directly above it")
         elif not test and not need_calls(block):
-            add(f, i + 1, "D3", f"doc block of '{name}' needs 'Calls:' and 'Called by:' lines")
+            add(f, i + 1, "D3", f"doc block of '{name}' needs a 'Calls:' line ('Calls: none' if it calls nothing of ours)")
 
 for p in problems:
     print(p)

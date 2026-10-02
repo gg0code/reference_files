@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Bash(git status:*)",
@@ -6,35 +7,43 @@
       "Bash(git log:*)",
       "Bash(git show:*)",
       "Bash(git merge-base:*)",
-      "Bash(git rev-parse:*)",
       "Bash(git branch --show-current)",
       "Bash(gh issue view:*)",
       "Bash(gh issue list:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh run list:*)",
+      "Bash(bash scripts/gate.sh:*)",
       "Bash(bash scripts/doclint.sh:*)",
       "Bash(bash scripts/req_status.sh:*)",
       "Bash(bash scripts/start.sh status)",
       "Bash(bash scripts/start.sh check)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff check:*)",
+      "Bash(uv run ruff format --check:*)",
+      "Bash(uv run mypy:*)",
       "Bash(pytest:*)",
-      "Bash(python -m pytest:*)",
       "Bash(npm test:*)",
-      "Bash(npm run test:*)",
-      "Bash(npm run lint:*)",
       "Bash(go test:*)",
       "Bash(cargo test:*)",
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(grep:*)",
-      "Bash(wc:*)"
+      "Bash(node --version)",
+      "Bash(uv --version)"
     ],
     "deny": [
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
+      "Bash(git push origin --force:*)",
       "Bash(git reset --hard:*)",
       "Bash(rm -rf:*)",
       "Read(./.env)",
-      "Read(./.env.*)"
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./secrets/**)"
     ]
   }
 }

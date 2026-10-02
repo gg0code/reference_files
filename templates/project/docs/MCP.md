@@ -1,6 +1,6 @@
 # MCP tools: setup check and usage rules
 
-Kit file (v2.7). Loaded by CLAUDE.md section 0 through `@docs/MCP.md`. Not a spec doc: no Status line, not tailored by `setup`.
+Kit file (v2.8). Loaded by CLAUDE.md section 0 through `@docs/MCP.md`. Not a spec doc: no Status line, not tailored by `setup`.
 Servers are defined in `.mcp.json` at the repo root: chrome-devtools, playwright, graphify (all free, run locally).
 
 ## 1. Setup check (once per interactive session)
@@ -38,7 +38,7 @@ Otherwise, before the first task of the session, and in the same message as the 
 
 When the user types `mcp`, run this check again right away, even if they said "skip" earlier.
 After any fix the user restarts claude and checks with `/mcp`.
-`bash scripts/start.sh check` (section 6) runs the same checks from the git pane.
+`bash scripts/start.sh check` (section 5) runs the same checks from the git pane.
 
 Graphify is low priority while `src/` holds fewer than about 20 source files: mention it once as optional, never as a blocker.
 

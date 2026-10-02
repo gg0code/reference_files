@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.7
+# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.8
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
 #   bash /path/to/reference_files/scaffold.sh <app-name> [node|python|go|rust]
@@ -18,7 +18,8 @@
 # The kit layout it expects (next to this script):
 #   templates/project/        CLAUDE.md, .claude/, .mcp.json, docs/ (incl. MCP.md), src/, tests/, scripts/README.md, .gitignore
 #   templates/ci.template.yml CI workflow with one block per stack
-#   start.sh, loop.sh, pr.sh, doclint.sh, req_status.sh, autopilot.sh   copied into <app>/scripts/
+#   templates/stacks/<stack>/ per-stack starter files (python: pyproject.toml with the gate settings)
+#   start.sh, loop.sh, pr.sh, doclint.sh, gate.sh, req_status.sh, autopilot.sh   copied into <app>/scripts/
 #
 # PREREQUISITE - once per machine, before this script:
 #   git config --global user.name  "Your Name"
@@ -52,7 +53,7 @@ die()  { echo ""; echo "ERROR : $*" >&2; echo "Aborted. Nothing further was run.
 trap 'err "unexpected failure at line $LINENO (command: $BASH_COMMAND)"; exit 1' ERR
 
 echo "=============================================="
-echo " scaffold.sh v2.7 - project: $APP${STACK:+  (stack: $STACK)}"
+echo " scaffold.sh v2.8 - project: $APP${STACK:+  (stack: $STACK)}"
 echo "=============================================="
 
 # ---------- 0. Preflight ----------
@@ -73,7 +74,7 @@ ok "git identity: $GIT_NAME <$GIT_MAIL>"
 
 [ -d "$TPL" ]    || die "project template not found at $TPL (keep scaffold.sh inside the kit folder)"
 [ -f "$CI_TPL" ] || die "CI template not found at $CI_TPL"
-for s in start.sh loop.sh pr.sh doclint.sh req_status.sh autopilot.sh; do
+for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh; do
   [ -f "$KIT_DIR/$s" ] || die "kit script missing: $KIT_DIR/$s"
 done
 ok "kit found: $KIT_DIR"
@@ -138,7 +139,7 @@ grep -q '@docs/MCP.md' CLAUDE.md 2>/dev/null || warn "CLAUDE.md does not load do
 # ---------- 3. Tooling scripts + CI ----------
 step "Step 3/6  Tooling scripts and CI"
 mkdir -p scripts || die "could not create scripts/"
-for s in start.sh loop.sh pr.sh doclint.sh req_status.sh autopilot.sh; do
+for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh; do
   if [ -f "scripts/$s" ]; then
     if cmp -s "$KIT_DIR/$s" "scripts/$s"; then
       ok "scripts/$s is current"
@@ -151,6 +152,26 @@ for s in start.sh loop.sh pr.sh doclint.sh req_status.sh autopilot.sh; do
   fi
   chmod +x "scripts/$s" 2>/dev/null || true
 done
+
+# per-stack starter files (never overwrite)
+if [ -n "$STACK" ] && [ -d "$KIT_DIR/templates/stacks/$STACK" ]; then
+  APP_SLUG="$(basename "$APP" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')"
+  while IFS= read -r -d '' src; do
+    rel="${src#"$KIT_DIR/templates/stacks/$STACK"/}"
+    if [ -e "$rel" ]; then ok "$rel already exists - kept"
+    else
+      mkdir -p "$(dirname "$rel")" && sed "s/__APP__/${APP_SLUG:-app}/g" "$src" > "$rel" || die "could not write $rel"
+      ok "created $rel (stack '$STACK' starter: quality-gate settings)"
+    fi
+  done < <(find "$KIT_DIR/templates/stacks/$STACK" -type f -print0 | sort -z)
+fi
+if [ "$STACK" = python ] && [ -f pyproject.toml ] && [ ! -f uv.lock ]; then
+  if command -v uv >/dev/null 2>&1; then
+    uv lock -q && ok "uv.lock created (CI installs with 'uv sync --locked')" || warn "uv lock failed - run 'uv lock' before the first push"
+  else
+    warn "uv not installed - CI needs uv.lock. Install uv (curl -LsSf https://astral.sh/uv/install.sh | sh), then run: uv lock"
+  fi
+fi
 
 CI_FILE=".github/workflows/ci.yml"
 if [ -f "$CI_FILE" ]; then
@@ -176,8 +197,8 @@ git add -A || die "git add failed"
 if git diff --cached --quiet; then
   warn "nothing new to commit - working tree already matches HEAD"
 else
-  git commit -qm "chore: scaffold from project template v2.7" || die "git commit failed"
-  ok "committed: chore: scaffold from project template v2.7"
+  git commit -qm "chore: scaffold from project template v2.8" || die "git commit failed"
+  ok "committed: chore: scaffold from project template v2.8"
 fi
 COMMITS="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 [ "$COMMITS" -ge 1 ] || die "no commit exists - a push would fail with 'src refspec main does not match any'"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v11
+# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v12
 # Usage:  bash scripts/loop.sh [max-iters]          (ID from the branch, Issue from docs/TASKS.md)
 #         bash scripts/loop.sh <issue-number> <REQ-00X|BUG-00X> [max-iters]   (explicit form)
 #
@@ -22,9 +22,10 @@
 #      and the Issue number from docs/TASKS.md or GitHub.
 #   v10 runs scripts/doclint.sh in front of the detected test command; TEST_CMD may use && (bash -c).
 #   v11 marks the prompt NON-INTERACTIVE RUN so Claude skips the MCP setup check (docs/MCP.md).
+#   v12 the exit condition is scripts/gate.sh (docs, lint, format, types, tests, coverage) when it exists.
 set -uo pipefail
 
-LOOP_VERSION="v11"
+LOOP_VERSION="v12"
 
 # ---------- help / usage ----------
 usage() {
@@ -54,8 +55,10 @@ INVOCATION
 
 ENV OVERRIDES
   TEST_CMD    Force the test command (else auto-detected per stack:
-              npm test / pytest / cargo test / go test ./..., with
-              "bash scripts/doclint.sh &&" in front when that script exists).
+              npm test / pytest / cargo test / go test ./...).
+              When scripts/gate.sh exists the loop runs the whole gate
+              (doclint, lint, format, types, tests) and your TEST_CMD becomes
+              its test step. NO_GATE=1 falls back to doclint + tests only.
               It must run the FULL suite. "&&" chains are fine.
   PLAN_FILE   Path to the approved plan (default: docs/plans/<ID>.md).
   FORCE       FORCE=1 skips the "already done" guard (see below).
@@ -199,7 +202,10 @@ else
   exit 1
 fi
 
-if [ -z "${TEST_CMD_FROM_ENV:-}" ] && [ -f scripts/doclint.sh ] && [ "${NO_DOCLINT:-0}" != 1 ]; then
+if [ -f scripts/gate.sh ] && [ "${NO_GATE:-0}" != 1 ]; then
+  if [ -n "${TEST_CMD_FROM_ENV:-}" ]; then export GATE_TEST_CMD="$TEST_CMD"; fi
+  TEST_CMD="bash scripts/gate.sh"; ok "tests : $TEST_CMD   (quality gate: doclint, lint, format, types, tests${GATE_TEST_CMD:+; test step: $GATE_TEST_CMD})"
+elif [ -z "${TEST_CMD_FROM_ENV:-}" ] && [ -f scripts/doclint.sh ] && [ "${NO_DOCLINT:-0}" != 1 ]; then
   TEST_CMD="bash scripts/doclint.sh && $TEST_CMD"; ok "tests : $TEST_CMD   (doclint in front; NO_DOCLINT=1 to skip)"
 fi
 case "$TEST_CMD" in
@@ -289,6 +295,9 @@ ${TASK_LINES}
 4. Read docs/RULES.md (coding rules and section 3 "Documentation conventions": a README in
    every new directory, a header on every file, a doc block on every function) and the
    "Known issues and gotchas" in docs/MEMORY.md before editing.
+   Put each change where the change map in docs/02-architecture.md section 3a says it belongs
+   (business rules in service.py, database access in repository.py, HTTP in routes.py).
+   Keep it simple: no new abstraction, layer or library that the plan does not name.
 5. The regression gate in CLAUDE.md section 2 must stay green.
 6. Do NOT commit. Do NOT open a PR. Do NOT touch main.
    Do NOT edit docs/TASKS.md, docs/MEMORY.md or any spec doc whose first line is "Status: APPROVED".

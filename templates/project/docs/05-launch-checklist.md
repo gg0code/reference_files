@@ -1,22 +1,25 @@
 Status: TEMPLATE
-<!-- Template v2.6. Release gate. Claude PROPOSES project additions and removals; the user approves each change. -->
+<!-- Template v2.8. Release gate. Claude PROPOSES project additions and removals; the user approves each change. -->
 
 # <Product name> - Launch Checklist
 
 Mark each item **Pass / Fail / N/A** with evidence: test output, tool output, file:line or a screenshot.
 An item with no evidence counts as Fail.
-Sections A and B are blocking: a release cannot ship with a Fail in them.
+Sections A, B and O are blocking: a release cannot ship with a Fail in them.
+(Section O may be marked N/A only for a tool that never runs for other people.)
 Record each run in the audit log at the bottom and a line in MEMORY.md.
 
 ## A. Correctness and traceability (blocking)
-- [ ] A1. The full test suite is green on main, and CI is green on main.
+- [ ] A1. The full quality gate is green on main (`bash scripts/gate.sh --full`), and CI is green on main.
 - [ ] A2. The regression gate (CLAUDE.md section 2) passes.
 - [ ] A3. Every REQ-ID has at least one passing test (traceability audit).
 - [ ] A4. Every acceptance criterion in 01-prd.md section 9 is demonstrated.
 - [ ] A5. No skipped, disabled or quarantined tests without an open Issue.
 - [ ] A6. No open Critical or High BUG Issues.
 - [ ] A7. Every merged REQ-ID and BUG-ID has `docs/reviews/<ID>.md` with `Verdict: APPROVE`. Tool: `bash scripts/req_status.sh` (Review column).
-- [ ] A8. `bash scripts/doclint.sh` passes on the whole codebase (README per folder, file headers, function blocks).
+- [ ] A8. `bash scripts/doclint.sh` passes on the whole codebase (README per folder, file headers, function blocks, file size, layers).
+- [ ] A9. The change map in 02-architecture.md section 3a lists every feature folder, and each entry points at real files.
+- [ ] A10. No `GATE_SKIP`, `# noqa` or `# type: ignore` without a written reason. Tool: `grep -rn "noqa\|type: ignore" src`.
 
 ## B. Security and privacy (blocking)
 - [ ] B1. No secrets in code, history or frontend bundles. Tool: gitleaks / grep.
@@ -27,6 +30,16 @@ Record each run in the audit log at the bottom and a line in MEMORY.md.
 - [ ] B6. Dependencies have no known high or critical vulnerabilities. Tool: `npm audit` / `pip-audit`.
 - [ ] B7. Privacy: the data collected is listed, a privacy notice exists if personal data is stored, and consent is in place if cookies or tracking are used.
 - [ ] B8. Logging contains no passwords, tokens or personal data.
+
+## O. Operations (blocking for production)
+- [ ] O1. All configuration comes from the environment through one config module and is validated at startup; the app refuses to start with a missing or invalid value.
+- [ ] O2. A `/health` endpoint reports the app and its database as up.
+- [ ] O3. Logs are structured, carry one request ID per request, and errors include a stack trace (and no personal data, B8).
+- [ ] O4. Unhandled errors reach an error tracker (for example Sentry), and users see the custom error page (C4).
+- [ ] O5. Schema changes only through migrations; upgrade and downgrade tested on a copy of real data.
+- [ ] O6. Backups run automatically, and a restore has been done once. Date of the restore test:
+- [ ] O7. Deploy is one documented command; rollback to the previous version is documented and has been tested once.
+- [ ] O8. Dependencies are pinned in a lockfile (`uv.lock`), and the production build installs from it.
 
 ## C. Input validation and error handling
 - [ ] C1. Forms validate on the client and the server, with clear messages.

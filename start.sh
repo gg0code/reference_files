@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# start.sh - start the next piece of work, or show where you are.      VERSION: v3
+# start.sh - start the next piece of work, or show where you are.      VERSION: v4
 #
 #   bash scripts/start.sh                    start the next unticked REQ in docs/TASKS.md
 #   bash scripts/start.sh REQ-004            start (or resume) that REQ
@@ -80,7 +80,7 @@ show_status() {
         "Verdict: CHANGES REQUESTED"*) nxt="bash scripts/loop.sh      (reads the findings), commit, then: review" ;;
         "Verdict: APPROVE"*)
           case "$pr" in
-            -) nxt="bash scripts/pr.sh" ;;
+            -) if grep -q '^## Walkthrough' "$rv" 2>/dev/null; then nxt="bash scripts/pr.sh"; else nxt="claude pane: explain     (walkthrough), then: bash scripts/pr.sh"; fi ;;
             *open*) nxt="review the PR on GitHub, then: bash scripts/pr.sh merge" ;;
             *merged*) nxt="bash scripts/start.sh      (next REQ)" ;;
             *) nxt="bash scripts/pr.sh" ;;
@@ -144,10 +144,10 @@ kit_check() {
   if [ -f .claude/settings.json ] && python3 -m json.tool .claude/settings.json >/dev/null 2>&1; then pass ".claude/settings.json (pre-approved read-only commands for the reviewer)"
   else wrn ".claude/settings.json missing or invalid JSON: the reviewer will ask permission for every command"; fi
   n=0
-  for f in start.sh loop.sh pr.sh doclint.sh req_status.sh autopilot.sh; do
+  for f in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh; do
     [ -f "scripts/$f" ] || { n=$((n+1)); if [ "$f" = autopilot.sh ]; then wrn "scripts/$f missing (optional)"; else bad "scripts/$f missing: copy it from the kit"; fi; }
   done
-  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, req_status, autopilot"
+  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, gate, req_status, autopilot"
   for t in PROMPT.md FAILURES.txt .autopilot/ CLAUDE.local.md; do
     grep -qxF "$t" .gitignore 2>/dev/null || wrn ".gitignore does not list $t"
   done
@@ -175,11 +175,18 @@ kit_check() {
   else wrn "docs: $a approved, $d draft, $t template - type 'setup' in the claude pane"; fi
 
   echo ""
-  echo "==> 4. Documentation conventions (docs/RULES.md section 3)"
+  echo "==> 4. Documentation conventions and quality gate (docs/RULES.md sections 2 and 3)"
   if [ -f scripts/doclint.sh ]; then
     n="$(bash scripts/doclint.sh 2>&1 | tail -1)"
     case "$n" in *OK*) pass "$n" ;; *) wrn "$n  (run: bash scripts/doclint.sh)" ;; esac
   fi
+  if [ -f pyproject.toml ]; then
+    grep -q '^\[tool.ruff' pyproject.toml && grep -q '^\[tool.mypy' pyproject.toml \
+      && pass "pyproject.toml carries the gate settings (ruff limits, mypy strict, pytest)" \
+      || wrn "pyproject.toml has no [tool.ruff] / [tool.mypy]: copy them from the kit's templates/stacks/python/pyproject.toml"
+    [ -f uv.lock ] && pass "uv.lock present (pinned dependencies)" || wrn "no uv.lock yet: run 'uv sync' (checklist O8)"
+  fi
+  [ -f scripts/gate.sh ] && echo "    INFO  : the full quality gate (tests included) runs with: bash scripts/gate.sh"
 
   echo ""
   echo "==> 5. MCP servers (.mcp.json, docs/MCP.md)"
