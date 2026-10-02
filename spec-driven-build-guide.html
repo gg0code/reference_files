@@ -159,6 +159,15 @@ li.step.is-next{box-shadow:0 0 0 2px var(--accent)}
 .code pre .v{color:var(--code-var);font-weight:600}
 .code pre .cm{color:var(--code-com)}
 .code.prompt pre{white-space:pre-wrap}
+.code.prompt{border:1px solid #5b8def;box-shadow:0 0 0 1px rgba(91,141,239,.25)}
+.code.prompt .ch{background:rgba(91,141,239,.16);color:#cfe0ff}
+.code.prompt .ch b{color:#fff;font-weight:700}
+.code.prompt .ch span{white-space:normal;overflow:visible;text-overflow:clip}
+.code.prompt .ch .first{color:#ffd479;font-family:var(--mono)}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;font-size:13px;margin:6px 0 0}
+.legend .k{font:600 11px var(--mono);padding:3px 8px;border-radius:5px;white-space:nowrap}
+.legend .k.t{background:#1b1f2a;color:#c9d1e3}
+.legend .k.c{background:#1b1f2a;color:#cfe0ff;border:1px solid #5b8def}
 
 table.ref{border-collapse:collapse;width:100%;font-size:14px;background:var(--surface)}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:18px}
@@ -293,7 +302,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
             <span class="tag">Recommended · default</span>
             <h3>B · Assisted, one REQ at a time</h3>
             <p class="who">For: your first project, and any REQ that touches money, security or data.</p>
-            <p><code>start.sh</code> → <code>next</code> (plan) → you approve → <code>loop.sh</code> builds until the gate is green → <code>review</code> → <code>explain</code> → <code>pr.sh</code> → you review the PR → <code>pr.sh merge</code>.</p>
+            <p><code>start.sh</code> → <code>next</code> (plan) → you approve → <code>loop.sh</code> builds until the gate is green → <code>review</code> → <code>explain</code> → <code>pr.sh</code> → you review the PR → <code>pr.sh merge</code>. (<code>next</code>, <code>review</code> and <code>explain</code> are typed inside Claude; the <code>.sh</code> scripts in the git pane.)</p>
             <ul><li>You approve: plan, PR, merge</li><li>You read: the walkthrough, which teaches you the code</li><li>Guide: Phase 4</li></ul>
           </div>
           <div class="path">
@@ -301,7 +310,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
             <h3>C · Autopilot level 1</h3>
             <p class="who">For: a batch of well-understood REQs after you have done 3 or 4 by hand.</p>
             <p>You approve the plans first. <code>bash scripts/autopilot.sh</code> then runs branch, loop, commit, reviewer, fix rounds and PR for each, while you are away.</p>
-            <ul><li>You approve: plans, then every PR and merge</li><li>Afterwards: type <code>explain</code> on each branch before merging</li><li>Guide: Phase 4b</li></ul>
+            <ul><li>You approve: plans, then every PR and merge</li><li>Afterwards: type <code>explain</code> inside Claude on each branch before merging</li><li>Guide: Phase 4b</li></ul>
           </div>
           <div class="path">
             <span class="tag">Unattended build</span>
@@ -342,6 +351,13 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
       <!-- ================= PHASE 0 ================= -->
       <section class="phase" id="machine" data-phase="machine">
         <div class="phase-head"><h2>0 · Machine setup</h2><span class="when">Once per computer. Skip if done.</span></div>
+        <div class="osnote"><b>Two kinds of boxes in this guide.</b>
+          <div class="legend">
+            <span class="k t">bash · terminal</span><span>A <b>terminal command</b>: paste it into the terminal<span data-os="windows"> (the Ubuntu window)</span>, or the git pane once you have panes. Boxes labelled <b>powershell</b> or <b>cmd</b> go into PowerShell or CMD.</span>
+            <span class="k c">&#9000; Type inside Claude</span><span>Typed at <b>Claude's prompt</b>: first start Claude Code with <code>claude</code> in a terminal (or use the claude pane), then type it in Claude's input box. If the box says <i>first type /model opus</i>, type that line, press Enter, then type the box's text.</span>
+          </div>
+          <p style="margin:8px 0 0">Always typed inside Claude, never in a terminal: the words <code>setup</code>, <code>next</code>, <code>review</code>, <code>explain</code>, <code>status</code>, <code>audit</code>, <code>wrap up</code>, <code>mcp</code>, and every command starting with <code>/</code> (<code>/model</code>, <code>/mcp</code>, <code>/statusline</code>, <code>/compact</code>, <code>/rc</code>, <code>/graphify</code>, <code>/exit</code>).</p>
+        </div>
         <p class="osnote" data-os="windows">Showing steps for <b>Windows</b>. The kit's scripts are written for Linux, so on Windows everything runs inside <b>Ubuntu</b>, a Linux system Windows installs for you (Microsoft calls this WSL). After step 1 you type every command in this guide into the Ubuntu window, never into PowerShell, unless a step says PowerShell.</p>
         <div class="osnote" data-os="windows">
           <b>Using CMD (Command Prompt)?</b> CMD is fine as the window, but it cannot run the kit's scripts itself: they are bash scripts that run in Ubuntu. Type one command to switch the CMD window into Ubuntu, then paste every command exactly as this guide shows it.
@@ -359,10 +375,23 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
         <ol class="steps">
           <li class="step" data-id="m-win-ubuntu" data-once="1" data-os="windows">
             <div class="step-body">
-              <div class="step-head"><h3>Install Ubuntu on Windows</h3></div>
-              <p>Open the Start menu, type <b>PowerShell</b>, right-click it and choose <b>Run as administrator</b>. Run this line, then restart the computer when it asks.</p>
+              <div class="step-head"><h3>Ubuntu on Windows: check, install if needed, open</h3></div>
+              <p><b>a. Check first.</b> Open <b>PowerShell</b> or <b>CMD</b> (no administrator needed) and list what is installed:</p>
+              <pre data-label="powershell or cmd">wsl -l -v</pre>
+              <div class="tablewrap"><table class="ref">
+                <thead><tr><th>You see</th><th>Do this</th></tr></thead>
+                <tbody>
+                  <tr><td><code>Ubuntu</code> with VERSION <b>2</b></td><td>Already installed: skip to <b>c</b>.</td></tr>
+                  <tr><td><code>Ubuntu</code> with VERSION <b>1</b></td><td>Run <code>wsl --set-version Ubuntu 2</code> (the phone dashboard and the kit expect WSL 2), then go to <b>c</b>.</td></tr>
+                  <tr><td>Ubuntu listed, but without the <code>*</code> (another distribution is the default)</td><td>Run <code>wsl --set-default Ubuntu</code>, then go to <b>c</b>.</td></tr>
+                  <tr><td>Nothing, or "not installed", or an error</td><td>Do <b>b</b>.</td></tr>
+                </tbody>
+              </table></div>
+              <p><b>b. Install</b> (only if the check found nothing). Start menu, type <b>PowerShell</b>, right-click it, <b>Run as administrator</b>, run this line, and restart when it asks. After the restart, open <b>Ubuntu</b> from the Start menu: it asks for a new Ubuntu user name and password (the password does not show while you type; that is normal).</p>
               <pre data-label="powershell · as administrator">wsl --install -d Ubuntu</pre>
-              <p>After the restart, open <b>Ubuntu</b> from the Start menu. It asks for a new user name and password for Ubuntu (the password does not show while you type; that is normal). Then install the basic tools:</p>
+              <p><b>c. Open Ubuntu.</b> From PowerShell or CMD, <code>wsl ~</code> opens Ubuntu in your Ubuntu home folder, in the same window (<code>exit</code> goes back). Opening <b>Ubuntu</b> from the Start menu does the same in its own window. Every command in this guide from here on is typed there.</p>
+              <pre data-label="powershell or cmd">wsl ~</pre>
+              <p><b>d. Basic tools</b>, once, inside Ubuntu (safe to repeat if Ubuntu was already installed: it only adds what is missing):</p>
               <pre data-label="bash · Ubuntu window">sudo apt update &amp;&amp; sudo apt install -y git curl unzip jq tmux gh nodejs npm python3</pre>
               <p class="expect">You should see: a prompt like <code>you@PC:~$</code>. That is Ubuntu. Ubuntu reaches your Windows drive C: as <code>/mnt/c</code>, so a folder you typed above as <code>C:\Users\gaura\Desktop\Projects</code> appears in the commands as <code>/mnt/c/Users/gaura/Desktop/Projects</code>. The guide converts it for you.</p>
             </div>
@@ -388,7 +417,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
           <li class="step" data-id="m-git" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Git identity and GitHub sign-in</h3></div>
-              <p><span data-os="windows">In the Ubuntu window. </span>Without a git identity the first commit fails, and the push later fails with <code>src refspec main does not match any</code>.</p>
+              <p><span data-os="windows">In the Ubuntu window. </span>Run it from any folder: no project or app folder exists yet, and none is needed. <code>--global</code> saves the settings once for your user on this computer (in <code>~/.gitconfig</code><span data-os="windows"> inside Ubuntu</span>), and every project you create later uses them. <code>gh auth login</code> is the same: once per computer. Without a git identity the first commit fails, and the push later fails with <code>src refspec main does not match any</code>.</p>
               <pre data-label="bash · terminal">git config --global user.name  "Your Name"
 git config --global user.email "you@example.com"
 git config --global init.defaultBranch main
@@ -422,7 +451,14 @@ claude --version &amp;&amp; uv --version &amp;&amp; node --version   # node: v18
           <li class="step" data-id="m-dotfiles" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Terminal layout: WezTerm and tmux (optional, recommended)</h3></div>
-              <p>The guide works in four side-by-side panes (claude, git, tests, frontend). Install <b>WezTerm</b> from wezterm.org<span data-os="windows"> (the Windows version: it opens Ubuntu for you)</span>, then link the kit's settings. Your current files are kept as <code>*.before-kit</code>; linking means <code>git -C {KIT} pull</code> also updates them.</p>
+              <p>The guide works in four side-by-side panes (claude, git, tests, frontend): WezTerm is the window, tmux makes the panes. <b>a. Check what you have; install only what is missing.</b></p>
+              <pre data-label="cmd (Command Prompt) · WezTerm is a Windows app" data-os="windows">winget list --id wez.wezterm -e &gt;nul 2&gt;&amp;1 &amp;&amp; echo WezTerm already installed || winget install --id wez.wezterm -e</pre>
+              <pre data-label="bash · Ubuntu window · tmux" data-os="windows">command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || sudo apt install -y tmux</pre>
+              <pre data-label="bash · Terminal" data-os="mac">[ -d /Applications/WezTerm.app ] &amp;&amp; echo "WezTerm already installed" || brew install --cask wezterm
+command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || brew install tmux</pre>
+              <pre data-label="bash · terminal" data-os="linux">command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || sudo apt install -y tmux
+command -v wezterm &gt;/dev/null &amp;&amp; echo "WezTerm already installed" || echo "Install WezTerm from https://wezterm.org/install/linux.html"</pre>
+              <p><b>b. Use the kit's settings.</b> Your current files are kept as <code>*.before-kit</code>; linking means <code>git -C {KIT} pull</code> also updates them.<span data-os="windows"> The WezTerm settings make it open Ubuntu with tmux running.</span></p>
               <pre data-label="bash · Ubuntu window" data-os="windows">for f in .bashrc .tmux.conf; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
 ln -sf {KIT}/.bashrc     ~/.bashrc
 ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
@@ -430,8 +466,7 @@ WINHOME="$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')"
 [ -e "$WINHOME/.wezterm.lua" ] &amp;&amp; cp "$WINHOME/.wezterm.lua" "$WINHOME/.wezterm.lua.before-kit"
 cp {KIT}/.wezterm.lua "$WINHOME/.wezterm.lua"     # WezTerm reads it from your Windows home
 source ~/.bashrc</pre>
-              <pre data-label="bash · Terminal" data-os="mac">brew install --cask wezterm
-[ -e ~/.tmux.conf ] &amp;&amp; [ ! -L ~/.tmux.conf ] &amp;&amp; cp ~/.tmux.conf ~/.tmux.conf.before-kit
+              <pre data-label="bash · Terminal" data-os="mac">[ -e ~/.tmux.conf ] &amp;&amp; [ ! -L ~/.tmux.conf ] &amp;&amp; cp ~/.tmux.conf ~/.tmux.conf.before-kit
 ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
 [ -e ~/.wezterm.lua ] &amp;&amp; cp ~/.wezterm.lua ~/.wezterm.lua.before-kit
 ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua</pre>
@@ -442,6 +477,8 @@ ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua
 source ~/.bashrc</pre>
               <p data-os="mac">The Mac's shell is zsh, so the kit's <code>.bashrc</code> (aliases only) is not used; nothing in the kit needs it.</p>
               <p data-os="windows linux">Already have a <code>.bashrc</code> you like? Skip its link and add one line to yours instead: <code>source {KIT}/.bashrc</code>.</p>
+              <p class="expect" data-os="windows">You should see: close this window and open <b>WezTerm</b>. It opens Ubuntu with tmux already running (a status bar along the bottom), in <b>one</b> pane. That is right at this point: the four panes are made per project in <b>2 · Open the work session</b>, after <b>1 · Create the project</b> has made the project folder.</p>
+              <p class="expect" data-os="mac linux">You should see: <code>tmux -V</code> prints a version and WezTerm opens normally, in <b>one</b> pane. That is right at this point: the four panes are made per project in <b>2 · Open the work session</b>, after <b>1 · Create the project</b> has made the project folder.</p>
             </div>
           </li>
           <li class="step" data-id="m-mcp" data-once="1">
@@ -455,11 +492,14 @@ source ~/.bashrc</pre>
           <li class="step" data-id="m-rtk" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Token savers: RTK and the cost status line (optional)</h3></div>
-              <p>RTK compresses command output before it reaches Claude (60 to 90 percent fewer tokens on git, grep and test output). The status line shows session cost and the active model under every prompt.</p>
+              <p><b>RTK</b> compresses command output before it reaches Claude (60 to 90 percent fewer tokens on git, grep and test output). Install it in the terminal:</p>
               <pre data-label="bash · terminal">curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
 mkdir -p ~/.claude && rtk init -g
 grep -i rtk ~/.claude/settings.json    # hook registered?</pre>
-              <pre data-label="prompt · claude pane" class="prompt">/statusline show session cost, today's total cost, and the active model</pre>
+              <p><b>Status line</b>: a line under Claude's input box with the session cost, today's total and the active model. This one is not a terminal command: start Claude Code, then type the <code>/statusline</code> line at <b>Claude's prompt</b> (the input box Claude shows). Claude writes it into <code>~/.claude/settings.json</code>, so it applies to every project on this computer. Then leave Claude with <code>/exit</code>.</p>
+              <pre data-label="bash · terminal">claude</pre>
+              <pre data-label="prompt · inside Claude Code" class="prompt">/statusline show session cost, today's total cost, and the active model</pre>
+              <p class="expect">You should see: after Claude's answer, the new line under the input box (it may appear after your next message). Type <code>/exit</code> inside Claude to return to the terminal. Machine setup is done; next is <b>1 · Create the project</b>.</p>
             </div>
           </li>
         </ol>
@@ -531,7 +571,7 @@ if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux
               <pre data-label="bash · git pane">bash scripts/start.sh check</pre>
               <p>Claude is reading them: ask this in the claude pane.</p>
               <pre data-label="prompt · claude pane" class="prompt">Which project files have you read this session, and what does section 0 of CLAUDE.md tell you to do?</pre>
-              <p class="expect">You should see: <b>CLAUDE.md, docs/RULES.md, docs/TASKS.md, docs/MEMORY.md, docs/MCP.md</b>, the TEMPLATE/DRAFT setup check and the MCP check. Then type <code>/mcp</code>: chrome-devtools, playwright and graphify are listed (graphify connects once you have run <code>/graphify .</code>). If not, Claude was started outside the project folder: quit, <code>cd {ROOT}/{APP}</code>, start <code>claude</code> again.</p>
+              <p class="expect">You should see: <b>CLAUDE.md, docs/RULES.md, docs/TASKS.md, docs/MEMORY.md, docs/MCP.md</b>, the TEMPLATE/DRAFT setup check and the MCP check. Then type <code>/mcp</code> inside Claude: chrome-devtools, playwright and graphify are listed (graphify connects once you have run <code>/graphify .</code>). If not, Claude was started outside the project folder: quit, <code>cd {ROOT}/{APP}</code>, start <code>claude</code> again.</p>
               <ul>
                 <li>Copied in by: <code>scaffold.sh</code> (Phase 1)</li>
                 <li>Loaded by: Claude Code reads <code>CLAUDE.md</code> automatically; CLAUDE.md tells it to read RULES, TASKS and MEMORY every session</li>
@@ -953,7 +993,7 @@ Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -D
             <div class="step-body">
               <div class="step-head"><h3>Talk to Claude from the phone (Remote Control)</h3></div>
               <p>The dashboard does not write code or run <code>review</code> and <code>explain</code>: Claude does. To reach the Claude session on your PC from your phone, start Claude with Remote Control and scan the QR code with the Claude app. Claude keeps running on your PC; the phone is a window into it. Needs a Pro, Max, Team or Enterprise subscription login.</p>
-              <pre data-label="bash · claude pane">claude --remote-control              # or type /rc inside a running session</pre>
+              <pre data-label="bash · claude pane">claude --remote-control              # or, inside a running Claude session, type /rc</pre>
               <p>Read code changes in the GitHub mobile app before you press Merge on the dashboard.</p>
             </div>
           </li>
@@ -991,8 +1031,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
 
         <h3 class="sub">Understanding your code</h3>
         <div class="tips">
-          <div class="tip"><h4>Read every walkthrough</h4><p>Type <code>explain</code> after each APPROVE and read it before the PR. It names the files, the path a request takes, and where to look if it breaks. Ten walkthroughs in, you know your codebase.</p></div>
-          <div class="tip"><h4>If you cannot follow the diff, do not merge</h4><p>Ask in the claude pane: <i>"Simplify this change so a returning developer can follow it. Keep behaviour and tests the same."</i> Simplifying before merge costs minutes; after, it costs a bug.</p></div>
+          <div class="tip"><h4>Read every walkthrough</h4><p>Type <code>explain</code> inside Claude after each APPROVE and read it before the PR. It names the files, the path a request takes, and where to look if it breaks. Ten walkthroughs in, you know your codebase.</p></div>
+          <div class="tip"><h4>If you cannot follow the diff, do not merge</h4><p>Type inside Claude (claude pane): <i>"Simplify this change so a returning developer can follow it. Keep behaviour and tests the same."</i> Simplifying before merge costs minutes; after, it costs a bug.</p></div>
           <div class="tip"><h4>Find where a change goes</h4><p>Open the change map, <code>docs/02-architecture.md</code> section 3a. Rules are in <code>service.py</code>, storage in <code>repository.py</code>, pages and APIs in <code>routes.py</code>. Or search the REQ-ID: <code>grep -rn REQ-004 src tests docs</code>.</p></div>
           <div class="tip"><h4>Ask "who calls this?" before changing it</h4><p>With graphify connected, ask Claude for the callers and impact of a function. Without it, use your editor's Find References. Do not trust a <code>Called by:</code> line you did not just check.</p></div>
         </div>
@@ -1015,8 +1055,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
 
         <h3 class="sub">Cost, models and sessions</h3>
         <div class="tips">
-          <div class="tip"><h4>Right model for the job</h4><p>Opus for PRD, architecture, plans and bug localisation; Sonnet for building; Haiku for commits, PR bodies and Issues. Switch with <code>/model</code>.</p></div>
-          <div class="tip"><h4>Fresh sessions are cheaper and smarter</h4><p>Start a new claude session per REQ. State lives in git, Issues and docs, so nothing is lost. Use <code>/compact</code> when a long session slows down.</p></div>
+          <div class="tip"><h4>Right model for the job</h4><p>Opus for PRD, architecture, plans and bug localisation; Sonnet for building; Haiku for commits, PR bodies and Issues. Switch inside Claude with <code>/model opus</code>, <code>/model sonnet</code> or <code>/model haiku</code>.</p></div>
+          <div class="tip"><h4>Fresh sessions are cheaper and smarter</h4><p>Start a new claude session per REQ. State lives in git, Issues and docs, so nothing is lost. Type <code>/compact</code> inside Claude when a long session slows down.</p></div>
           <div class="tip"><h4>Keep MEMORY.md short</h4><p>It is read every session. Under about 150 lines; <code>wrap up</code> archives old session log lines.</p></div>
           <div class="tip"><h4>Autopilot: dry run, then caps</h4><p><code>DRY_RUN=1</code> first, then keep <code>MAX_REQS</code> and <code>MAX_COST</code> low until you trust it. Read <code>.autopilot/&lt;run&gt;.md</code> "Needs you" first when you return.</p></div>
         </div>
@@ -1042,7 +1082,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
       <section class="phase" id="reference" data-phase="reference">
         <div class="phase-head"><h2>Reference</h2><span class="when">Commands, files, models and fixes at a glance.</span></div>
 
-        <h3 class="sub">Words you type in the claude pane</h3>
+        <h3 class="sub">Words you type inside Claude (claude pane), never in a terminal</h3>
         <div class="tablewrap"><table class="ref">
           <thead><tr><th>Type</th><th>What happens</th></tr></thead>
           <tbody>
@@ -1123,7 +1163,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>plan ... is not approved</code></td><td>Change line 1 of the plan to <code>Status: APPROVED - {DATE}</code> and commit.</td></tr>
             <tr><td><code>refusing to loop on 'main'</code> or <code>not on a REQ or BUG branch</code></td><td><code>bash scripts/start.sh</code> (or <code>start.sh status</code> to see where you are)</td></tr>
             <tr><td><code>you are on REQ-00X, which is not merged yet</code></td><td>Finish that one first (<code>start.sh status</code> shows the next action), or <code>FORCE=1 bash scripts/start.sh</code>.</td></tr>
-            <tr><td><code>no reviewer APPROVE yet</code> from pr.sh</td><td>Type <code>review</code> in the claude pane; fix and review again if it asks for changes.</td></tr>
+            <tr><td><code>no reviewer APPROVE yet</code> from pr.sh</td><td>Type <code>review</code> inside Claude (claude pane); fix and review again if it asks for changes.</td></tr>
             <tr><td><code>no Issue number for REQ-00X</code></td><td>Its line in <code>docs/TASKS.md</code> must read <code>- [ ] REQ-00X (#N) title</code>.</td></tr>
             <tr><td><code>looks ALREADY DONE</code></td><td>It is merged or its Issue is closed. Only after a revert: <code>FORCE=1 bash scripts/loop.sh</code></td></tr>
             <tr><td>Loop stopped at the cap</td><td>The plan was wrong. Read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan on Opus, re-approve, re-run.</td></tr>
@@ -1133,7 +1173,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td>Review says CHANGES REQUESTED twice</td><td>Stop fixing. The plan or the requirement is wrong: re-plan on Opus, re-approve, rebuild.</td></tr>
             <tr><td>Claude does not know the reviewer agent</td><td>Check <code>.claude/agents/reviewer.md</code> exists (copy it from the kit's <code>templates/project/</code>), then restart <code>claude</code>.</td></tr>
             <tr><td>Autopilot says "needs jq" or "gh is not authenticated"</td><td><code>sudo apt install jq</code>, <code>gh auth login</code></td></tr>
-            <tr><td>Autopilot skipped a REQ: "no approved plan"</td><td>Level 1 only builds plans you approved. Type <code>next</code>, approve the plan, or run level 2.</td></tr>
+            <tr><td>Autopilot skipped a REQ: "no approved plan"</td><td>Level 1 only builds plans you approved. Type <code>next</code> inside Claude, approve the plan, or run level 2.</td></tr>
             <tr><td>Loop red with <code>D1</code>, <code>D2</code> or <code>D3</code> lines</td><td>doclint: add the folder README, the <code>REQ-IDs:</code> header line, or the function doc block (formats in <code>docs/RULES.md</code> section 3). Generated files go in <code>.doclintignore</code>.</td></tr>
             <tr><td>Loop red with <code>D4</code> or <code>D5</code></td><td>D4: split the file by responsibility. D5: move web, template or database code out of <code>service.py</code> into <code>routes.py</code> or <code>repository.py</code>.</td></tr>
             <tr><td>Gate red on lint, format or types</td><td>Auto-fix style first: <code>uv run ruff check --fix . &amp;&amp; uv run ruff format .</code>. Complexity or type errors need a real fix; never add <code>noqa</code> or <code>type: ignore</code> without a reason.</td></tr>
@@ -1314,7 +1354,17 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     var wrap = document.createElement('div');
     wrap.className = 'code' + (pre.classList.contains('prompt') ? ' prompt' : '');
     var head = document.createElement('div'); head.className = 'ch';
-    head.innerHTML = '<span>' + esc(pre.dataset.label) + '</span><button type="button">Copy</button>';
+    var lab = esc(pre.dataset.label);
+    if (pre.classList.contains('prompt')){
+      // "prompt · claude pane · /model opus" -> explicit: type it inside Claude, after switching the model
+      var extra = pre.dataset.label.split(' · ').slice(1).filter(function(p){ return !/claude pane|inside Claude/i.test(p); });
+      var model = extra.filter(function(p){ return /^\/model /.test(p); })[0];
+      var other = extra.filter(function(p){ return !/^\/model /.test(p); });
+      lab = '&#9000; <b>Type inside Claude</b>, not in a terminal' +
+            (model ? ' · first type <span class="first">' + esc(model) + '</span>' : '') +
+            (other.length ? ' · ' + esc(other.join(' · ')) : '');
+    }
+    head.innerHTML = '<span>' + lab + '</span><button type="button">Copy</button>';
     pre.parentNode.insertBefore(wrap, pre);
     wrap.appendChild(head); wrap.appendChild(pre);
     if (pre.dataset.os) wrap.dataset.os = pre.dataset.os;      // hide the whole block for other computers
