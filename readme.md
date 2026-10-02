@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.6 (2026-10-01).
+Kit version: v2.7 (2026-10-02).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -24,9 +24,10 @@ reference_files/
       CLAUDE.md              the project constitution (FIXED + FILL IN sections)
       .claude/agents/reviewer.md   the second agent: read-only code reviewer (Opus)
       .claude/settings.json        pre-approved read-only commands (the reviewer runs without prompts)
+      .mcp.json              MCP servers: chrome-devtools, playwright, graphify (free, local, no keys)
       .gitignore
       docs/                  00-idea, 01-prd, 02-architecture, 03-ui-design, 03-wireframe/,
-                             04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, plans/, reviews/
+                             04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, MCP, plans/, reviews/
       src/  tests/  scripts/ each with a README.md
   .bashrc  .tmux.conf  .wezterm.lua   your machine setup (not used by the scripts)
 ```
@@ -78,6 +79,11 @@ command -v claude
 #   jq                 cost and token telemetry in loop.sh
 #   RTK                compresses command output before it reaches Claude (runbook.md 0f)
 #   Node / Python      whatever your stacks need
+
+# MCP servers in every project (.mcp.json; runbook.md 0h)
+node --version                                   # 18+ for chrome-devtools and playwright
+curl -LsSf https://astral.sh/uv/install.sh | sh  # uv, for graphify
+uv tool install "graphifyy[mcp]" && graphify install
 ```
 
 On Windows, run the scripts from WSL or Git Bash; they are bash scripts.
@@ -142,6 +148,26 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+- To bring a v2.6 project up to v2.7 (MCP), from the project root:
+  ```bash
+  cp <kit>/templates/project/.mcp.json .
+  cp <kit>/templates/project/docs/MCP.md docs/
+  cp <kit>/start.sh <kit>/loop.sh <kit>/autopilot.sh scripts/
+  grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
+  ```
+  Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v2.7
+
+- New `templates/project/.mcp.json`: three free MCP servers in every project, chrome-devtools and playwright (Claude opens and tests the app in a browser) and graphify (a map of the codebase).
+- New `templates/project/docs/MCP.md`: the MCP setup check and when to use each server.
+  CLAUDE.md section 0 loads it with `@docs/MCP.md`, so at the start of each interactive session Claude lists any missing server with its install command; `mcp` re-runs the check.
+- `templates/project/CLAUDE.md` v2.7: new section 0a loads `docs/MCP.md`; folder map lists `.mcp.json` and `docs/MCP.md`; new command `mcp`.
+- `start.sh check` v3 has a section 5 for MCP: `.mcp.json` valid and free of API keys, `docs/MCP.md` present and imported, node 18+, uv, the graphify map, `.gitignore`.
+- `loop.sh` v11 and `autopilot.sh` v2 mark their prompts `NON-INTERACTIVE RUN`, so unattended runs skip the check.
+- `scaffold.sh` v2.7 adds `graphify-out/` to `.gitignore` and warns when CLAUDE.md does not load `docs/MCP.md`.
+- Runbook 0h and the HTML guide (machine step "MCP prerequisites") describe the setup.
+- Paid servers (Firecrawl, Perplexity) stay out of `.mcp.json`; `docs/MCP.md` gives `claude mcp add --scope local` commands so API keys never reach git.
 
 ## Changes in v2.6
 

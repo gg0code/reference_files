@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.6
+# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.7
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
 #   bash /path/to/reference_files/scaffold.sh <app-name> [node|python|go|rust]
@@ -16,7 +16,7 @@
 #   bash scaffold.sh myapp python
 #
 # The kit layout it expects (next to this script):
-#   templates/project/        CLAUDE.md, .claude/agents/, docs/, src/, tests/, scripts/README.md, .gitignore
+#   templates/project/        CLAUDE.md, .claude/, .mcp.json, docs/ (incl. MCP.md), src/, tests/, scripts/README.md, .gitignore
 #   templates/ci.template.yml CI workflow with one block per stack
 #   start.sh, loop.sh, pr.sh, doclint.sh, req_status.sh, autopilot.sh   copied into <app>/scripts/
 #
@@ -52,7 +52,7 @@ die()  { echo ""; echo "ERROR : $*" >&2; echo "Aborted. Nothing further was run.
 trap 'err "unexpected failure at line $LINENO (command: $BASH_COMMAND)"; exit 1' ERR
 
 echo "=============================================="
-echo " scaffold.sh v2.6 - project: $APP${STACK:+  (stack: $STACK)}"
+echo " scaffold.sh v2.7 - project: $APP${STACK:+  (stack: $STACK)}"
 echo "=============================================="
 
 # ---------- 0. Preflight ----------
@@ -127,6 +127,13 @@ done < <(find "$TPL" -type f -print0 | sort -z)
 if [ "$kept" -gt 0 ] && [ "$created" -gt 0 ]; then printf '%s' "$kept_list"; fi
 ok "template files: $created created, $kept kept (existing files are never overwritten)"
 mkdir -p docs/plans || die "could not create docs/plans"
+# graphify's project map is generated per machine: never commit it (docs/MCP.md)
+if ! grep -qxF 'graphify-out/' .gitignore 2>/dev/null; then
+  printf '\n# graphify project map (generated; rebuild with /graphify .)\ngraphify-out/\n' >> .gitignore || die "could not update .gitignore"
+  ok ".gitignore: added graphify-out/"
+fi
+[ -f .mcp.json ] && ok "MCP servers: .mcp.json (chrome-devtools, playwright, graphify; see docs/MCP.md)"
+grep -q '@docs/MCP.md' CLAUDE.md 2>/dev/null || warn "CLAUDE.md does not load docs/MCP.md: add the line '@docs/MCP.md' to its section 0"
 
 # ---------- 3. Tooling scripts + CI ----------
 step "Step 3/6  Tooling scripts and CI"
@@ -169,8 +176,8 @@ git add -A || die "git add failed"
 if git diff --cached --quiet; then
   warn "nothing new to commit - working tree already matches HEAD"
 else
-  git commit -qm "chore: scaffold from project template v2.6" || die "git commit failed"
-  ok "committed: chore: scaffold from project template v2.6"
+  git commit -qm "chore: scaffold from project template v2.7" || die "git commit failed"
+  ok "committed: chore: scaffold from project template v2.7"
 fi
 COMMITS="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 [ "$COMMITS" -ge 1 ] || die "no commit exists - a push would fail with 'src refspec main does not match any'"
@@ -255,7 +262,8 @@ cat <<NEXT
   Next:
     1. cd $APP, then open the 4 tmux panes (runbook.md 0c)
     2. git pane:    bash scripts/start.sh check   # verifies the kit is installed and active
-    3. claude pane: claude                        # accept the trust dialog once, then type: setup
+    3. claude pane: claude                        # accept the trust dialog and approve the project MCP servers once, then type: setup
+                                                  # Claude lists any missing MCP prerequisite with its install command (docs/MCP.md)
     4. After CI has run once, turn on branch protection (runbook.md Phase 2c).
     5. Then, for each requirement: bash scripts/start.sh   (start.sh status shows where you are)
 

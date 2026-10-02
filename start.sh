@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# start.sh - start the next piece of work, or show where you are.      VERSION: v2
+# start.sh - start the next piece of work, or show where you are.      VERSION: v3
 #
 #   bash scripts/start.sh                    start the next unticked REQ in docs/TASKS.md
 #   bash scripts/start.sh REQ-004            start (or resume) that REQ
 #   bash scripts/start.sh bug "symptom"      file the next BUG-ID as an Issue and start fix/BUG-00X
 #   bash scripts/start.sh status             where am I: ID, Issue, plan, review, PR, next action
 #   bash scripts/start.sh check              is the kit installed and active in this project? (PASS/WARN/FAIL)
+#                                            includes the MCP servers in .mcp.json (docs/MCP.md)
 #
 # You never type an Issue number: it comes from the "REQ-00X (#N) title" line in
 # docs/TASKS.md, or from GitHub. The branch name then carries the ID, so loop.sh,
@@ -20,7 +21,7 @@ warn() { echo "    WARN  : $*"; }
 err()  { echo "    ERROR : $*" >&2; }
 die()  { err "$*"; exit 1; }
 
-case "${1:-}" in -h|--help|help) sed -n '2,14p' "$0"; exit 0 ;; esac
+case "${1:-}" in -h|--help|help) sed -n '2,15p' "$0"; exit 0 ;; esac
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repo"
 cd "$ROOT" || die "cannot enter $ROOT"
@@ -91,6 +92,37 @@ show_status() {
   echo "  next   : $nxt"
 }
 
+# ---------- check: MCP servers (called from kit_check; uses its pass/wrn/bad) ----------
+mcp_check() {
+  local v srv
+  if [ ! -f .mcp.json ]; then
+    wrn ".mcp.json missing: copy it from the kit's templates/project/ (re-running scaffold.sh adds it and keeps your files)"
+    return 0
+  fi
+  if ! python3 -m json.tool .mcp.json >/dev/null 2>&1; then bad ".mcp.json is not valid JSON"; return 0; fi
+  for srv in chrome-devtools playwright graphify; do
+    python3 -c "import json,sys; sys.exit(0 if '$srv' in json.load(open('.mcp.json')).get('mcpServers',{}) else 1)" 2>/dev/null \
+      && pass ".mcp.json defines $srv" || wrn ".mcp.json has no '$srv' server (see templates/project/.mcp.json)"
+  done
+  if python3 -c "import json,re,sys; t=json.dumps(json.load(open('.mcp.json'))); sys.exit(1 if re.search(r'(API_KEY|TOKEN)\"\s*:\s*\"(?!\\$\\{)[^\"]+',t) else 0)" 2>/dev/null; then :
+  else bad ".mcp.json contains an API key or token - it is committed to git. Remove it; add that server with: claude mcp add --scope local ..."; fi
+  if [ -f docs/MCP.md ]; then pass "docs/MCP.md (MCP setup check and usage rules)"; else wrn "docs/MCP.md missing: copy it from the kit's templates/project/docs/"; fi
+  grep -q '@docs/MCP.md' CLAUDE.md 2>/dev/null && pass "CLAUDE.md loads docs/MCP.md" \
+    || wrn "CLAUDE.md does not contain '@docs/MCP.md': Claude will not run the MCP check (add it to section 0)"
+  if command -v node >/dev/null 2>&1; then
+    v="$(node --version 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/')"
+    if [ "${v:-0}" -ge 18 ] 2>/dev/null; then pass "node $(node --version) (chrome-devtools, playwright)"
+    else wrn "node $(node --version) is older than v18: chrome-devtools and playwright need 18+ (https://nodejs.org)"; fi
+  else wrn "node not found: chrome-devtools and playwright cannot start (install the LTS from https://nodejs.org)"; fi
+  command -v npx >/dev/null 2>&1 || wrn "npx not found (it comes with node)"
+  if command -v uv >/dev/null 2>&1; then pass "uv $(uv --version 2>/dev/null | awk '{print $2}') (graphify)"
+  else wrn "uv not found: graphify cannot start. Install: curl -LsSf https://astral.sh/uv/install.sh | sh"; fi
+  if [ -f graphify-out/graph.json ]; then pass "graphify map built (graphify-out/graph.json)"
+  else wrn "graphify map not built yet: in the claude pane run /graphify .  (optional while the project is small)"; fi
+  grep -qxF 'graphify-out/' .gitignore 2>/dev/null || wrn ".gitignore does not list graphify-out/"
+  echo "    INFO  : connection itself can only be seen inside claude: type /mcp in the claude pane"
+}
+
 # ---------- check: is the kit installed and active? ----------
 kit_check() {
   local fails=0 warns=0 f n=0 t a d st
@@ -150,7 +182,11 @@ kit_check() {
   fi
 
   echo ""
-  echo "==> 5. Is Claude actually using the kit? (cannot be checked from a script)"
+  echo "==> 5. MCP servers (.mcp.json, docs/MCP.md)"
+  mcp_check
+
+  echo ""
+  echo "==> 6. Is Claude actually using the kit? (cannot be checked from a script)"
   echo "    In the claude pane, ask:"
   echo "      Which project files have you read this session, and what does section 0 of CLAUDE.md tell you to do?"
   echo "    Expect: CLAUDE.md, docs/RULES.md, docs/TASKS.md, docs/MEMORY.md, and the TEMPLATE/DRAFT setup check."

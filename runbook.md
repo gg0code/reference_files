@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.6 (2026-10-01).
+Kit version: v2.7 (2026-10-02).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -177,14 +177,14 @@ Two checks: one for the files, one for Claude.
 ```bash
 bash scripts/start.sh check
 ```
-It reports PASS / WARN / FAIL for: CLAUDE.md at the repo root, every doc in `docs/`, the reviewer agent, `.claude/settings.json`, all scripts, `.gitignore`, CI, the tools (git, claude, gh, jq, python3), the remote and branch protection, how many docs are still TEMPLATE or DRAFT, and the doc-lint.
+It reports PASS / WARN / FAIL for: CLAUDE.md at the repo root, every doc in `docs/`, the reviewer agent, `.claude/settings.json`, all scripts, `.gitignore`, CI, the tools (git, claude, gh, jq, python3), the remote and branch protection, how many docs are still TEMPLATE or DRAFT, the doc-lint, and the MCP servers (0h).
 Fix every FAIL before going on. WARN lines about TEMPLATE docs are expected until Phase 1 is done.
 
 **Claude is reading them** (claude pane):
 ```
 Which project files have you read this session, and what does section 0 of CLAUDE.md tell you to do?
 ```
-Expect CLAUDE.md, `docs/RULES.md`, `docs/TASKS.md` and `docs/MEMORY.md`, and a description of the TEMPLATE/DRAFT setup check.
+Expect CLAUDE.md, `docs/RULES.md`, `docs/TASKS.md`, `docs/MEMORY.md` and `docs/MCP.md`, and a description of the TEMPLATE/DRAFT setup check and the MCP check.
 If Claude does not mention them, it was started outside the project folder: quit, `cd` into the project, start `claude` again.
 
 | What makes the kit work | Where it happens |
@@ -195,6 +195,32 @@ If Claude does not mention them, it was started outside the project folder: quit
 | Setup check (TEMPLATE / DRAFT docs) | CLAUDE.md section 0, and typing `setup` |
 | Reviewer agent available | `.claude/agents/reviewer.md`, its commands pre-approved in `.claude/settings.json` |
 | File and function comments enforced | `scripts/doclint.sh`, run by loop.sh, pr.sh merge, CI and the reviewer |
+| MCP servers and their check | `.mcp.json` (servers), `docs/MCP.md` (check and usage rules), loaded by CLAUDE.md section 0 |
+
+### 0h. MCP tools (browser and codebase map)
+Every project gets three free MCP servers in `.mcp.json`:
+
+| Server | Gives Claude | Needs |
+|---|---|---|
+| `chrome-devtools` | Open the running app, read console and network errors, performance traces | Node.js 18+ |
+| `playwright` | Click through user flows like a user (login, forms, checkout) | Node.js 18+ |
+| `graphify` | A map of the codebase: callers, callees, impact of a change | uv, and the map built once with `/graphify .` |
+
+Once per machine (git pane):
+```bash
+node --version                                   # v18 or newer, else install the LTS from nodejs.org
+curl -LsSf https://astral.sh/uv/install.sh | sh  # uv, for graphify
+uv tool install "graphifyy[mcp]" && graphify install   # adds the /graphify command
+```
+Once per project (claude pane): approve the project MCP servers when Claude asks (or via `/mcp`), then build the map with `/graphify .` and restart claude.
+Graphify is optional while `src/` is small; the map in `graphify-out/` is gitignored and rebuilt per machine (`/graphify . --update` after big merges).
+
+**How it is enforced.** CLAUDE.md section 0 loads `docs/MCP.md`.
+At the start of each interactive session Claude checks which servers are connected and, only if something is missing, prints a ✅/❌ list with the exact install commands, then carries on.
+`loop.sh` and `autopilot.sh` mark their prompts `NON-INTERACTIVE RUN`, so those runs skip the check.
+`bash scripts/start.sh check` section 5 checks the same from the git pane: `.mcp.json`, no API keys in it, `docs/MCP.md`, the CLAUDE.md import, node, uv, the graphify map and `.gitignore`.
+
+**Paid servers** (Firecrawl, Perplexity) are not in `.mcp.json`. Add them per user with `claude mcp add --scope local ...` (commands in `docs/MCP.md` section 3), so API keys never reach git.
 
 ---
 
@@ -625,6 +651,8 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `fix <IDs>` | Fixes only those checklist items and re-checks them |
 | `release check` | Re-runs blocking sections, adds an audit-log row |
 | `wrap up` | Regenerates the REQ ledger, syncs TASKS, updates MEMORY |
+| `mcp` | Re-runs the MCP setup check (docs/MCP.md) and lists what is missing |
+| `/mcp` | Claude Code's own panel: connection status of each MCP server, approve or reconnect |
 
 ## Scripts cheat-sheet (git pane; none of them needs an ID)
 
@@ -634,7 +662,7 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `bash scripts/start.sh REQ-004` | Start or resume that REQ |
 | `bash scripts/start.sh bug "symptom"` | Next BUG-ID: files the Issue, creates `fix/BUG-00X` |
 | `bash scripts/start.sh status` | Where am I: ID, Issue, plan, review, PR, next action |
-| `bash scripts/start.sh check` | Is the kit installed and active here: PASS / WARN / FAIL per item |
+| `bash scripts/start.sh check` | Is the kit installed and active here, MCP servers included: PASS / WARN / FAIL per item |
 | `bash scripts/doclint.sh` | README per folder, file headers, function doc blocks (`--changed`: this branch only) |
 | `bash scripts/loop.sh` | Bounded implement-and-test loop for the current branch |
 | `bash scripts/pr.sh` | Push and open the PR (needs a reviewer APPROVE) |

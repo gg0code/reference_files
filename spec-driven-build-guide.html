@@ -175,7 +175,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.6 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.7 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release, using <code>scaffold.sh</code>, the project templates, and the scripts <code>start.sh</code>, <code>loop.sh</code> and <code>pr.sh</code>. Two agents do the work: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b> that checks every branch before its PR. Fill in your project details and every command and prompt below updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -262,6 +262,16 @@ cp {KIT}/.wezterm.lua /mnt/c/Users/gaura/.wezterm.lua   # WezTerm reads it from 
 source ~/.bashrc && tmux source-file ~/.tmux.conf</pre>
             </div>
           </li>
+          <li class="step" data-id="m-mcp" data-pane="git" data-once="1">
+            <div class="step-body">
+              <div class="step-head"><h3>MCP prerequisites: Node.js and uv</h3></div>
+              <p>Every project gets three free MCP servers in <code>.mcp.json</code>: <b>chrome-devtools</b> and <b>playwright</b> (let Claude open and test your app in a browser) need Node.js 18+; <b>graphify</b> (a map of your codebase) needs uv. Details: <code>docs/MCP.md</code> in each project.</p>
+              <pre data-label="bash · git pane">node --version     # v18 or newer; else install the LTS from nodejs.org
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install "graphifyy[mcp]" &amp;&amp; graphify install   # adds the /graphify command to Claude</pre>
+              <p class="expect">If you skip this, Claude lists what is missing, with these commands, at the start of each session.</p>
+            </div>
+          </li>
           <li class="step" data-id="m-rtk" data-pane="claude" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Token savers: RTK and the cost status line (optional)</h3></div>
@@ -328,20 +338,20 @@ tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux switch-client -t {APP}<
           <li class="step" data-id="o-claude" data-pane="claude" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Start Claude and run setup</h3></div>
-              <p>The first time in a new repo, accept the trust dialog (without it <code>loop.sh</code> runs untrusted and may not write files).</p>
+              <p>The first time in a new repo, accept the trust dialog (without it <code>loop.sh</code> runs untrusted and may not write files) and approve the project MCP servers.</p>
               <pre data-label="bash · claude pane">claude</pre>
               <pre data-label="prompt · claude pane" class="prompt">setup</pre>
-              <p class="expect">You should see: a table of every doc still at TEMPLATE or DRAFT, and the setup order. Claude will not write application code until setup is approved.</p>
+              <p class="expect">You should see: a table of every doc still at TEMPLATE or DRAFT, and the setup order. If an MCP server is not connected, also a short ✅/❌ list with the install commands (nothing about MCP when all are connected). Claude will not write application code until setup is approved.</p>
             </div>
           </li>
           <li class="step gate" data-id="o-check" data-pane="you">
             <div class="step-body">
               <div class="step-head"><h3>Check the kit is active (first session in a new project)</h3></div>
-              <p>Files and tools: one command reports PASS, WARN or FAIL for CLAUDE.md, every doc, the reviewer agent and its permissions, all scripts, CI, the tools, and how many docs are still templates. Fix every FAIL; TEMPLATE warnings are expected until Phase 3 is done.</p>
+              <p>Files and tools: one command reports PASS, WARN or FAIL for CLAUDE.md, every doc, the reviewer agent and its permissions, all scripts, CI, the tools, the MCP servers and their prerequisites, and how many docs are still templates. Fix every FAIL; TEMPLATE warnings are expected until Phase 3 is done.</p>
               <pre data-label="bash · git pane">bash scripts/start.sh check</pre>
               <p>Claude is reading them: ask this in the claude pane.</p>
               <pre data-label="prompt · claude pane" class="prompt">Which project files have you read this session, and what does section 0 of CLAUDE.md tell you to do?</pre>
-              <p class="expect">You should see: <b>CLAUDE.md, docs/RULES.md, docs/TASKS.md, docs/MEMORY.md</b> and the TEMPLATE/DRAFT setup check. If not, Claude was started outside the project folder: quit, <code>cd {ROOT}/{APP}</code>, start <code>claude</code> again.</p>
+              <p class="expect">You should see: <b>CLAUDE.md, docs/RULES.md, docs/TASKS.md, docs/MEMORY.md, docs/MCP.md</b>, the TEMPLATE/DRAFT setup check and the MCP check. Then type <code>/mcp</code>: chrome-devtools, playwright and graphify are listed (graphify connects once you have run <code>/graphify .</code>). If not, Claude was started outside the project folder: quit, <code>cd {ROOT}/{APP}</code>, start <code>claude</code> again.</p>
               <ul>
                 <li>Copied in by: <code>scaffold.sh</code> (Phase 1)</li>
                 <li>Loaded by: Claude Code reads <code>CLAUDE.md</code> automatically; CLAUDE.md tells it to read RULES, TASKS and MEMORY every session</li>
@@ -788,6 +798,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/plans/REQ-00X.md</code></td><td>Approved plan the loop enforces, with a review focus</td><td>Claude drafts, you approve</td></tr>
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
             <tr><td><code>.claude/settings.json</code></td><td>Pre-approved read-only commands for the reviewer; blocks force-push and reading <code>.env</code></td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>.mcp.json</code></td><td>MCP servers for Claude: chrome-devtools, playwright, graphify (free, local). No API keys in it, ever</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>docs/MCP.md</code></td><td>The MCP setup check Claude runs at session start, and when to use each server. Loaded by CLAUDE.md section 0</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>scripts/*.sh</code></td><td>start, loop, pr, req_status, autopilot</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.autopilot/</code></td><td>Autopilot run reports and logs (gitignored)</td><td>autopilot.sh</td></tr>
@@ -842,7 +854,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.6: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.7: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>

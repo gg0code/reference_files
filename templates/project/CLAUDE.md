@@ -1,7 +1,7 @@
 # CLAUDE.md - project constitution
 
 <!--
-Template v2.6 - 2026-10-01
+Template v2.7 - 2026-10-02
 Reusable constitution for spec-driven, fully traceable development.
 Sections marked FIXED are the same in every project. Do not edit them per project.
 Sections marked FILL IN are tailored per project, then approved by the user.
@@ -34,6 +34,14 @@ Where setup work is committed:
 During setup (Phase 1, before the first REQ Issue is started), approved spec docs are committed directly to `main` as `docs: <what> (approved)`.
 From the first REQ Issue onwards, every change, including doc changes, goes through a branch and a PR.
 
+### 0a. MCP tools (FIXED)
+@docs/MCP.md
+
+In an interactive session, run the MCP setup check from `docs/MCP.md` section 1 together with the TEMPLATE/DRAFT check above, in the same message.
+Say nothing about MCP when every server is connected.
+Skip it in a NON-INTERACTIVE RUN (`loop.sh`, `autopilot.sh`) and when you are the reviewer agent.
+While building or debugging, follow `docs/MCP.md` section 2.
+
 ## 1. Project (FILL IN)
 - **What this is:** one or two sentences: the product and who it is for.
 - **Current state:** greenfield / in development / maintained.
@@ -63,6 +71,7 @@ Wrong values here cause wrong commands.
 - `docs/RULES.md` - coding, documentation, engineering and security rules.
 - `docs/TASKS.md` - ordered roadmap: phases, REQ-IDs in build order, their Issue numbers, chores.
 - `docs/MEMORY.md` - current status, dated decisions, gotchas, session log.
+- `docs/MCP.md` - MCP setup check and when to use each server (section 0a). Kit file, not a spec doc.
 - `docs/plans/REQ-00X.md` - approved implementation plan per REQ or BUG (what the loop enforces).
 - `docs/reviews/REQ-00X.md` - the reviewer agent's report per REQ or BUG; first line is the verdict.
 - `.claude/agents/reviewer.md` - the second agent: read-only code reviewer (section 5a).
@@ -71,10 +80,11 @@ Wrong values here cause wrong commands.
 - `scripts/`: `start.sh` (next REQ, `bug`, `status`, `check`), `loop.sh` (section 8), `pr.sh` (PR / `merge`), `doclint.sh` (RULES.md s3), `req_status.sh` (REQ ledger), `autopilot.sh` (section 8a).
 - `.claude/settings.json` - shared permissions: pre-approves read-only git, gh, test and script commands (the reviewer needs them); denies force-push and reading `.env`.
   All of them read the current REQ or BUG from the branch name and its Issue number from `docs/TASKS.md`, so commands need no IDs.
+- `.mcp.json` - MCP servers: chrome-devtools, playwright, graphify (free, local). Never put an API key in it.
 - `.github/workflows/ci.yml` - full regression suite plus traceability check on every PR and push to main.
-- `.gitignore` - already excludes the loop scratch files (`PROMPT.md`, `FAILURES.txt`, `.loop-*`) and `CLAUDE.local.md`.
+- `.gitignore` - already excludes the loop scratch files (`PROMPT.md`, `FAILURES.txt`, `.loop-*`) and `CLAUDE.local.md`; `scaffold.sh` adds `graphify-out/` (the generated codebase map).
 
-Read every session: this file, `RULES.md`, `TASKS.md`, `MEMORY.md`.
+Read every session: this file, `RULES.md`, `TASKS.md`, `MEMORY.md`, `MCP.md` (loaded through section 0a).
 Read when relevant: PRD (scope), architecture (code structure), UI design (anything visual), test plan (tests).
 
 ## 4. ID scheme (FIXED)
@@ -163,6 +173,7 @@ Run on a feature branch: `bash scripts/loop.sh [max-iters]` (ID and Issue come f
 | `audit` | Go through `05-launch-checklist.md`, mark Pass / Fail / N/A with evidence, fix nothing, list Fails with blocking sections first |
 | `fix <IDs>` | Fix only those checklist items, re-check with the same tool, show before and after |
 | `release check` | Re-run blocking sections plus anything changed since the last audit; add an audit-log row |
+| `mcp` | Re-run the MCP setup check (`docs/MCP.md` section 1) and list what is missing with its install command |
 | `wrap up` | Run `bash scripts/req_status.sh -o docs/REQUIREMENTS_STATUS.md`, sync TASKS ticks from closed Issues, update MEMORY, list uncommitted changes and open branches |
 
 Evidence rule: an item with no evidence (test output, tool output, file:line, screenshot) counts as Fail.

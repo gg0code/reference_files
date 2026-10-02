@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v10
+# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v11
 # Usage:  bash scripts/loop.sh [max-iters]          (ID from the branch, Issue from docs/TASKS.md)
 #         bash scripts/loop.sh <issue-number> <REQ-00X|BUG-00X> [max-iters]   (explicit form)
 #
@@ -21,9 +21,10 @@
 #   v9 no arguments needed: the ID comes from the branch name (feat/REQ-001-x, fix/BUG-002)
 #      and the Issue number from docs/TASKS.md or GitHub.
 #   v10 runs scripts/doclint.sh in front of the detected test command; TEST_CMD may use && (bash -c).
+#   v11 marks the prompt NON-INTERACTIVE RUN so Claude skips the MCP setup check (docs/MCP.md).
 set -uo pipefail
 
-LOOP_VERSION="v10"
+LOOP_VERSION="v11"
 
 # ---------- help / usage ----------
 usage() {
@@ -271,6 +272,9 @@ fi
 
 cat > PROMPT.md <<PROMPT
 # Task - Issue #${ISSUE} / ${ID}
+
+NON-INTERACTIVE RUN (scripts/loop.sh): skip the session start checks, including the MCP setup check
+in docs/MCP.md. Nobody reads chat output here; only files and the test suite count.
 
 Work on ${ID} on branch ${BRANCH}.
 

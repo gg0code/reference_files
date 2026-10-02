@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# autopilot.sh - unattended builder for several REQs in a row.        VERSION: v1
+# autopilot.sh - unattended builder for several REQs in a row.        VERSION: v2
 #
 # Optional. The normal, attended flow (runbook.md Phase 2) is unchanged; this script
 # only automates the steps between your human gates, at the level you choose.
@@ -31,9 +31,10 @@
 #
 # One-time setup: run `claude` interactively in this repo once and accept the trust dialog.
 # Requires: claude, git, gh (authenticated), jq.
+# v2: every prompt starts with "NON-INTERACTIVE RUN" so Claude skips the MCP setup check (docs/MCP.md).
 set -uo pipefail
 
-AP_VERSION="v1"
+AP_VERSION="v2"
 AUTOPILOT="${AUTOPILOT:-build}"
 AUTO_MERGE="${AUTO_MERGE:-0}"
 MAX_REQS="${MAX_REQS:-3}"
@@ -118,7 +119,10 @@ over_budget() { awk -v a="$TOTAL_COST" -v m="$MAX_COST" 'BEGIN{exit !(a>=m)}'; }
 # run_claude <label> <model> <out-file> <allowed-tools> <disallowed-tools> <system-append-file|-> <prompt>
 run_claude() {
   local label="$1" model="$2" out="$3" allowed="$4" disallowed="$5" sysf="$6" prompt="$7"
-  local args=(-p "$prompt" --model "$model" --output-format json --permission-mode acceptEdits)
+  # NON-INTERACTIVE marker: Claude skips the session start and MCP setup checks (docs/MCP.md).
+  local args=(-p "NON-INTERACTIVE RUN (scripts/autopilot.sh): skip the session start checks, including the MCP setup check in docs/MCP.md.
+
+$prompt" --model "$model" --output-format json --permission-mode acceptEdits)
   [ -n "$allowed" ]    && args+=(--allowedTools "$allowed")
   [ -n "$disallowed" ] && args+=(--disallowedTools "$disallowed")
   [ "$sysf" != "-" ]   && args+=(--append-system-prompt "$(cat "$sysf")")
