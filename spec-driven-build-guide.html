@@ -73,10 +73,27 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 .vars p{margin:0 0 12px;color:var(--muted);font-size:13px}
 .vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
 .vgrid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
-.vgrid input,.vgrid select{font:400 13.5px var(--mono);color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+.vgrid input,.vgrid select{line-height:1.5;font:400 13.5px/1.5 var(--mono);color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
 .vgrid .wide{grid-column:1/-1}
 .vgrid hr{grid-column:1/-1;border:0;border-top:1px dashed var(--line);margin:4px 0}
 .vnote{grid-column:1/-1;font-size:12px;color:var(--faint);margin:0}
+.vgrid .hint{font-size:11.5px;color:var(--faint);font-weight:400;line-height:1.35}
+.vgrid .verr{font-size:12px;color:#B42318;font-weight:500;min-height:0}
+.vgrid .vwarn{font-size:12px;color:#9A5A00;font-weight:500}
+.vgrid input.bad{border-color:#B42318}
+.ospick{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;border:0;padding:0;margin:0}
+.ospick legend{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:4px;padding:0}
+.ospick label{flex:1;min-width:140px;flex-direction:row;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;color:var(--fg);font-size:13.5px;font-weight:600;background:var(--sunk)}
+.ospick label small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.ospick input{width:auto;accent-color:var(--accent)}
+.ospick label:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--surface)}
+.vbar{grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:10px;margin-top:2px}
+#vSave:disabled{opacity:.55;cursor:default}
+.vstatus{font-size:12.5px;color:var(--muted);flex:1;min-width:200px}
+.vstatus.dirty{color:#9A5A00;font-weight:600}
+.vstatus.ok{color:var(--accent)}
+.os-hide{display:none!important}
+.osnote{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--muted);margin:0 0 14px}
 
 /* ---------- body layout ---------- */
 .layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;align-items:start}
@@ -192,7 +209,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
     <div>
       <div class="eyebrow">Reference kit v2.9 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
-      <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Fill in your project details and every command updates itself. Tick steps as you go; progress is kept per project name in this browser.</p>
+      <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Start with <b>Your setup</b>: choose Windows, Mac or Linux, check the folders, and press Save; every command then uses your values and only the steps for your computer are shown. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
       <div class="overall">
         <div class="bar" aria-hidden="true"><i id="overallBar"></i></div>
@@ -201,21 +218,33 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
       </div>
     </div>
 
-    <form class="vars" id="varsForm" autocomplete="off">
-      <h2>Your project</h2>
-      <p>Fill these once per project. Values in <span style="font-family:var(--mono);color:var(--gate);font-weight:600">yellow</span> in the commands come from here.</p>
+    <form class="vars" id="varsForm" autocomplete="off" novalidate>
+      <h2>Your setup</h2>
+      <p>Fill this in once, then press <b>Save and update commands</b>. Every command on the page is rewritten with your values (shown in <span style="font-family:var(--mono);color:var(--gate);font-weight:600">yellow</span>), and only the steps for your computer are shown.</p>
       <div class="vgrid">
-        <label>App name<input id="v-app" data-var="APP" value="myapp" spellcheck="false"></label>
+        <fieldset class="ospick" id="osPick">
+          <legend>Your computer</legend>
+          <label><input type="radio" name="os" value="windows"><span>Windows<small>Steps run in Ubuntu, which Windows installs for you</small></span></label>
+          <label><input type="radio" name="os" value="mac"><span>Mac<small>Steps run in the Terminal app</small></span></label>
+          <label><input type="radio" name="os" value="linux"><span>Linux<small>Ubuntu or Debian</small></span></label>
+        </fieldset>
+        <label>App name<input id="v-app" data-var="APP" value="myapp" spellcheck="false"><span class="hint">Lowercase, digits, hyphens. Becomes the folder and the GitHub repo name.</span><span class="verr" data-err="APP"></span></label>
         <label>Stack
           <select id="v-stack" data-var="STACK">
             <option value="python">python</option><option value="node">node</option><option value="go">go</option><option value="rust">rust</option>
-          </select>
+          </select><span class="hint">The language your app is written in. Python is the kit's default.</span>
         </label>
-        <label class="wide">Projects folder (WSL path)<input id="v-root" data-var="ROOT" value="~/projects" spellcheck="false"></label>
-        <label class="wide">Kit folder (where you cloned the kit)<input id="v-kit" data-var="KIT" value="~/kits/reference_files" spellcheck="false"></label>
-        <label class="wide">Kit repo (GitHub)<input id="v-kitrepo" data-var="KITREPO" value="https://github.com/your-user/reference_files.git" spellcheck="false"></label>
-        <label>GitHub user<input id="v-user" data-var="GHUSER" value="your-user" spellcheck="false"></label>
-        <label>Today<input id="v-date" data-var="DATE" value="" spellcheck="false"></label>
+        <label class="wide">Folder for your projects<input id="v-root" data-var="ROOT" value="~/projects" spellcheck="false"><span class="hint" data-os="windows">Inside Ubuntu, not on C:. <code>~</code> means your Ubuntu home folder. Leave <code>~/projects</code> unless you have a reason.</span><span class="hint" data-os="mac linux"><code>~</code> means your home folder. Leave <code>~/projects</code> unless you have a reason.</span><span class="verr" data-err="ROOT"></span></label>
+        <label class="wide">Folder for the kit<input id="v-kit" data-var="KIT" value="~/kits/reference_files" spellcheck="false"><span class="hint">Where step "Get the kit" puts the kit. Leave as is unless you already have the kit somewhere else.</span><span class="verr" data-err="KIT"></span></label>
+        
+        <label class="wide">Your GitHub user name<input id="v-user" data-var="GHUSER" value="your-user" spellcheck="false"><span class="hint">As shown on github.com after you sign in (top-right menu). Used for your project repos and, by default, for the kit address below.</span><span class="vwarn" data-warn="GHUSER"></span></label>
+        <label class="wide">Kit address on GitHub<input id="v-kitrepo" data-var="KITREPO" value="https://github.com/your-user/reference_files.git" spellcheck="false"><span class="hint" id="kitHint">Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link (it ends in .git). Got a zip instead? Leave it; the step explains.</span><span class="vwarn" data-warn="KITREPO"></span></label>
+        <label>Today<input id="v-date" data-var="DATE" value="" spellcheck="false" readonly><span class="hint">Filled in automatically.</span></label>
+        <div class="vbar">
+          <span class="vstatus" id="vStatus" role="status"></span>
+          <button class="btn small" type="button" id="vReset">Defaults</button>
+          <button class="btn primary small" type="submit" id="vSave">Save and update commands</button>
+        </div>
         <p class="vnote">That is all the page needs. Requirement and bug numbers are never typed: <code>scripts/start.sh</code> picks them from TASKS.md and puts them in the branch name, and every later command reads them from there.</p>
       </div>
     </form>
@@ -312,67 +341,110 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
       <!-- ================= PHASE 0 ================= -->
       <section class="phase" id="machine" data-phase="machine">
         <div class="phase-head"><h2>0 · Machine setup</h2><span class="when">Once per computer. Skip if done.</span></div>
+        <p class="osnote" data-os="windows">Showing steps for <b>Windows</b>. The kit's scripts are written for Linux, so on Windows everything runs inside <b>Ubuntu</b>, a Linux system Windows installs for you (Microsoft calls this WSL). After step 1 you type every command in this guide into the Ubuntu window, never into PowerShell, unless a step says PowerShell.</p>
+        <p class="osnote" data-os="mac">Showing steps for <b>Mac</b>. Every command runs in the <b>Terminal</b> app (Applications &gt; Utilities &gt; Terminal), or in WezTerm if you install it in step 6.</p>
+        <p class="osnote" data-os="linux">Showing steps for <b>Linux</b> (Ubuntu or Debian; on other distributions use your package manager instead of <code>apt</code>). Every command runs in your terminal.</p>
         <ol class="steps">
-          <li class="step" data-id="m-git" data-pane="git" data-once="1">
+          <li class="step" data-id="m-win-ubuntu" data-once="1" data-os="windows">
             <div class="step-body">
-              <div class="step-head"><h3>Git identity and GitHub CLI</h3></div>
-              <p>Without a git identity the first commit fails, and the push later fails with <code>src refspec main does not match any</code>.</p>
-              <pre data-label="bash · git pane">git config --global user.name  "Your Name"
+              <div class="step-head"><h3>Install Ubuntu on Windows</h3></div>
+              <p>Open the Start menu, type <b>PowerShell</b>, right-click it and choose <b>Run as administrator</b>. Run this line, then restart the computer when it asks.</p>
+              <pre data-label="powershell · as administrator">wsl --install -d Ubuntu</pre>
+              <p>After the restart, open <b>Ubuntu</b> from the Start menu. It asks for a new user name and password for Ubuntu (the password does not show while you type; that is normal). Then install the basic tools:</p>
+              <pre data-label="bash · Ubuntu window">sudo apt update &amp;&amp; sudo apt install -y git curl unzip jq tmux gh nodejs npm python3</pre>
+              <p class="expect">You should see: a prompt like <code>you@PC:~$</code>. That is Ubuntu. Your Windows files are reachable at <code>/mnt/c/Users/&lt;you&gt;</code>, but keep projects in Ubuntu's own folders (the defaults above): tests run several times faster there, and VS Code opens them with its WSL extension.</p>
+            </div>
+          </li>
+          <li class="step" data-id="m-mac-brew" data-once="1" data-os="mac">
+            <div class="step-body">
+              <div class="step-head"><h3>Install the developer basics</h3></div>
+              <p>Open <b>Terminal</b>. First Apple's command-line tools (a window pops up: click Install), then Homebrew, the Mac package installer.</p>
+              <pre data-label="bash · Terminal">xcode-select --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</pre>
+              <p>At the end Homebrew prints <b>Next steps</b> with two or three commands that add <code>brew</code> to your PATH. Run them, then:</p>
+              <pre data-label="bash · Terminal">brew install git gh jq tmux node python</pre>
+              <p class="expect">You should see: <code>brew --version</code> and <code>gh --version</code> both print a version.</p>
+            </div>
+          </li>
+          <li class="step" data-id="m-linux-basics" data-once="1" data-os="linux">
+            <div class="step-body">
+              <div class="step-head"><h3>Install the basics</h3></div>
+              <pre data-label="bash · terminal">sudo apt update &amp;&amp; sudo apt install -y git curl unzip jq tmux gh nodejs npm python3</pre>
+              <p class="expect">On older Ubuntu the <code>gh</code> or <code>nodejs</code> package may be missing or too old (Node 18 or newer is needed): install them from cli.github.com and nodejs.org instead.</p>
+            </div>
+          </li>
+          <li class="step" data-id="m-git" data-once="1">
+            <div class="step-body">
+              <div class="step-head"><h3>Git identity and GitHub sign-in</h3></div>
+              <p><span data-os="windows">In the Ubuntu window. </span>Without a git identity the first commit fails, and the push later fails with <code>src refspec main does not match any</code>.</p>
+              <pre data-label="bash · terminal">git config --global user.name  "Your Name"
 git config --global user.email "you@example.com"
 git config --global init.defaultBranch main
-gh auth login
+gh auth login            # choose GitHub.com, HTTPS, and "Login with a web browser"
 git config --global --list | grep -E 'user|default'</pre>
             </div>
           </li>
-          <li class="step" data-id="m-kit" data-pane="git" data-once="1">
+          <li class="step" data-id="m-kit" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Get the kit</h3></div>
-              <p>Every later step reads the kit from your machine: <code>scaffold.sh</code> copies its templates and scripts into each new project. Clone it once, inside WSL (not from Windows), so the scripts keep their Unix line endings. Put the address in <b>Kit repo</b> above; for a private kit, the owner adds you as a collaborator first.</p>
-              <pre data-label="bash · git pane">mkdir -p ~/kits ~/projects
+              <p>Every later step reads the kit from your machine: <code>scaffold.sh</code> copies its templates and scripts into each new project. Put its address in <b>Kit address on GitHub</b> above and save; for a private kit, the owner adds you as a collaborator first.<span data-os="windows"> Clone it in the Ubuntu window, not with Windows Git or GitHub Desktop, so the scripts keep their Linux line endings.</span></p>
+              <pre data-label="bash · terminal">mkdir -p {ROOT} $(dirname {KIT})
 git clone {KITREPO} {KIT}          # private repo: gh auth login (previous step) makes this work
 ls {KIT}/scaffold.sh               # check: the file is there</pre>
               <p>Received the kit as a zip instead? Unzip it so that <code>{KIT}/scaffold.sh</code> exists. Later, to get kit updates: <code>git -C {KIT} pull</code>. New projects use the new kit; existing ones are upgraded by hand (readme, "Updating the kit").</p>
-              <p class="expect">Keep projects on the Linux side (<code>~/projects</code>): builds and tests run several times faster there than on <code>/mnt/c</code>. Your Windows editor still opens them through <code>\\wsl$</code>.</p>
+              <p class="expect">You should see: <code>{KIT}/scaffold.sh</code> listed. If <code>git clone</code> asks for a password, run <code>gh auth login</code> again (previous step).</p>
             </div>
           </li>
-          <li class="step" data-id="m-tools" data-pane="git" data-once="1">
+          <li class="step" data-id="m-tools" data-once="1">
             <div class="step-body">
-              <div class="step-head"><h3>Claude Code, jq, and your stack's tools</h3></div>
-              <p>Run the kit's scripts from WSL (WezTerm opens WSL inside tmux for you). <code>jq</code> turns on cost and token numbers in <code>loop.sh</code>.</p>
-              <pre data-label="bash · git pane">command -v claude      # Claude Code CLI must be on PATH
-sudo apt install jq tmux
+              <div class="step-head"><h3>Claude Code and the build tools</h3></div>
+              <p>Claude Code (needs a paid Claude plan or API access), uv (Python tools, used by the quality gate and graphify), and a check of your stack's tools. <code>jq</code>, installed in step 1, turns on cost numbers in <code>loop.sh</code>.</p>
+              <pre data-label="bash · terminal">curl -fsSL https://claude.ai/install.sh | bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+exec $SHELL -l                # reload the shell so the new commands are found
+claude --version &amp;&amp; uv --version &amp;&amp; node --version   # node: v18 or newer
 {TEST} --version 2>/dev/null || echo "install your {STACK} toolchain"</pre>
+              <p class="expect">You should see: three version numbers. Then run <code>claude</code> once and sign in.</p>
             </div>
           </li>
-          <li class="step" data-id="m-dotfiles" data-pane="git" data-once="1">
+          <li class="step" data-id="m-dotfiles" data-once="1">
             <div class="step-body">
-              <div class="step-head"><h3>Use the kit's terminal setup (optional)</h3></div>
-              <p>The kit's <code>.bashrc</code>, <code>.tmux.conf</code> and <code>.wezterm.lua</code> give you the four-pane layout used in this guide. Linking makes the kit's copies the live ones, so <code>git -C {KIT} pull</code> updates them too. Your current files are kept as <code>*.before-kit</code>; to go back, copy them over.</p>
-              <pre data-label="bash · git pane">for f in .bashrc .tmux.conf; do [ -e ~/$f ] && [ ! -L ~/$f ] && cp ~/$f ~/$f.before-kit; done
+              <div class="step-head"><h3>Terminal layout: WezTerm and tmux (optional, recommended)</h3></div>
+              <p>The guide works in four side-by-side panes (claude, git, tests, frontend). Install <b>WezTerm</b> from wezterm.org<span data-os="windows"> (the Windows version: it opens Ubuntu for you)</span>, then link the kit's settings. Your current files are kept as <code>*.before-kit</code>; linking means <code>git -C {KIT} pull</code> also updates them.</p>
+              <pre data-label="bash · Ubuntu window" data-os="windows">for f in .bashrc .tmux.conf; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
 ln -sf {KIT}/.bashrc     ~/.bashrc
 ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
 WINHOME="$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')")"
-[ -e "$WINHOME/.wezterm.lua" ] && cp "$WINHOME/.wezterm.lua" "$WINHOME/.wezterm.lua.before-kit"
+[ -e "$WINHOME/.wezterm.lua" ] &amp;&amp; cp "$WINHOME/.wezterm.lua" "$WINHOME/.wezterm.lua.before-kit"
 cp {KIT}/.wezterm.lua "$WINHOME/.wezterm.lua"     # WezTerm reads it from your Windows home
-source ~/.bashrc && tmux source-file ~/.tmux.conf 2>/dev/null; true</pre>
-              <p>Already have a <code>.bashrc</code> you like? Skip the link and add one line to yours instead: <code>source {KIT}/.bashrc</code>.</p>
+source ~/.bashrc</pre>
+              <pre data-label="bash · Terminal" data-os="mac">brew install --cask wezterm
+[ -e ~/.tmux.conf ] &amp;&amp; [ ! -L ~/.tmux.conf ] &amp;&amp; cp ~/.tmux.conf ~/.tmux.conf.before-kit
+ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
+[ -e ~/.wezterm.lua ] &amp;&amp; cp ~/.wezterm.lua ~/.wezterm.lua.before-kit
+ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua</pre>
+              <pre data-label="bash · terminal" data-os="linux">for f in .bashrc .tmux.conf .wezterm.lua; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
+ln -sf {KIT}/.bashrc      ~/.bashrc
+ln -sf {KIT}/.tmux.conf   ~/.tmux.conf
+ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua
+source ~/.bashrc</pre>
+              <p data-os="mac">The Mac's shell is zsh, so the kit's <code>.bashrc</code> (aliases only) is not used; nothing in the kit needs it.</p>
+              <p data-os="windows linux">Already have a <code>.bashrc</code> you like? Skip its link and add one line to yours instead: <code>source {KIT}/.bashrc</code>.</p>
             </div>
           </li>
-          <li class="step" data-id="m-mcp" data-pane="git" data-once="1">
+          <li class="step" data-id="m-mcp" data-once="1">
             <div class="step-body">
-              <div class="step-head"><h3>MCP prerequisites: Node.js and uv</h3></div>
+              <div class="step-head"><h3>Codebase map for Claude (graphify)</h3></div>
               <p>Every project gets three free MCP servers in <code>.mcp.json</code>: <b>chrome-devtools</b> and <b>playwright</b> (let Claude open and test your app in a browser) need Node.js 18+; <b>graphify</b> (a map of your codebase) needs uv. Details: <code>docs/MCP.md</code> in each project.</p>
-              <pre data-label="bash · git pane">node --version     # v18 or newer; else install the LTS from nodejs.org
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install "graphifyy[mcp]" &amp;&amp; graphify install   # adds the /graphify command to Claude</pre>
+              <pre data-label="bash · terminal">uv tool install "graphifyy[mcp]" &amp;&amp; graphify install   # adds the /graphify command to Claude</pre>
               <p class="expect">If you skip this, Claude lists what is missing, with these commands, at the start of each session.</p>
             </div>
           </li>
-          <li class="step" data-id="m-rtk" data-pane="claude" data-once="1">
+          <li class="step" data-id="m-rtk" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Token savers: RTK and the cost status line (optional)</h3></div>
               <p>RTK compresses command output before it reaches Claude (60 to 90 percent fewer tokens on git, grep and test output). The status line shows session cost and the active model under every prompt.</p>
-              <pre data-label="bash · git pane">curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+              <pre data-label="bash · terminal">curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
 mkdir -p ~/.claude && rtk init -g
 grep -i rtk ~/.claude/settings.json    # hook registered?</pre>
               <pre data-label="prompt · claude pane" class="prompt">/statusline show session cost, today's total cost, and the active model</pre>
@@ -414,9 +486,9 @@ gh issue list         # runs clean (empty list is fine)</pre>
           <li class="step" data-id="o-tmux" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Start a tmux session for this project</h3></div>
-              <p>WezTerm already runs tmux (session <code>main</code>), so create a separate session and switch to it instead of nesting.</p>
-              <pre data-label="bash · inside WezTerm">cd {ROOT}/{APP}
-tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux switch-client -t {APP}</pre>
+              <p>One tmux session per project. The command works whether or not your terminal already runs tmux<span data-os="windows"> (the kit's WezTerm settings start it for you)</span>.</p>
+              <pre data-label="bash · terminal">cd {ROOT}/{APP}
+if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux switch-client -t {APP}; else tmux new-session -A -s {APP} -c "$PWD"; fi</pre>
             </div>
           </li>
           <li class="step" data-id="o-panes" data-pane="git">
@@ -837,10 +909,10 @@ python3 scripts/dashboard.py          # http://localhost:8765 on this computer</
               <p class="expect">You should see: the page with your project name, the progress band and "Needs you". It updates every few seconds while the scripts run.</p>
             </div>
           </li>
-          <li class="step" data-id="w-wsl" data-pane="you" data-once="1">
+          <li class="step" data-id="w-wsl" data-pane="you" data-once="1" data-os="windows">
             <div class="step-body">
-              <div class="step-head"><h3>Once per computer: let your phone reach WSL</h3></div>
-              <p>Scripts run inside WSL, which is hidden from your network by default. Add this file in Windows, then run the PowerShell lines as administrator. Needs Windows 11 22H2 or later.</p>
+              <div class="step-head"><h3>Once per computer: let your phone reach Ubuntu</h3></div>
+              <p>Ubuntu on Windows is hidden from your network by default. Add this file in Windows, then run the PowerShell lines as administrator. Needs Windows 11 22H2 or later.</p>
               <pre data-label="file · C:\Users\you\.wslconfig">[wsl2]
 networkingMode=mirrored</pre>
               <pre data-label="powershell · as administrator">wsl --shutdown
@@ -849,11 +921,19 @@ Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -D
               <p>Away from home: install <b>Tailscale</b> (free personal plan) on the PC and the phone, same account. It is a private network, so nothing is exposed to the internet. Never port-forward 8765 on your router.</p>
             </div>
           </li>
+          <li class="step" data-id="w-net" data-pane="you" data-once="1" data-os="mac linux">
+            <div class="step-body">
+              <div class="step-head"><h3>Once per computer: allow the connection</h3></div>
+              <p data-os="mac">The first time you start the dashboard with <code>--lan</code>, macOS asks whether <b>python3</b> may accept incoming connections: click <b>Allow</b>.</p>
+              <pre data-label="bash · terminal" data-os="linux">sudo ufw status | grep -q active &amp;&amp; sudo ufw allow 8765/tcp || echo "no firewall to open"</pre>
+              <p>Away from home: install <b>Tailscale</b> (free personal plan) on the computer and the phone, same account. Never port-forward 8765 on your router.</p>
+            </div>
+          </li>
           <li class="step" data-id="w-phone" data-pane="frontend">
             <div class="step-body">
               <div class="step-head"><h3>Open it on your phone</h3></div>
               <pre data-label="bash · frontend pane">python3 scripts/dashboard.py --lan     # prints a phone address and a 6-digit PIN</pre>
-              <p>Open the printed address (at home: the Windows Wi-Fi address from <code>ipconfig</code>; away: the PC's Tailscale address), type the PIN, then use "Add to Home Screen" so it opens like an app with the ZeroZeta icon. Use <code>--read-only</code> when you share it with someone who should only watch.</p>
+              <p>Open the printed address<span data-os="windows"> (at home: the Windows Wi-Fi address from <code>ipconfig</code> in PowerShell; away: the PC's Tailscale address)</span><span data-os="mac linux"> (away from home: the computer's Tailscale address)</span>, type the PIN, then use "Add to Home Screen" so it opens like an app with the ZeroZeta icon. Use <code>--read-only</code> when you share it with someone who should only watch.</p>
               <p class="expect">You should see: the same page on the phone. Five wrong PINs lock that phone out for 15 minutes.</p>
             </div>
           </li>
@@ -1088,15 +1168,106 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   };
   var today = new Date(); var iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
   var inputs = $$('[data-var]');
+  var form = $('#varsForm');
+  var formInputs = inputs.filter(function(el){ return form.contains(el); });
+  var osRadios = $$('input[name="os"]', form);
+  var defaults = {};
+  formInputs.forEach(function(el){ defaults[el.dataset.var] = el.dataset.var === 'DATE' ? iso : el.value; });
+  var ua = navigator.userAgent || '';
+  defaults.OS = /Mac/i.test(ua) ? 'mac' : (/Win/i.test(ua) ? 'windows' : 'linux');
   var saved = store.get('vars', {});
+  function autoRepo(user){ return 'https://github.com/' + (user || 'your-user') + '/reference_files.git'; }
+  // an old saved address that still has the example user follows the saved user name
+  if (saved.KITREPO && /your-user/.test(saved.KITREPO) && saved.GHUSER && saved.GHUSER !== 'your-user') saved.KITREPO = autoRepo(saved.GHUSER);
+  var applied = {};
+  Object.keys(defaults).forEach(function(k){ applied[k] = saved[k] || defaults[k]; });
+  applied.DATE = iso;
+  var everSaved = !!saved.OS;
   inputs.forEach(function(el){
     var k = el.dataset.var;
     if (k === 'DATE') el.value = iso;
+    else if (form.contains(el)) el.value = applied[k];
     else if (saved[k]) el.value = saved[k];
   });
+  osRadios.forEach(function(r){ r.checked = r.value === applied.OS; });
+  var userEl = $('#v-user'), repoEl = $('#v-kitrepo');
+  var kitAuto = !applied.KITREPO || applied.KITREPO === autoRepo(applied.GHUSER) || /your-user/.test(applied.KITREPO);
+  function kitHint(){
+    $('#kitHint').textContent = kitAuto
+      ? 'Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link (it ends in .git). Got a zip instead? Leave it; the step explains.'
+      : 'Your own address (not taken from the user name). Clear the field to go back to the automatic one.';
+  }
+  userEl.addEventListener('input', function(){ if (kitAuto) repoEl.value = autoRepo(userEl.value.trim()); kitHint(); });
+  repoEl.addEventListener('input', function(){
+    var v = repoEl.value.trim();
+    kitAuto = !v || v === autoRepo(userEl.value.trim());
+    kitHint();
+  });
+  repoEl.addEventListener('blur', function(){ if (!repoEl.value.trim()) { kitAuto = true; repoEl.value = autoRepo(userEl.value.trim()); kitHint(); onFormEdit(); } });
+  kitHint();
+
+  // read the form as typed (not yet applied)
+  function formValues(){
+    var f = {};
+    formInputs.forEach(function(el){ f[el.dataset.var] = el.value.trim(); });
+    var o = osRadios.filter(function(r){ return r.checked; })[0];
+    f.OS = o ? o.value : '';
+    f.DATE = iso;
+    return f;
+  }
+  function check(f){
+    var err = {}, warn = {};
+    if (!/^[a-z0-9][a-z0-9-]{0,38}$/.test(f.APP)) err.APP = 'Use lowercase letters, digits and hyphens, starting with a letter or digit.';
+    ['ROOT','KIT'].forEach(function(k){
+      var v = f[k];
+      if (!v) err[k] = 'Required.';
+      else if (/\s/.test(v)) err[k] = 'No spaces, please: commands would break. Try ~/projects.';
+      else if (/^[A-Za-z]:[\\\/]/.test(v)) err[k] = 'That is a Windows path. Use an Ubuntu path such as ~/projects.';
+      else if (!/^(~|\/)/.test(v)) err[k] = 'Start with ~/ (your home folder) or /.';
+      else if (f.OS === 'mac' && /^\/mnt\//.test(v)) err[k] = '/mnt/... paths exist only on Windows. On a Mac use ~/projects.';
+    });
+    if (f.KIT && f.ROOT && f.KIT.replace(/\/$/,'') === f.ROOT.replace(/\/$/,'')) err.KIT = 'Use a different folder from the projects folder.';
+    if (!f.OS) err.OS = 'Choose your computer.';
+    if (!/^(https:\/\/|git@)\S+$/.test(f.KITREPO)) warn.KITREPO = 'Does not look like a GitHub address. Fine if you got the kit as a zip.';
+    else if (/your-user/.test(f.KITREPO)) warn.KITREPO = 'Put your GitHub user name above and this updates itself, or paste the address you were given.';
+    if (!f.GHUSER || f.GHUSER === 'your-user') warn.GHUSER = 'Still the example: put your GitHub user name.';
+    return {err:err, warn:warn};
+  }
+  function showCheck(r){
+    $$('[data-err]', form).forEach(function(e){ e.textContent = r.err[e.dataset.err] || ''; });
+    $$('[data-warn]', form).forEach(function(e){ e.textContent = r.warn[e.dataset.warn] || ''; });
+    formInputs.forEach(function(el){ el.classList.toggle('bad', !!r.err[el.dataset.var]); });
+  }
+  function isDirty(){
+    var f = formValues();
+    return Object.keys(f).some(function(k){ return k !== 'DATE' && (f[k] || '') !== (applied[k] || ''); });
+  }
+  var OSNAME = {windows:'Windows (Ubuntu)', mac:'Mac', linux:'Linux'};
+  function status(kind, msg){
+    var st = $('#vStatus'); st.className = 'vstatus' + (kind ? ' ' + kind : ''); st.innerHTML = msg;
+    $('#vSave').disabled = kind === 'ok';
+  }
+  function idleStatus(){
+    if (!everSaved) status('dirty', 'Using example values. Check each field, then press Save.');
+    else status('ok', 'Saved. Commands use: <b>' + esc(applied.APP) + '</b> · ' + esc(applied.STACK) + ' · ' + esc(OSNAME[applied.OS] || applied.OS) + ' · projects in <code>' + esc(applied.ROOT) + '</code>');
+  }
+  function onFormEdit(){
+    showCheck(check(formValues()));
+    if (isDirty()) status('dirty', 'Not saved yet: the commands still use your previous values. Press Save to update them.');
+    else idleStatus();
+  }
+  function applyOS(){
+    var os = applied.OS;
+    $$('[data-os]').forEach(function(el){ el.classList.toggle('os-hide', el.dataset.os.split(' ').indexOf(os) < 0); });
+    $$('[data-os]', form).forEach(function(el){ el.classList.toggle('os-hide', el.dataset.os.split(' ').indexOf(formValues().OS || os) < 0); });
+  }
   function vars(){
     var v = {};
-    inputs.forEach(function(el){ v[el.dataset.var] = el.value.trim() || el.dataset.var; });
+    inputs.forEach(function(el){
+      var k = el.dataset.var;
+      v[k] = form.contains(el) ? (applied[k] || defaults[k] || k) : (el.value.trim() || k);
+    });
+    v.OS = applied.OS;
     var s = STACK[v.STACK] || STACK.python;
     v.TEST = s.TEST; v.WATCH = s.WATCH;
     v.APCMD = {'1':'AUTOPILOT=build', '2':'AUTOPILOT=plan,build', '3':'AUTOPILOT=plan,build AUTO_MERGE=1'}[v.LEVEL] || 'AUTOPILOT=build';
@@ -1112,6 +1283,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     head.innerHTML = '<span>' + esc(pre.dataset.label) + '</span><button type="button">Copy</button>';
     pre.parentNode.insertBefore(wrap, pre);
     wrap.appendChild(head); wrap.appendChild(pre);
+    if (pre.dataset.os) wrap.dataset.os = pre.dataset.os;      // hide the whole block for other computers
     var b = {pre:pre, tpl:tpl, btn:head.querySelector('button'), text:''};
     b.btn.addEventListener('click', function(){ copy(b); });
     return b;
@@ -1146,13 +1318,38 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     b.btn.textContent = 'Selected - press Ctrl+C';
     setTimeout(function(){ b.btn.textContent = 'Copy'; }, 2200);
   }
-  $('#varsForm').addEventListener('submit', function(e){ e.preventDefault(); });
-  inputs.forEach(function(el){
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var f = formValues(), r = check(f); showCheck(r);
+    var bad = Object.keys(r.err);
+    if (bad.length){
+      status('dirty', 'Not saved: fix the field' + (bad.length > 1 ? 's' : '') + ' marked in red.');
+      var first = bad[0] === 'OS' ? osRadios[0] : formInputs.filter(function(el){ return el.dataset.var === bad[0]; })[0];
+      if (first) first.focus();
+      return;
+    }
+    applied = f; everSaved = true;
+    var keep = store.get('vars', {});
+    Object.keys(f).forEach(function(k){ if (k !== 'DATE') keep[k] = f[k]; });
+    store.set('vars', keep);
+    render(); applyOS(); loadProgress(); idleStatus();
+    var st = $('#vStatus'); st.innerHTML = '&#10003; ' + st.innerHTML + '. Every command below is updated.';
+  });
+  $('#vReset').addEventListener('click', function(){
+    formInputs.forEach(function(el){ el.value = defaults[el.dataset.var]; });
+    osRadios.forEach(function(r){ r.checked = r.value === defaults.OS; });
+    kitAuto = true; kitHint();
+    onFormEdit();
+  });
+  formInputs.forEach(function(el){ el.addEventListener('input', onFormEdit); el.addEventListener('change', onFormEdit); });
+  osRadios.forEach(function(r){ r.addEventListener('change', function(){ onFormEdit(); applyOS(); }); });
+  // settings elsewhere on the page (autopilot level, cost cap) still apply as you type
+  inputs.filter(function(el){ return !form.contains(el); }).forEach(function(el){
     el.addEventListener('input', function(){
-      var s = {}; inputs.forEach(function(i){ if (i.dataset.var !== 'DATE') s[i.dataset.var] = i.value.trim(); });
-      store.set('vars', s);
-      render(); loadProgress();
+      var keep = store.get('vars', {}); keep[el.dataset.var] = el.value.trim(); store.set('vars', keep);
+      render();
     });
+    el.addEventListener('change', function(){ el.dispatchEvent(new Event('input')); });
   });
 
   // ---------- step chrome (tick box + chips) ----------
@@ -1204,6 +1401,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     steps.forEach(function(li){
       var on = $('input', li).checked;
       li.classList.toggle('done', on); li.classList.remove('is-next');
+      if (li.closest('.os-hide')) return;                 // steps for another computer
       var ph = li.closest('section').dataset.phase;
       if (ph === 'daily' || ph === 'bug' || ph === 'autopilot' || ph === 'dashboard') return;      // repeatable side tracks don't count toward overall
       total++; if (on) done++; else if (!next) next = li;
@@ -1215,7 +1413,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     $('#jumpNext').onclick = function(){ if (next) { next.scrollIntoView({behavior:'smooth', block:'center'}); $('input', next).focus({preventScroll:true}); } };
     $$('nav.rail a[data-phase]').forEach(function(a){
       var sec = document.getElementById(a.dataset.phase); if (!sec) return;
-      var ss = $$('li.step', sec); if (!ss.length) return;
+      var ss = $$('li.step', sec).filter(function(li){ return !li.closest('.os-hide'); }); if (!ss.length) return;
       var d = ss.filter(function(li){ return $('input', li).checked; }).length;
       $('small', a).textContent = d + '/' + ss.length;
       $('.mini i', a).style.width = (d/ss.length*100) + '%';
@@ -1250,7 +1448,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     $$('section.phase').forEach(function(s){ io.observe(s); });
   }
 
-  render(); loadProgress();
+  render(); applyOS(); loadProgress(); showCheck(check(formValues())); idleStatus();
 })();
 </script>
 </body>

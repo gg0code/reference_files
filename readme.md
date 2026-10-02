@@ -58,7 +58,8 @@ The first session finds every doc still marked `Status: TEMPLATE` and walks you 
 ## Getting the kit (once per machine)
 
 Everything runs from a local copy of this kit: `scaffold.sh` copies `templates/` and the scripts into each new project, so the kit must be on your machine first.
-The kit lives in its own GitHub repository. Clone it inside WSL (not with Windows git), so scripts keep their Unix line endings:
+The kit lives in its own GitHub repository. Clone it in a terminal: on Mac or Linux the normal Terminal; on Windows inside Ubuntu (WSL, installed with `wsl --install -d Ubuntu`), not with Windows Git, so the scripts keep their Unix line endings.
+The guide (`spec-driven-build-guide.html`) asks for your computer type first and shows only the matching steps.
 
 ```bash
 mkdir -p ~/kits ~/projects
