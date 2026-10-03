@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.9 (2026-10-02).
+Kit version: v2.10 (2026-10-03).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -204,6 +204,11 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v2.10
+
+- Specification route B, prototype first: napkin idea, clickable HTML prototype on mock data (`docs/prototype/` with a decision log), feedback rounds, freeze as `prototype-v1`, idea rewritten from it, then the PRD with a short interview. Guide (route chooser at the top of Phase 3), runbook Phase 1 and the CLAUDE.md setup order.
+- Guide: Windows folders typed as `C:\...` and converted for Ubuntu, a CMD panel, check-before-install for Ubuntu, WezTerm and tmux, and an explicit "Type inside Claude" header on every Claude prompt.
 
 ## Changes in v2.9
 

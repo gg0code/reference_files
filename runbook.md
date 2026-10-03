@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.9 (2026-10-02).
+Kit version: v2.10 (2026-10-03).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -257,6 +257,16 @@ Never loosen a limit to get green; change one only through a decision in 02-arch
 ---
 
 ## Phase 1 - Specification (the doc chain)
+
+Two routes, chosen at the start of Phase 1 (the guide shows one at a time):
+- **Route A, requirements first** (below): you know what the app should do. Idea, PRD, architecture and UI design, wireframe.
+- **Route B, prototype first**: you are not sure yet how the app should work.
+  1. Write a napkin idea in `docs/00-idea.md` (a few lines; line 1 stays `Status: DRAFT`).
+  2. Claude (Sonnet) builds a clickable HTML prototype in `docs/prototype/`: every element works on mock data, each screen can show empty, loading and error states, a "PROTOTYPE - mock data" banner, and `docs/prototype/DECISIONS.md` with "Assumptions to confirm" and "Decisions".
+  3. Click through it and give feedback in rounds ("screen: change, because why"); Claude updates the prototype and logs each change with its reason. Commit each round as `proto: round N`. Stop when a new user finds their way without help and no assumptions are left open.
+  4. Freeze it: `git tag prototype-v1 && git push --tags`. It is never edited again and its code is never reused in the app.
+  5. Claude (Opus) rewrites `docs/00-idea.md` from the prototype and the decision log, plus "Questions the prototype cannot answer" (permissions, data rules, errors, numbers, privacy, integrations). You approve it.
+  6. Continue with the PRD below; the interview covers only those open questions, and every prototype screen and flow becomes requirements. The UI design takes its tokens and screens from the prototype, and the wireframe is the prototype with `data-req` tags.
 
 Every doc in `docs/` starts with `Status: TEMPLATE` on line 1.
 Claude refuses to write application code until the setup docs are `Status: APPROVED - <date>`.

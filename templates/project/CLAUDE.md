@@ -1,7 +1,7 @@
 # CLAUDE.md - project constitution
 
 <!--
-Template v2.9 - 2026-10-02
+Template v2.10 - 2026-10-03
 Reusable constitution for spec-driven, fully traceable development.
 Sections marked FIXED are the same in every project. Do not edit them per project.
 Sections marked FILL IN are tailored per project, then approved by the user.
@@ -19,7 +19,8 @@ At the start of every session, before any other work:
 5. Then propose the setup order below and wait.
    Do not write application code until setup-order steps 1-4 below are APPROVED.
 
-Setup order (each file is approved before the next is drafted):
+Setup order (each file is approved before the next is drafted).
+If the user chooses the prototype-first route (runbook Phase 1, route B), steps 1 to 3 are preceded by: napkin idea (DRAFT), clickable prototype in `docs/prototype/` with `DECISIONS.md`, feedback rounds, tag `prototype-v1`, then `docs/00-idea.md` rewritten from the prototype and approved. The prototype is never reused as app code.
 1. `docs/00-idea.md` - the user writes or dictates it.
 2. `docs/01-prd.md` - drafted from the idea, REQ-IDs assigned.
 3. `docs/02-architecture.md` and `docs/03-ui-design.md` - drafted from the PRD.
