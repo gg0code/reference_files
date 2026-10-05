@@ -1,0 +1,5 @@
+{#- After a successful add: an empty form, the refreshed list and a toast. REQ-IDs: none - kit example -#}
+{% import "macros/ui.html" as ui with context %}
+{% include "notes_form.html" %}
+{% with oob = true %}{% include "notes_list.html" %}{% endwith %}
+{{ ui.toast(flash, "success", oob=true) }}

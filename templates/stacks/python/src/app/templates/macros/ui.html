@@ -1,0 +1,85 @@
+{#- UI kit: the only place component markup is written. REQ-IDs: none - starter app.
+    Import:  {% import "macros/ui.html" as ui with context %}  -#}
+
+{#- Page title with an optional line under it and an optional primary action on the right. -#}
+{% macro page_header(title, subtitle="", action_label="", action_href="") -%}
+<div class="page-header">
+  <div>
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<p class="subtitle">{{ subtitle }}</p>{% endif %}
+  </div>
+  {% if action_label %}<a class="btn btn-primary" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- Button. kind: primary (one per screen), secondary, danger, quiet. attrs: extra attributes, e.g. {"hx-post": "/x"}. -#}
+{% macro button(label, kind="primary", type="submit", attrs={}) -%}
+<button type="{{ type }}" class="btn btn-{{ kind }}"{% for k, v in attrs.items() %} {{ k }}="{{ v }}"{% endfor %}>
+  <span class="btn-label">{{ label }}</span><span class="spinner htmx-indicator" aria-hidden="true"></span>
+</button>
+{%- endmacro %}
+
+{#- Hidden CSRF field for plain (non-htmx) forms. -#}
+{% macro csrf_field() -%}<input type="hidden" name="csrf_token" value="{{ csrf_token }}">{%- endmacro %}
+
+{#- Text input with label, hint and an error that says how to fix it. The typed value is kept. -#}
+{% macro field(name, label, value="", error="", hint="", type="text", required=false, maxlength=none, autofocus=false) -%}
+<div class="field{% if error %} has-error{% endif %}">
+  <label for="f-{{ name }}">{{ label }}{% if not required %} <span class="optional">(optional)</span>{% endif %}</label>
+  {% if hint %}<p class="hint" id="f-{{ name }}-hint">{{ hint }}</p>{% endif %}
+  <input id="f-{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value }}"
+         {% if required %}required{% endif %} {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+         {% if autofocus %}autofocus{% endif %}
+         {% if error %}aria-invalid="true" aria-describedby="f-{{ name }}-error"{% elif hint %}aria-describedby="f-{{ name }}-hint"{% endif %}>
+  {% if error %}<p class="error" id="f-{{ name }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- Multi-line text with the same label, hint and error behaviour. -#}
+{% macro textarea(name, label, value="", error="", hint="", rows=4, required=false, maxlength=none) -%}
+<div class="field{% if error %} has-error{% endif %}">
+  <label for="f-{{ name }}">{{ label }}{% if not required %} <span class="optional">(optional)</span>{% endif %}</label>
+  {% if hint %}<p class="hint" id="f-{{ name }}-hint">{{ hint }}</p>{% endif %}
+  <textarea id="f-{{ name }}" name="{{ name }}" rows="{{ rows }}"
+            {% if required %}required{% endif %} {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+            {% if error %}aria-invalid="true" aria-describedby="f-{{ name }}-error"{% elif hint %}aria-describedby="f-{{ name }}-hint"{% endif %}>{{ value }}</textarea>
+  {% if error %}<p class="error" id="f-{{ name }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- Search box that updates a target as the user types (htmx). -#}
+{% macro search(name, label, value="", url="", target="") -%}
+<div class="field search">
+  <label for="f-{{ name }}">{{ label }}</label>
+  <input id="f-{{ name }}" name="{{ name }}" type="search" value="{{ value }}" autocomplete="off"
+         hx-get="{{ url }}" hx-trigger="input changed delay:300ms, search" hx-target="{{ target }}" hx-swap="outerHTML"
+         hx-push-url="true" hx-indicator="closest .field">
+  <span class="spinner htmx-indicator" aria-hidden="true"></span>
+</div>
+{%- endmacro %}
+
+{#- What a screen shows when there is nothing yet: say why, and offer the next step. -#}
+{% macro empty_state(title, text, action_label="", action_href="") -%}
+<div class="empty">
+  <p class="empty-title">{{ title }}</p>
+  <p>{{ text }}</p>
+  {% if action_label %}<a class="btn btn-secondary" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- A message box inside the page. kind: info, success, warning, error. -#}
+{% macro alert(text, kind="info") -%}
+<div class="alert alert-{{ kind }}" role="{{ 'alert' if kind == 'error' else 'status' }}">{{ text }}</div>
+{%- endmacro %}
+
+{#- Short notification in the corner; disappears by itself; can offer Undo. -#}
+{#- oob=true: add it to the toast area from a response that targets something else. -#}
+{% macro toast(message, kind="success", undo_url="", oob=false, undo_target="#notes-list") -%}
+{% if oob %}<div hx-swap-oob="beforeend:#toasts">{% endif %}
+<div class="toast toast-{{ kind }}" role="{{ 'alert' if kind == 'error' else 'status' }}">
+  <span>{{ message }}</span>
+  {% if undo_url %}<button type="button" class="toast-action" hx-post="{{ undo_url }}" hx-target="{{ undo_target }}" hx-swap="outerHTML">Undo</button>{% endif %}
+  <button type="button" class="toast-close" aria-label="Close">&times;</button>
+</div>
+{% if oob %}</div>{% endif %}
+{%- endmacro %}

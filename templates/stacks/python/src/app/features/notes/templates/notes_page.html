@@ -1,0 +1,18 @@
+{#- Notes page. REQ-IDs: none - kit example feature -#}
+{% extends "base.html" %}
+{% import "macros/ui.html" as ui with context %}
+{% block title %}Notes · {{ settings.app_name }}{% endblock %}
+{% block content %}
+{{ ui.page_header("Notes", "Write things down. Delete with Undo.") }}
+<div class="two-col">
+  <section aria-labelledby="add-h" class="panel">
+    <h2 id="add-h">Add a note</h2>
+    {% include "notes_form.html" %}
+  </section>
+  <section aria-labelledby="list-h">
+    <h2 id="list-h" class="visually-hidden">Your notes</h2>
+    {{ ui.search("q", "Search notes", q, "/notes", "#notes-list") }}
+    {% include "notes_list.html" %}
+  </section>
+</div>
+{% endblock %}

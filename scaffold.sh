@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.9
+# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.11
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
 #   bash /path/to/reference_files/scaffold.sh <app-name> [node|python|go|rust]
@@ -53,7 +53,7 @@ die()  { echo ""; echo "ERROR : $*" >&2; echo "Aborted. Nothing further was run.
 trap 'err "unexpected failure at line $LINENO (command: $BASH_COMMAND)"; exit 1' ERR
 
 echo "=============================================="
-echo " scaffold.sh v2.9 - project: $APP${STACK:+  (stack: $STACK)}"
+echo " scaffold.sh v2.11 - project: $APP${STACK:+  (stack: $STACK)}"
 echo "=============================================="
 
 # ---------- 0. Preflight ----------
@@ -167,7 +167,7 @@ if [ -n "$STACK" ] && [ -d "$KIT_DIR/templates/stacks/$STACK" ]; then
     if [ -e "$rel" ]; then ok "$rel already exists - kept"
     else
       mkdir -p "$(dirname "$rel")" && sed "s/__APP__/${APP_SLUG:-app}/g" "$src" > "$rel" || die "could not write $rel"
-      ok "created $rel (stack '$STACK' starter: quality-gate settings)"
+      ok "created $rel (stack '$STACK' starter)"
     fi
   done < <(find "$KIT_DIR/templates/stacks/$STACK" -type f -print0 | sort -z)
 fi
@@ -203,8 +203,8 @@ git add -A || die "git add failed"
 if git diff --cached --quiet; then
   warn "nothing new to commit - working tree already matches HEAD"
 else
-  git commit -qm "chore: scaffold from project template v2.9" || die "git commit failed"
-  ok "committed: chore: scaffold from project template v2.9"
+  git commit -qm "chore: scaffold from project template v2.11" || die "git commit failed"
+  ok "committed: chore: scaffold from project template v2.11"
 fi
 COMMITS="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 [ "$COMMITS" -ge 1 ] || die "no commit exists - a push would fail with 'src refspec main does not match any'"
@@ -294,6 +294,9 @@ cat <<NEXT
     4. After CI has run once, turn on branch protection (runbook.md Phase 2c).
     5. Then, for each requirement: bash scripts/start.sh   (start.sh status shows where you are)
     6. Watch it all, on the computer or phone: python3 scripts/dashboard.py [--lan]   (runbook.md Phase 2e)
+    Python stack - run the starter app once now:
+       uv sync && cp .env.example .env    # then put a long random SECRET_KEY in .env
+       uv run alembic upgrade head && uv run uvicorn app.main:app --app-dir src --reload   # http://localhost:8000
 
   Sanity check:
     git log --oneline    # >= 1 commit

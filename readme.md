@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.10 (2026-10-03).
+Kit version: v2.11 (2026-10-04).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -205,7 +205,22 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
 
+## Changes in v2.11
+
+Goal: every Python project starts production-shaped, and every screen user-friendly.
+
+- Starter app (`templates/stacks/python/`, copied by scaffold.sh): FastAPI + Jinja2 + htmx (vendored, no CDN) + SQLModel + Alembic.
+  Settings validated at startup, `/health`, JSON logs with request IDs, friendly 404/403/429/500 pages with a reference ID (toasts for htmx requests),
+  Content-Security-Policy and security headers, CSRF protection, a rate limit on changes, Sentry when `SENTRY_DSN` is set, a non-root Dockerfile, `.env.example`.
+  It passes the full gate as delivered (doclint, ruff, mypy strict, tests, service coverage, pip-audit).
+- UI kit: `templates/macros/ui.html` (page_header, button, field, textarea, search, empty_state, alert, toast) and `static/css/app.css` (one TOKENS block for colours and type, light and dark, WCAG AA, 44px targets, reduced motion).
+- Example feature `notes`: routes, service, repository, models, templates and tests, showing inline validation that keeps input, live search, empty states, and delete with Undo instead of "are you sure?". Works without JavaScript too.
+- RULES.md section 6: build screens from the UI kit, plus eight user-friendliness rules the reviewer treats as Major. 03-ui-design.md section 5 maps to the kit. CLAUDE.md, TASKS (walking skeleton), the architecture template and the guide (new step "Run the starter app") updated.
+- Not included yet: login. Which one depends on the PRD (company sign-in, email and password, social login); RULES.md requires a proven library, never hand-written auth.
+
 ## Changes in v2.10
+
+- Release phases and build scope: the PRD assigns every REQ-ID to a phase (P1, P2, ...; section 4a, with guidance on how to phase), TASKS.md has one section per phase and a `Build scope:` line (e.g. `P1, P2, REQ-017`). `start.sh`, `autopilot.sh` and the dashboard only pick REQs inside the scope; `start.sh scope` shows progress per phase or sets the scope; inside Claude, `phases` and `scope ...`. The prototype route builds only the first rough phase in full.
 
 - Specification route B, prototype first: napkin idea, clickable HTML prototype on mock data (`docs/prototype/` with a decision log), feedback rounds, freeze as `prototype-v1`, idea rewritten from it, then the PRD with a short interview. Guide (route chooser at the top of Phase 3), runbook Phase 1 and the CLAUDE.md setup order.
 - Guide: Windows folders typed as `C:\...` and converted for Ubuntu, a CMD panel, check-before-install for Ubuntu, WezTerm and tmux, and an explicit "Type inside Claude" header on every Claude prompt.

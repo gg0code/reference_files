@@ -1,0 +1,9 @@
+{#- Add-note form; comes back with errors next to the fields and the typed text kept. REQ-IDs: none - kit example -#}
+{% import "macros/ui.html" as ui with context %}
+<form id="note-form" method="post" action="/notes" hx-post="/notes" hx-target="this" hx-swap="outerHTML" novalidate>
+  {{ ui.csrf_field() }}
+  {% if form and form.errors %}{{ ui.alert("Check the field marked below.", "error") }}{% endif %}
+  {{ ui.field("title", "Title", form.title if form else "", form.errors.get("title", "") if form else "", required=true, maxlength=120) }}
+  {{ ui.textarea("body", "Text", form.body if form else "", form.errors.get("body", "") if form else "", hint="Up to 2000 characters.", maxlength=2000) }}
+  {{ ui.button("Add note") }}
+</form>

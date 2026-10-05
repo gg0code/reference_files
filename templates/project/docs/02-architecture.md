@@ -20,7 +20,8 @@ Status: TEMPLATE
 | Testing | | |
 | Quality gate | `scripts/gate.sh` (doclint, lint, format, types, tests) | RULES.md section 2 |
 
-Default for a Python web app, proposed unless the PRD needs something else (each row still needs the user's approval):
+Default for a Python web app, proposed unless the PRD needs something else (each row still needs the user's approval).
+scaffold.sh with the python stack already installs this as a running starter app (src/app/README.md):
 Python 3.12 with uv · FastAPI · Jinja2 templates + HTMX (no JavaScript build step) · Pydantic and pydantic-settings ·
 SQLModel on SQLite to start, PostgreSQL when the PRD needs it · Alembic · stdlib logging as JSON (or structlog) · Sentry ·
 Docker image on one managed host · pytest, pytest-cov, Playwright for end-to-end · ruff, mypy, pip-audit, gitleaks.

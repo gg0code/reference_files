@@ -1,0 +1,4 @@
+{#- After Undo: the refreshed list and a toast. REQ-IDs: none - kit example -#}
+{% import "macros/ui.html" as ui with context %}
+{% include "notes_list.html" %}
+{{ ui.toast(flash, "success", oob=true) }}

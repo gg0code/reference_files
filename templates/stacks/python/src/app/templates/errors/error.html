@@ -1,0 +1,11 @@
+{#- Friendly error page. REQ-IDs: none - starter app -#}
+{% extends "base.html" %}
+{% block title %}{{ status }} · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<section class="error-page">
+  <p class="error-code">{{ status }}</p>
+  <h1>{{ message }}</h1>
+  <p><a class="btn btn-primary" href="/">Go to the start page</a></p>
+  {% if reference and reference != "-" %}<p class="reference">If you contact support, mention reference <code>{{ reference }}</code>.</p>{% endif %}
+</section>
+{% endblock %}

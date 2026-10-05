@@ -1,0 +1,27 @@
+{#- Page layout for every screen. REQ-IDs: none - starter app -#}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "responseHandling": [{"code": "204", "swap": false}, {"code": ".*", "swap": true}], "attributesToSettle": ["class", "width", "height"]}'>
+  <title>{% block title %}{{ settings.app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+  <script src="{{ url_for('static', path='js/htmx.min.js') }}" defer></script>
+  <script src="{{ url_for('static', path='js/app.js') }}" defer></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="/">{{ settings.app_name }}</a>
+    <nav aria-label="Main">
+      <a href="/notes" {% if request.url.path.startswith('/notes') %}aria-current="page"{% endif %}>Notes</a>
+    </nav>
+  </header>
+  <main id="main" class="page" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+  <footer class="footer">{{ settings.app_name }} · version {{ settings.version }}</footer>
+</body>
+</html>

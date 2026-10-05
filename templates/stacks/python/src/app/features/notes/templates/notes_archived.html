@@ -1,0 +1,5 @@
+{#- After delete: a toast with Undo, the row removed, the summary updated. REQ-IDs: none - kit example -#}
+{% import "macros/ui.html" as ui with context %}
+{{ ui.toast(message, "info", undo_url) }}
+<li id="note-{{ note_id }}" hx-swap-oob="delete"></li>
+<p id="notes-summary" class="summary" hx-swap-oob="true">{{ summary }}</p>

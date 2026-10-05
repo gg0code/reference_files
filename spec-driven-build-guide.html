@@ -218,7 +218,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.10 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.11 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Start with <b>Your setup</b>: choose Windows, Mac or Linux, check the folders, and press Save; every command then uses your values and only the steps for your computer are shown. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -529,6 +529,18 @@ git remote -v         # origin
 gh issue list         # runs clean (empty list is fine)</pre>
             </div>
           </li>
+          <li class="step" data-id="c-starter" data-pane="git">
+            <div class="step-body">
+              <div class="step-head"><h3>Run the starter app (Python stack)</h3></div>
+              <p>With the <b>python</b> stack, the project already contains a working, production-shaped app: settings checked at startup, <code>/health</code>, JSON logs with request IDs, friendly error pages, security headers, CSRF protection, a rate limit, database migrations, a Dockerfile, error tracking ready to switch on, and a <b>UI kit</b> (buttons, fields with inline errors, search, empty states, toasts with Undo, light and dark). A small <b>Notes</b> feature shows the pattern every feature follows. It passes the quality gate as delivered.</p>
+              <pre data-label="bash · git pane">uv sync
+cp .env.example .env              # then open .env and set a long random SECRET_KEY and your APP_NAME
+uv run alembic upgrade head       # creates the database tables
+bash scripts/gate.sh              # all PASS</pre>
+              <pre data-label="bash · frontend pane">uv run uvicorn app.main:app --app-dir src --reload</pre>
+              <p class="expect">You should see: open <code>http://localhost:8000</code>: the start page; <b>Notes</b>: try saving without a title (the message appears next to the field and your text stays), add a few notes, search, delete one and press <b>Undo</b>. That is the standard every screen of your app follows. Not on the python stack? Skip this step.</p>
+            </div>
+          </li>
         </ol>
       </section>
 
@@ -616,7 +628,7 @@ if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux
             <div class="step-body">
               <div class="step-head"><h3><span data-route="spec">Write the idea</span><span data-route="proto">Write the napkin idea</span></h3></div>
               <p data-route="spec">Fill <code>docs/00-idea.md</code> yourself, or dictate it to Claude. Rough is fine: problem, users, the idea in one sentence, what version 1 does, constraints. Then set line 1 to approved.</p>
-              <p data-route="proto">A few lines in <code>docs/00-idea.md</code> are enough: the problem, who it is for, and the one or two things they must be able to do. Write it yourself or dictate it to Claude. Keep line 1 as <code>Status: DRAFT</code>: Claude rewrites this file from the prototype later.</p>
+              <p data-route="proto">A few lines in <code>docs/00-idea.md</code> are enough: the problem, who it is for, and the one or two things they must be able to do. If you already know what can wait, fill its rough "Phases" section (first, then, later): the prototype then builds only the first part in full. Write it yourself or dictate it to Claude. Keep line 1 as <code>Status: DRAFT</code>: Claude rewrites this file from the prototype later.</p>
               <pre data-label="bash · git pane" data-route="spec">git add docs/00-idea.md && git commit -m "docs: raw idea (approved)" && git push</pre>
               <pre data-label="bash · git pane" data-route="proto">git add docs/00-idea.md && git commit -m "docs: napkin idea (draft, before prototype)" && git push</pre>
             </div>
@@ -633,6 +645,8 @@ Its purpose is to help me discover how the app should work. It is a throwaway sk
 - Each screen can show its empty, loading and error state, switched from a small "States" menu.
 - A thin banner on every page: "PROTOTYPE - mock data".
 - Create docs/prototype/DECISIONS.md: "Assumptions to confirm" (every guess you made), then "Decisions" (date, change, reason).
+If docs/00-idea.md lists rough phases, build the "First" part fully and show later parts only as
+placeholder screens or menu items marked "Later phase", so the whole shape is visible without building it.
 If the idea is too thin to draw the main screens, ask me at most 5 questions first; otherwise make sensible guesses and list them.
 Do not use REQ-IDs yet; requirements come later.</pre>
               <pre data-label="bash · git pane">git add docs/prototype/ && git commit -m "proto: first version" && git push</pre>
@@ -682,19 +696,27 @@ do NOT write the PRD until I say "go".
 When I say go, fill the template in docs/01-prd.md. EVERY requirement carries a stable
 REQ-ID (REQ-001, REQ-002, ...), permanent and never renumbered, with testable acceptance
 criteria. Functional and non-functional separated. No implementation detail, only what and why.
+Assign every REQ-ID to a release phase (P1, P2, ...) in the Phase column and fill section 4a,
+following the guidance in that section: P1 is the smallest end-to-end path that delivers the main value;
+deferrable edge cases become their own REQ-IDs in later phases. Propose how many phases and why,
+and show me the phase table before you write the rest.
 Leave line 1 as "Status: DRAFT".</pre>
               <pre data-label="prompt · claude pane · /model opus" class="prompt" data-route="spec">Interview me to produce docs/01-prd.md for {APP} from docs/00-idea.md.
 Ask questions in small batches; do NOT write the PRD until I say "go".
 When I say go, fill the template in docs/01-prd.md. EVERY requirement carries a stable
 REQ-ID (REQ-001, REQ-002, ...), permanent and never renumbered, with testable acceptance
 criteria. Functional and non-functional separated. No implementation detail, only what and why.
+Assign every REQ-ID to a release phase (P1, P2, ...) in the Phase column and fill section 4a,
+following the guidance in that section: P1 is the smallest end-to-end path that delivers the main value;
+deferrable edge cases become their own REQ-IDs in later phases. Propose how many phases and why,
+and show me the phase table before you write the rest.
 Leave line 1 as "Status: DRAFT".</pre>
             </div>
           </li>
           <li class="step gate" data-id="s-prd-gate" data-pane="you">
             <div class="step-body">
               <div class="step-head"><h3>Review the PRD and cut scope</h3></div>
-              <p>The cheapest place in the whole project to say no. Keep version 1 to the Must requirements. Approve line 1, then commit.</p>
+              <p>The cheapest place in the whole project to say no. Then check the <b>release phases</b> (section 4a): P1 should be the smallest path a real user can use from start to finish; move REQs between phases freely; an edge case that can wait should be its own REQ in a later phase. A big app (50 to 70 REQs) usually has 5 to 7 phases of 5 to 12 REQs each. Approve line 1, then commit.</p>
               <pre data-label="bash · git pane">git add docs/01-prd.md && git commit -m "docs: PRD with REQ-IDs (approved)" && git push</pre>
             </div>
           </li>
@@ -777,8 +799,9 @@ Do not edit the files until I approve each item.</pre>
 Do NOT group REQ-IDs unless two are inseparable (same code change, cannot be tested apart).
 Title: "REQ-00X: short name". Body: the requirement + its TC-IDs from docs/04-testplan.md.
 Label each "requirement". Use gh issue create.
-Then fill docs/TASKS.md: phases in build order, each line "REQ-00X (#N) title" with the real
-Issue number. Set its Status line to APPROVED.</pre>
+Then fill docs/TASKS.md: one "## Phase N - goal" section per release phase in docs/01-prd.md section 4a,
+in order, each line "REQ-00X (#N) title" with the real Issue number.
+Set the line "Build scope: P1" (or the scope I give you). Set its Status line to APPROVED.</pre>
               <pre data-label="bash · git pane">gh issue list
 git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved)" && git push</pre>
             </div>
@@ -805,6 +828,19 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
         <div class="phase-head"><h2>4 · Build a requirement</h2><span class="when">Repeat for each REQ in TASKS.md. Nothing to type in: the scripts find the next REQ and its Issue.</span>
           <span class="confirm" data-reset="build"><button class="btn small warn" type="button">Start next REQ</button></span></div>
         <div class="callout gatey">Two human stops: the plan (step 3) and the PR (step 10). One agent gate: <code>pr.sh</code> will not open a PR until the reviewer says APPROVE. One hard signal: the test pane must be green. Lost at any point? <code>bash scripts/start.sh status</code> tells you where you are and what to do next.</div>
+        <div class="osnote"><b>Build scope: what to build now.</b> Every requirement belongs to a release phase (P1, P2, ...; <code>docs/01-prd.md</code> section 4a). The <code>Build scope:</code> line at the top of <code>docs/TASKS.md</code> says which phases and single REQs to build now. <code>start.sh</code>, autopilot and the dashboard only pick requirements inside it, in TASKS order.
+          <div class="tablewrap"><table class="ref">
+            <thead><tr><th>You want</th><th>Inside Claude</th><th>or in the git pane (on main)</th></tr></thead>
+            <tbody>
+              <tr><td>Only phase 1</td><td><code>scope P1</code></td><td><code>bash scripts/start.sh scope P1</code></td></tr>
+              <tr><td>Phases 1 and 2 together</td><td><code>scope P1 P2</code></td><td><code>bash scripts/start.sh scope P1 P2</code></td></tr>
+              <tr><td>Phases 1 and 2 plus three REQs from phase 3</td><td><code>scope P1 P2 REQ-017 REQ-019 REQ-021</code></td><td><code>bash scripts/start.sh scope P1 P2 REQ-017 REQ-019 REQ-021</code></td></tr>
+              <tr><td>Everything</td><td><code>scope all</code></td><td><code>bash scripts/start.sh scope all</code></td></tr>
+              <tr><td>See the phases, progress and scope</td><td><code>phases</code></td><td><code>bash scripts/start.sh scope</code></td></tr>
+            </tbody>
+          </table></div>
+          When everything in the scope is live, <code>start.sh</code> says so and the dashboard shows "Build scope done": widen the scope to continue. Naming a REQ outside the scope (<code>bash scripts/start.sh REQ-030</code>) still works, with a warning.
+        </div>
         <ol class="steps">
           <li class="step" data-id="b-start" data-pane="git">
             <div class="step-body">
@@ -1197,6 +1233,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>release check</code></td><td>Re-runs the blocking sections and adds an audit-log row.</td></tr>
             <tr><td><code>explain</code></td><td>After APPROVE: appends a plain-language walkthrough to <code>docs/reviews/&lt;ID&gt;.md</code> (files changed, request path, where to look if it breaks).</td></tr>
             <tr><td><code>mcp</code></td><td>Re-runs the MCP setup check and lists any missing server with its install command.</td></tr>
+            <tr><td><code>phases</code></td><td>Shows the release phases, progress per phase and the current build scope.</td></tr>
+            <tr><td><code>scope P1 P2 REQ-017</code></td><td>Sets what to build now (phases and single REQs; <code>scope all</code> for everything). Commits the <code>Build scope:</code> line in TASKS.md.</td></tr>
             <tr><td><code>wrap up</code></td><td>Regenerates <code>docs/REQUIREMENTS_STATUS.md</code>, ticks TASKS from closed Issues, updates MEMORY.</td></tr>
           </tbody>
         </table></div>
@@ -1295,7 +1333,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.10: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.11: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>

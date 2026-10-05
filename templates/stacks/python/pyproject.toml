@@ -1,6 +1,7 @@
 # pyproject.toml - project settings and the quality-gate configuration.   Kit v2.8
-# Created by scaffold.sh for the python stack. Runtime dependencies are added after
-# docs/02-architecture.md is approved (`uv add <package>`), never before.
+# Created by scaffold.sh for the python stack, together with the starter app in src/app/.
+# The runtime dependencies below are the kit's default stack (02-architecture.md section 2);
+# anything more is added only after it is approved there (`uv add <package>`).
 # The tool settings below are the mechanical side of docs/RULES.md section 2:
 # change a limit only with an approved decision in 02-architecture.md section 9.
 
@@ -9,7 +10,16 @@ name = "__APP__"
 version = "0.1.0"
 description = "See docs/01-prd.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "jinja2>=3.1",
+  "python-multipart>=0.0.9",
+  "pydantic-settings>=2.4",
+  "sqlmodel>=0.0.22",
+  "alembic>=1.13",
+  "sentry-sdk[fastapi]>=2.14",
+]
 
 [dependency-groups]
 dev = [
@@ -18,6 +28,7 @@ dev = [
   "ruff>=0.6",
   "mypy>=1.11",
   "pip-audit>=2.7",
+  "httpx>=0.27",
 ]
 
 # ---------- ruff: lint + format (RULES.md section 2) ----------
@@ -25,7 +36,7 @@ dev = [
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
-extend-exclude = ["docs", "scripts"]   # docs/ code samples are examples; scripts/ are kit tools, refreshed from the kit
+extend-exclude = ["docs", "scripts", "src/app/static"]   # docs/ code samples are examples; scripts/ are kit tools, refreshed from the kit
 
 [tool.ruff.lint]
 select = [
@@ -57,7 +68,8 @@ max-statements = 40
 max-returns = 4
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "PLR0913", "PLR0915"]   # tests use assert and may be longer
+"tests/**" = ["S101", "PLR0913", "PLR0915", "S105", "S106", "PLC0415"]   # assert, test secrets, late imports after env setup
+"migrations/**" = ["ERA001", "N999"]   # Alembic's generated files
 
 # ---------- mypy: strict typing (RULES.md section 2) ----------
 [tool.mypy]
@@ -71,10 +83,14 @@ pretty = true
 module = "tests.*"
 disallow_untyped_defs = false
 
+[[tool.mypy.overrides]]
+module = ["sentry_sdk.*"]
+ignore_missing_imports = true
+
 # ---------- pytest + coverage (04-testplan.md section 1) ----------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 addopts = "-q --strict-markers"
 
 [tool.coverage.run]

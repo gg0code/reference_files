@@ -1,0 +1,2 @@
+# Vendored third-party file (htmx 2.0.11, 0BSD licence): not our code, so no header or doc blocks.
+src/app/static/js/htmx.min.js

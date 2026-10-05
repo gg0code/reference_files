@@ -124,10 +124,22 @@ Go uses `//` lines and Rust `///` lines directly above `func` / `fn`; shell uses
 - Dependency updates with known vulnerabilities are fixed before release (05-launch-checklist.md B6).
 
 ## 6. UI rules
-- Follow 03-ui-design.md: tokens only, no hard-coded colours.
+- Follow 03-ui-design.md: tokens only, no hard-coded colours. The tokens live in one block at the top of `src/app/static/css/app.css` (Python starter).
+- Build screens from the UI kit (`src/app/templates/macros/ui.html`): page_header, button, field, textarea, search, empty_state, alert, toast.
+  Never write new markup for something the kit has. A genuinely new component is added to the kit first, with its styles in app.css, then used.
 - Mobile first; light and dark both supported where the design says so.
 - Every screen has empty, loading and error states.
 - Accessibility to WCAG AA is a requirement, not polish.
+
+### User-friendliness rules (the reviewer treats a break as Major)
+- One primary action per screen; everything else is secondary or quiet.
+- Error messages say what is wrong and how to fix it, in plain words, next to the field ("Give the note a title.", not "Invalid input").
+- Never lose what the user typed: a form with errors comes back with every value kept and the focus on the first field to fix.
+- Prefer Undo to "are you sure?": do the action, show a toast with Undo (soft delete), and confirm only for things that cannot be undone.
+- Every list has an empty state that says why it is empty and what to do next; every search has a "nothing matches" state.
+- Show progress for anything slower than about half a second (the kit's spinner); never a frozen button.
+- Every page works without JavaScript for its main task (htmx improves it, it does not carry it).
+- Users never see a stack trace: errors show a calm page or toast with a reference ID.
 
 ## 7. Working with the user
 - Explain the plan before large changes: a new dependency, a schema change, more than about 5 files, or deleting code.

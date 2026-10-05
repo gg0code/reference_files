@@ -1,0 +1,22 @@
+{#- The list of notes, or a helpful empty state. REQ-IDs: none - kit example -#}
+{% import "macros/ui.html" as ui with context %}
+<div id="notes-list"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <p id="notes-summary" class="summary" aria-live="polite">{{ summary }}</p>
+  {% if notes %}
+  <ul class="list">
+    {% for note in notes %}
+    <li id="note-{{ note.id }}" class="list-item">
+      <div>
+        <p class="item-title">{{ note.title }}</p>
+        {% if note.body %}<p class="item-text">{{ note.body }}</p>{% endif %}
+      </div>
+      {{ ui.button("Delete", "quiet", "button", {"hx-post": "/notes/" ~ note.id ~ "/archive", "hx-target": "#toasts", "hx-swap": "beforeend", "aria-label": "Delete " ~ note.title}) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif q %}
+  {{ ui.empty_state("Nothing matches that search", "Try fewer or different words.", "Show all notes", "/notes") }}
+  {% else %}
+  {{ ui.empty_state("No notes yet", "Add your first note with the form. It appears here straight away.") }}
+  {% endif %}
+</div>

@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.10 (2026-10-03).
+Kit version: v2.11 (2026-10-04).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -116,6 +116,16 @@ git remote -v         # origin
 ```
 
 > Every artifact after this must be a reviewable diff.
+
+### 0a2. Python stack: run the starter app
+scaffold.sh with `python` copies a running starter app (FastAPI, Jinja2, htmx, SQLModel, Alembic) with the UI kit and a Notes example feature:
+```bash
+uv sync && cp .env.example .env        # set SECRET_KEY and APP_NAME in .env
+uv run alembic upgrade head
+bash scripts/gate.sh                   # passes as delivered
+uv run uvicorn app.main:app --app-dir src --reload   # http://localhost:8000
+```
+Every feature copies the Notes pattern (routes, service, repository, models, templates, tests); delete the example once your first real feature exists.
 
 ### 0b. Connect GitHub to Claude
 ```bash
@@ -393,6 +403,11 @@ From here on, every change goes through a branch and a PR, starting with `bash s
 ---
 
 ## Phase 2 - Build loop (repeat once per requirement)
+
+**Build scope.** Every REQ-ID belongs to a release phase (P1, P2, ...; `docs/01-prd.md` section 4a, mirrored as "## Phase N - goal" sections in `docs/TASKS.md`).
+The `Build scope:` line at the top of TASKS.md decides what is built now: `start.sh`, `autopilot.sh` and the dashboard only pick REQs inside it.
+Set it inside Claude with `scope P1 P2 REQ-017` or in the git pane on main with `bash scripts/start.sh scope P1 P2 REQ-017` (`scope all` for everything); `bash scripts/start.sh scope` shows progress per phase.
+How to phase: P1 is the smallest end-to-end path that delivers the main value (15 to 25 percent of the REQs); P2 the remaining Musts with the main edge cases; later phases group Should REQs by user goal; the last one hardens. 5 to 12 REQs per phase; a big app (50 to 70 REQs) usually has 5 to 7 phases.
 
 **Exit condition = the FULL test suite is GREEN. Not "it looks right." Green.**
 
@@ -762,6 +777,7 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `bash scripts/start.sh REQ-004` | Start or resume that REQ |
 | `bash scripts/start.sh bug "symptom"` | Next BUG-ID: files the Issue, creates `fix/BUG-00X` |
 | `bash scripts/start.sh status` | Where am I: ID, Issue, plan, review, PR, next action |
+| `bash scripts/start.sh scope [P1 P2 REQ-017]` | Show progress per phase and the build scope, or set the scope (on main) |
 | `bash scripts/start.sh check` | Is the kit installed and active here, MCP servers included: PASS / WARN / FAIL per item |
 | `bash scripts/gate.sh` | The quality gate: doclint, lint, format, types, full tests, service coverage (`--full` adds dependency audit and secrets) |
 | `bash scripts/doclint.sh` | README per folder, file headers, function doc blocks, file size, layers (`--changed`: this branch only) |

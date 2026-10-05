@@ -1,0 +1,10 @@
+{#- Start page. REQ-IDs: none - starter app; replace with your own -#}
+{% extends "base.html" %}
+{% import "macros/ui.html" as ui with context %}
+{% block content %}
+<section class="welcome">
+  <h1>{{ settings.app_name }}</h1>
+  <p class="lead">The app is running. This page, the Notes example and the colours are starting points: replace them as your requirements say.</p>
+  <a class="btn btn-primary" href="/notes">Open the Notes example</a>
+</section>
+{% endblock %}
