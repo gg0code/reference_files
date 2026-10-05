@@ -67,6 +67,9 @@ These are not optional polish; a change that omits them is incomplete.
   The loop's exit condition is a green suite, so a rule with no check behind it is a suggestion the loop can ignore.
 - Test files need a header and a docstring or doc block per test (naming its TC-ID), but no `Calls:` line.
 - Generated or vendored files go in `.doclintignore` (one glob per line), with a comment saying why.
+- Diagrams (Archify) live in `docs/diagrams/`: the JSON source and the rendered HTML are committed together, and only the JSON is edited.
+  A diagram is documentation, so it must stay true: every component and arrow matches real code or data paths.
+  When a change adds, removes or rewires a component, update the diagram in the same diff. A wrong diagram is a Major review finding.
 
 ### Formats doclint accepts
 The file header must contain a `REQ-IDs:` line within the first 25 lines (`REQ-IDs: none - <reason>` for shared utilities).

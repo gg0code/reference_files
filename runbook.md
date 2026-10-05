@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.11 (2026-10-04).
+Kit version: v2.12 (2026-10-04).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -126,6 +126,11 @@ bash scripts/gate.sh                   # passes as delivered
 uv run uvicorn app.main:app --app-dir src --reload   # http://localhost:8000
 ```
 Every feature copies the Notes pattern (routes, service, repository, models, templates, tests); delete the example once your first real feature exists.
+
+### 0a3. Diagrams with Archify (optional)
+Install once per machine: `npx skills add tt-a1i/archify -g` (or inside Claude: "Install this skill: https://github.com/tt-a1i/archify").
+The architecture step then draws `docs/diagrams/architecture` and `data-flow`; `explain` adds a flow diagram per REQ; `diagram <what>` draws on request.
+Each diagram is a `.json` source (edit this) plus an `.html` file (open in a browser). The reviewer checks every arrow against the code.
 
 ### 0b. Connect GitHub to Claude
 ```bash

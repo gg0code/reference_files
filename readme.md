@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.11 (2026-10-04).
+Kit version: v2.12 (2026-10-04).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -204,6 +204,15 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v2.12
+
+- Optional Archify skill (open source, MIT) for interactive architecture, data-flow and sequence diagrams as single HTML files.
+  Guide machine setup (check, install only if missing), the architecture step draws `docs/diagrams/architecture` and `data-flow`,
+  `explain` adds a `<ID>-flow` diagram for new request paths, and a new `diagram <what>` command inside Claude.
+- `docs/diagrams/` in every project: JSON source (edited) plus rendered HTML (committed together).
+- Diagrams must match the code: RULES.md section 3, a reviewer step that checks every arrow against real calls (wrong diagram = Major), launch checklist A11.
+- `start.sh check` reports whether Archify is installed (information only).
 
 ## Changes in v2.11
 

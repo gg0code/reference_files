@@ -35,6 +35,9 @@ In PLAN REVIEW MODE (autopilot level 2) you review the plan file only, as the pr
    new network calls (`grep -nE "https?://"`), raw SQL built with f-strings or `+`, `eval(`, `exec(`, `subprocess` with `shell=True`, `# noqa`, `# type: ignore`.
 7. Traceability: every TC-ID the plan covers exists in `tests/` with the REQ-ID; every new source file header names the REQ-ID;
    the architecture section 8 row lists the files; the change map in section 3a still points at real files.
+   If the diff adds, removes or rewires a component, or touches `docs/diagrams/`: open each affected diagram's `.json`
+   and check every node exists in the code and every edge is a real call or data path (Grep for it). A missing update
+   or an arrow with no code behind it is a Major finding.
 8. If a previous `docs/reviews/<ID>.md` exists, check every earlier Critical and Major finding is resolved.
 
 ## What to judge (severities from docs/RULES.md section 8)

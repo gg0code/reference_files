@@ -19,6 +19,7 @@ Record each run in the audit log at the bottom and a line in MEMORY.md.
 - [ ] A7. Every merged REQ-ID and BUG-ID has `docs/reviews/<ID>.md` with `Verdict: APPROVE`. Tool: `bash scripts/req_status.sh` (Review column).
 - [ ] A8. `bash scripts/doclint.sh` passes on the whole codebase (README per folder, file headers, function blocks, file size, layers).
 - [ ] A9. The change map in 02-architecture.md section 3a lists every feature folder, and each entry points at real files.
+- [ ] A11. The diagrams in `docs/diagrams/` (if any) match the code: every component exists, every arrow is a real call or data path.
 - [ ] A10. No `GATE_SKIP`, `# noqa` or `# type: ignore` without a written reason. Tool: `grep -rn "noqa\|type: ignore" src`.
 
 ## B. Security and privacy (blocking)

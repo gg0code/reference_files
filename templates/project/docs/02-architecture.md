@@ -4,7 +4,8 @@ Status: TEMPLATE
 # <Product name> - Architecture
 
 ## 1. Overview
-<!-- Two or three sentences and, if useful, a simple box diagram (Mermaid or ASCII). -->
+<!-- Two or three sentences. Diagram: docs/diagrams/architecture.html (source architecture.json), made with Archify;
+     without Archify, a simple Mermaid or ASCII box diagram here. -->
 
 ## 2. Stack
 | Layer | Choice | Why |
@@ -67,7 +68,7 @@ Fill in the feature areas once they exist. A returning developer uses this table
 <!-- Entities, key fields, relationships. Table or Mermaid ER diagram. -->
 
 ## 5. Data flow
-<!-- How a request or action moves through the system, step by step. -->
+<!-- How a request or action moves through the system, step by step. Diagram: docs/diagrams/data-flow.html (source data-flow.json). -->
 
 ## 6. External dependencies
 Every external service, library loaded from a CDN, or network call is listed here.

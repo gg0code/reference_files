@@ -218,7 +218,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.11 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.12 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Start with <b>Your setup</b>: choose Windows, Mac or Linux, check the folders, and press Save; every command then uses your values and only the steps for your computer are shown. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -490,6 +490,16 @@ source ~/.bashrc</pre>
               <p class="expect">If you skip this, Claude lists what is missing, with these commands, at the start of each session.</p>
             </div>
           </li>
+          <li class="step" data-id="m-archify" data-once="1">
+            <div class="step-body">
+              <div class="step-head"><h3>Diagrams: the Archify skill (optional, free)</h3></div>
+              <p>Archify lets Claude draw interactive architecture, data-flow and sequence diagrams as single HTML files you open in a browser. The kit uses it in the architecture step and in <code>explain</code>, and inside Claude you can ask <code>diagram &lt;what&gt;</code> any time. Open source (MIT), runs locally, needs Node.js (installed in step 1). It is third-party code, so glance at its <code>SKILL.md</code> on GitHub (tt-a1i/archify) before installing. <b>a. Check, b. install only if missing:</b></p>
+              <pre data-label="bash · terminal">ls -d ~/.claude/skills/archify 2&gt;/dev/null &amp;&amp; echo "Archify already installed" || npx skills add tt-a1i/archify -g</pre>
+              <p>If that command asks which agent to install for, choose <b>Claude Code</b>. Alternatively, inside Claude: <i>"Install this skill: https://github.com/tt-a1i/archify"</i>.</p>
+              <pre data-label="prompt · inside Claude Code" class="prompt">Is the archify skill available to you? If yes, run its doctor check and tell me the result.</pre>
+              <p class="expect">You should see: Claude confirms the skill and a passing doctor check. Diagrams always need a sanity check: Archify validates the drawing, but Claude decides the arrows, so the reviewer checks that every arrow is a real call in the code.</p>
+            </div>
+          </li>
           <li class="step" data-id="m-rtk" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Token savers: RTK and the cost status line (optional)</h3></div>
@@ -618,7 +628,7 @@ if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux
               <tr><td>&#9000; <b>Type inside Claude</b> boxes (interview, drafts, wireframe, Issues)</td><td><b>claude pane</b>, at Claude's prompt. Type the <code>/model ...</code> line from the box header first.</td></tr>
               <tr><td><b>bash · git pane</b> boxes (<code>git add</code>, <code>git commit</code>, <code>git push</code>, <code>gh</code>)</td><td><b>git pane</b>, a terminal in the project folder</td></tr>
               <tr><td>Reading a draft, editing it, changing line 1 to <code>Status: APPROVED - {DATE}</code></td><td><b>Your editor</b>: in the git pane type <code>code .</code> to open the project in VS Code<span data-os="windows"> (it opens through WSL automatically)</span>, or ask Claude in the claude pane to make the edit for you</td></tr>
-              <tr><td>Opening the prototype or the wireframe (<code>docs/prototype/index.html</code>, <code>docs/03-wireframe/index.html</code>)</td><td><b>Your browser</b><span data-os="windows">: in the git pane, <code>explorer.exe docs/03-wireframe/index.html</code></span><span data-os="mac">: in the git pane, <code>open docs/03-wireframe/index.html</code></span><span data-os="linux">: in the git pane, <code>xdg-open docs/03-wireframe/index.html</code></span></td></tr>
+              <tr><td>Opening the prototype or the wireframe (<code>docs/prototype/index.html</code>, <code>docs/03-wireframe/index.html</code>)</td><td><b>Your browser</b>: from any pane or folder, <span data-os="windows"><code>explorer.exe "$(wslpath -w {ROOT}/{APP}/docs/03-wireframe/index.html)"</code></span><span data-os="mac"><code>open {ROOT}/{APP}/docs/03-wireframe/index.html</code></span><span data-os="linux"><code>xdg-open {ROOT}/{APP}/docs/03-wireframe/index.html</code></span> (for the prototype, <code>docs/prototype/index.html</code> instead)</td></tr>
             </tbody>
           </table></div>
           The tests and frontend panes are not used in this phase.
@@ -656,7 +666,9 @@ Do not use REQ-IDs yet; requirements come later.</pre>
             <div class="step-body">
               <div class="step-head"><h3>Click through and refine (repeat until it feels right)</h3></div>
               <p>Open it in your browser and use it as a real user would. Then tell Claude what to change, and why: the reason matters as much as the change. Repeat this step as many rounds as you need; three to six is typical.</p>
-              <pre data-label="bash · git pane">explorer.exe docs/prototype/index.html</pre>
+              <pre data-label="bash · any pane" data-os="windows">explorer.exe "$(wslpath -w {ROOT}/{APP}/docs/prototype/index.html)"</pre>
+<pre data-label="bash · any pane" data-os="mac">open {ROOT}/{APP}/docs/prototype/index.html</pre>
+<pre data-label="bash · any pane" data-os="linux">xdg-open {ROOT}/{APP}/docs/prototype/index.html</pre>
               <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Prototype feedback, round N:
 1. &lt;screen&gt;: &lt;what to change&gt;, because &lt;why&gt;
 2. &lt;screen&gt;: &lt;what to change&gt;, because &lt;why&gt;
@@ -732,6 +744,10 @@ List every external dependency in section 6.
 Then fill docs/03-ui-design.md from the frozen prototype in docs/prototype/: its colours as light and dark tokens
 (fix any that fail WCAG AA), typography, components, the empty/loading/error states, and section 9 listing
 every prototype screen with its REQ-IDs. Note anything you changed from the prototype and why.
+Then, if the Archify skill is installed: use archify to draw docs/diagrams/architecture (components and
+how they connect, from sections 1 and 2) and docs/diagrams/data-flow (section 5); save the .json source and the
+rendered .html for each. Draw only components and arrows the documents actually describe. Without Archify, put a
+simple Mermaid diagram in section 1 instead and tell me.
 Leave both Status lines as DRAFT.</pre>
               <pre data-label="prompt · claude pane · /model opus" class="prompt" data-route="spec">Fill docs/02-architecture.md from docs/01-prd.md.
 Non-functional envelope: (users, data volume, response time, auth, deployment, offline needs).
@@ -740,12 +756,17 @@ Flag any REQ-ID with no row (gap) and any component with no REQ-ID (scope creep)
 List every external dependency in section 6.
 Then fill docs/03-ui-design.md: colour tokens for light and dark (WCAG AA), typography,
 components, the empty/loading/error states, and section 9 listing every screen with its REQ-IDs.
+Then, if the Archify skill is installed: use archify to draw docs/diagrams/architecture (components and
+how they connect, from sections 1 and 2) and docs/diagrams/data-flow (section 5); save the .json source and the
+rendered .html for each. Draw only components and arrows the documents actually describe. Without Archify, put a
+simple Mermaid diagram in section 1 instead and tell me.
 Leave both Status lines as DRAFT.</pre>
             </div>
           </li>
           <li class="step gate" data-id="s-arch-gate" data-pane="you">
             <div class="step-body">
               <div class="step-head"><h3>Review the traceability table both ways</h3></div>
+              <p>If Archify drew the diagrams, open them first, from any pane: <span data-os="windows"><code>explorer.exe "$(wslpath -w {ROOT}/{APP}/docs/diagrams/architecture.html)"</code></span><span data-os="mac"><code>open {ROOT}/{APP}/docs/diagrams/architecture.html</code></span><span data-os="linux"><code>xdg-open {ROOT}/{APP}/docs/diagrams/architecture.html</code></span>. Does the picture match what you expect the app to be? Ask Claude to change anything that surprises you, then commit <code>docs/diagrams/</code> with the architecture.</p>
               <p>No REQ-ID without a row, no component without a REQ-ID, no external dependency you did not expect. Approve both, then commit.</p>
               <pre data-label="bash · git pane">git add docs/02-architecture.md docs/03-ui-design.md
 git commit -m "docs: architecture + UI design (approved)" && git push</pre>
@@ -765,7 +786,7 @@ covering the full happy path for {APP}, following docs/03-ui-design.md.
 Every screen or element that serves a requirement carries data-req="REQ-00X".
 Add a "trace mode" toggle that shows a visible badge with each element's REQ-ID.
 No backend; hardcode sample data.</pre>
-              <p>Open it in the <span class="chip pane frontend">frontend</span> pane (<code>explorer.exe docs/03-wireframe/index.html</code>), click through, toggle trace mode.</p>
+              <p>Open it in the <span class="chip pane frontend">frontend</span> pane (<span data-os="windows"><code>explorer.exe "$(wslpath -w {ROOT}/{APP}/docs/03-wireframe/index.html)"</code></span><span data-os="mac"><code>open {ROOT}/{APP}/docs/03-wireframe/index.html</code></span><span data-os="linux"><code>xdg-open {ROOT}/{APP}/docs/03-wireframe/index.html</code></span>), click through, toggle trace mode.</p>
               <pre data-label="bash · git pane">git add docs/03-wireframe/ && git commit -m "docs: wireframe with data-req tags (approved)" && git push</pre>
             </div>
           </li>
@@ -1233,6 +1254,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>release check</code></td><td>Re-runs the blocking sections and adds an audit-log row.</td></tr>
             <tr><td><code>explain</code></td><td>After APPROVE: appends a plain-language walkthrough to <code>docs/reviews/&lt;ID&gt;.md</code> (files changed, request path, where to look if it breaks).</td></tr>
             <tr><td><code>mcp</code></td><td>Re-runs the MCP setup check and lists any missing server with its install command.</td></tr>
+            <tr><td><code>diagram &lt;what&gt;</code></td><td>With Archify: draws or updates a diagram in <code>docs/diagrams/</code> (e.g. <code>diagram architecture</code>, <code>diagram the checkout flow</code>). Open the <code>.html</code> in a browser.</td></tr>
             <tr><td><code>phases</code></td><td>Shows the release phases, progress per phase and the current build scope.</td></tr>
             <tr><td><code>scope P1 P2 REQ-017</code></td><td>Sets what to build now (phases and single REQs; <code>scope all</code> for everything). Commits the <code>Build scope:</code> line in TASKS.md.</td></tr>
             <tr><td><code>wrap up</code></td><td>Regenerates <code>docs/REQUIREMENTS_STATUS.md</code>, ticks TASKS from closed Issues, updates MEMORY.</td></tr>
@@ -1333,7 +1355,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.11: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.12: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>

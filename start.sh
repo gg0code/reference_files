@@ -5,6 +5,8 @@
 #   bash scripts/start.sh REQ-004            start (or resume) that REQ
 #   bash scripts/start.sh bug "symptom"      file the next BUG-ID as an Issue and start fix/BUG-00X
 #   bash scripts/start.sh status             where am I: ID, Issue, plan, review, PR, next action
+#   bash scripts/start.sh scope              show the build scope and progress per phase
+#   bash scripts/start.sh scope P1 P2 REQ-017   set the build scope (on main; commits docs/TASKS.md)
 #   bash scripts/start.sh check              is the kit installed and active in this project? (PASS/WARN/FAIL)
 #                                            includes the MCP servers in .mcp.json (docs/MCP.md)
 #
@@ -28,7 +30,7 @@ kit_event() {
     "$(date +%Y-%m-%dT%H:%M:%S%z)" "$(basename "$0" .sh)" "$1" "${2:-}" "$m" "${4:+,$4}" >> .kit/events.jsonl 2>/dev/null || true
 }
 
-case "${1:-}" in -h|--help|help) sed -n '2,15p' "$0"; exit 0 ;; esac
+case "${1:-}" in -h|--help|help) sed -n '2,17p' "$0"; exit 0 ;; esac
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repo"
 cd "$ROOT" || die "cannot enter $ROOT"
@@ -57,12 +59,27 @@ merged() { git log -E --oneline --grep="(feat|fix)\($1\)" "$(base_ref)" 2>/dev/n
 closed() { [ "$HAVE_GH" = 1 ] && [ -n "$2" ] && [ "$(gh issue view "$2" --json state --jq .state 2>/dev/null)" = "CLOSED" ]; }
 first_line() { [ -f "$1" ] && grep -m1 -v '^[[:space:]]*$' "$1"; }
 
+# ---------- build scope (docs/TASKS.md "Build scope:" line; no line or "all" = everything) ----------
+scope_line() { grep -m1 -E '^Build scope:' docs/TASKS.md 2>/dev/null | sed -E 's/^Build scope:[[:space:]]*//; s/[[:space:]]*<!--.*//; s/[[:space:]]+$//'; }
+scope_tokens() { scope_line | tr '[:lower:]' '[:upper:]' | sed -E 's/PHASE[[:space:]]*/P/g' | tr ',;' '  '; }
+# req_phase REQ-00X: N of the "## Phase N" heading the REQ line sits under in docs/TASKS.md
+req_phase() { awk -v id="$1" '/^##[[:space:]]+Phase[[:space:]]+[0-9]+/{match($0,/[0-9]+/); p=substr($0,RSTART,RLENGTH)} index($0, "] " id " ") && /- \[[ xX]\]/ {print p; exit}' docs/TASKS.md 2>/dev/null; }
+in_scope() {   # in_scope REQ-00X: true if the build scope includes the REQ or its phase
+  local s t p; s="$(scope_tokens)"
+  [ -z "${s// /}" ] && return 0
+  for t in $s; do [ "$t" = ALL ] || [ "$t" = "$1" ] && return 0; done
+  p="$(req_phase "$1")"; [ -n "$p" ] || return 1
+  for t in $s; do case "$t" in P[0-9]*) [ "${t#P}" = "$p" ] && return 0 ;; esac; done
+  return 1
+}
+
 # ---------- status ----------
 show_status() {
   local id br issue plan pl rv vl pr dirty nxt
   br="$(git branch --show-current)"; id="$(current_id)"
   echo ""
   echo "  branch : $br"
+  [ -n "$(scope_line)" ] && echo "  scope  : $(scope_line)   (progress per phase: bash scripts/start.sh scope)"
   if [ -z "$id" ]; then
     echo "  work   : none (not on a REQ or BUG branch)"
     echo "  next   : bash scripts/start.sh            (or: bash scripts/start.sh bug \"symptom\")"
@@ -128,6 +145,8 @@ mcp_check() {
   else wrn "graphify map not built yet: in the claude pane run /graphify .  (optional while the project is small)"; fi
   grep -qxF 'graphify-out/' .gitignore 2>/dev/null || wrn ".gitignore does not list graphify-out/"
   echo "    INFO  : connection itself can only be seen inside claude: type /mcp in the claude pane"
+  if [ -d "$HOME/.claude/skills/archify" ] || [ -d .claude/skills/archify ]; then pass "Archify diagram skill installed (optional)"
+  else echo "    INFO  : Archify diagram skill not installed (optional): npx skills add tt-a1i/archify -g"; fi
 }
 
 # ---------- check: is the kit installed and active? ----------
@@ -246,11 +265,13 @@ start_req() {   # start_req [REQ-00X]
       [[ "$line" =~ ^[[:space:]]*-\ \[\ \]\ (REQ-[0-9]{3})\ \(#([0-9]+)\) ]] || continue
       r="${BASH_REMATCH[1]}"; n="${BASH_REMATCH[2]}"
       if merged "$r" || closed "$r" "$n"; then info "$r already done - skipping (tick it with 'wrap up')"; continue; fi
+      in_scope "$r" || continue
       id="$r"; break
     done < docs/TASKS.md
-    [ -n "$id" ] || die "no unticked REQ line like '- [ ] REQ-001 (#12) title' left in docs/TASKS.md"
+    [ -n "$id" ] || die "nothing left to start inside the build scope ($(scope_line)). Widen it: bash scripts/start.sh scope P1 P2 ...   (or type 'scope ...' inside Claude). See progress: bash scripts/start.sh scope"
   fi
   [[ "$id" =~ ^REQ-[0-9]{3}$ ]] || die "not a REQ-ID: $id"
+  in_scope "$id" || warn "$id is outside the build scope ($(scope_line)) - starting it because you named it"
   issue="$(issue_for "$id")"
   [ -n "$issue" ] || die "no Issue number for $id: add '(#N)' to its line in docs/TASKS.md"
   title="$(title_for "$id" "$issue")"
@@ -295,8 +316,48 @@ Actual:
   echo "  next   : add the steps to the Issue, then in the claude pane: reproduce $id end-to-end and write a FAILING test (runbook Phase 3)"
 }
 
+# ---------- scope: show or set ----------
+show_scope() {
+  local line ph="" goal r n tot=0 dn=0 itot=0 idn=0 mark
+  echo ""
+  echo "  build scope: $(scope_line || true)"
+  [ -n "$(scope_line)" ] || echo "               (no 'Build scope:' line in docs/TASKS.md: everything is in scope)"
+  echo ""
+  printf '  %-6s %-6s %-9s %s\n' PHASE SCOPE DONE GOAL
+  flush() { [ -n "$ph" ] && printf '  %-6s %-6s %-9s %s\n' "P$ph" "$mark" "$dn/$tot" "$goal"; }
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^##[[:space:]]+Phase[[:space:]]+([0-9]+)[[:space:]]*-?[[:space:]]*(.*)$ ]]; then
+      flush; ph="${BASH_REMATCH[1]}"; goal="${BASH_REMATCH[2]}"; tot=0; dn=0; mark="-"
+    elif [[ "$line" =~ ^##[[:space:]] ]]; then flush; ph=""
+    elif [ -n "$ph" ] && [[ "$line" =~ -\ \[([\ xX])\]\ (REQ-[0-9]{3})\ \(#([0-9]+)\) ]]; then
+      r="${BASH_REMATCH[2]}"; tot=$((tot+1))
+      if [ "${BASH_REMATCH[1]}" != " " ] || merged "$r"; then dn=$((dn+1)); fi
+      if in_scope "$r"; then mark="yes"; itot=$((itot+1)); { [ "${BASH_REMATCH[1]}" != " " ] || merged "$r"; } && idn=$((idn+1)); fi
+    fi
+  done < docs/TASKS.md
+  flush
+  echo ""
+  echo "  in scope: $idn of $itot REQs done"
+}
+set_scope() {
+  local new br
+  new="$(printf '%s ' "$@" | tr ',;' '  ' | tr '[:lower:]' '[:upper:]' | sed -E 's/PHASE[[:space:]]*/P/g' | xargs | sed 's/ /, /g; s/^ALL$/all/')"
+  for t in ${new//,/}; do [[ "$t" =~ ^(P[0-9]+|REQ-[0-9]{3}|all)$ ]] || die "not a phase or REQ-ID: '$t' (use P1, P2, REQ-017 or all)"; done
+  [ -n "$new" ] || { show_scope; return 0; }
+  br="$(git branch --show-current)"
+  [ "$br" = "$BASE" ] || die "change the scope on $BASE (git checkout $BASE), or type 'scope $new' inside Claude"
+  if grep -qE '^Build scope:' docs/TASKS.md; then sed -i -E "s|^Build scope:.*$|Build scope: ${new//,/, }|" docs/TASKS.md
+  else sed -i -E "0,/^# Tasks/s//# Tasks\n\nBuild scope: ${new//,/, }/" docs/TASKS.md; fi
+  sed -i -E 's/^Build scope: (.*)$/Build scope: \1/; s/,[[:space:]]*,/,/g; s/  +/ /g' docs/TASKS.md
+  git add docs/TASKS.md && git commit -q -m "docs(scope): build scope $(scope_line)" && ok "build scope is now: $(scope_line)"
+  git push -q 2>/dev/null || warn "not pushed (offline?) - run git push later"
+  kit_event scope "" "Build scope changed to: $(scope_line)"
+  show_scope
+}
+
 case "${1:-}" in
   "")              start_req "" ;;
+  scope)           shift; set_scope "$@" ;;
   status|where)    show_status ;;
   check|doctor)    kit_check ;;
   bug)             shift; start_bug "$*" ;;
