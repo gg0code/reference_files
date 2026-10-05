@@ -167,6 +167,11 @@ kit_check() {
   [ "${n:-0}" -eq 0 ] && pass "docs/: 00-05, RULES, TASKS, MEMORY, plans/_TEMPLATE, reviews/ present"
   if [ -f .claude/agents/reviewer.md ] && grep -q '^name: reviewer' .claude/agents/reviewer.md; then pass ".claude/agents/reviewer.md (second agent)"
   else bad ".claude/agents/reviewer.md missing: copy it from the kit's templates/project/"; fi
+  n="$(ls .claude/commands/*.md 2>/dev/null | wc -l)"
+  if [ "$n" -gt 0 ]; then pass ".claude/commands/: $n slash commands (type / in Claude)"; else wrn ".claude/commands/ missing: copy it from the kit's templates/project/.claude/"; fi
+  if [ -f .claude/hooks/guard-files.sh ] && [ -f .claude/hooks/guard-bash.sh ] && grep -q '"PreToolUse"' .claude/settings.json 2>/dev/null; then
+    pass ".claude/hooks/ registered (guards for main, .env, force-push; auto-format; idle and needs-you signals)"
+  else wrn ".claude/hooks/ missing or not registered in .claude/settings.json: copy both from the kit's templates/project/.claude/"; fi
   if [ -f .claude/settings.json ] && python3 -m json.tool .claude/settings.json >/dev/null 2>&1; then pass ".claude/settings.json (pre-approved read-only commands for the reviewer)"
   else wrn ".claude/settings.json missing or invalid JSON: the reviewer will ask permission for every command"; fi
   n=0

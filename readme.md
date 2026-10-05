@@ -1,6 +1,6 @@
 # Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.12 (2026-10-04).
+Kit version: v2.13 (2026-10-05).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -26,6 +26,8 @@ reference_files/
     project/                 everything a new project starts with
       CLAUDE.md              the project constitution (FIXED + FILL IN sections)
       .claude/agents/reviewer.md   the second agent: read-only code reviewer (Opus)
+      .claude/commands/      slash commands: /setup /next /review /explain /status /audit /fix /release-check /wrap-up /phases /scope /diagram /mcp
+      .claude/hooks/         guards (main, .env, force-push, hard reset, --no-verify, pushes to main), Python auto-format, idle and needs-you signals
       .claude/settings.json        pre-approved read-only commands (the reviewer runs without prompts)
       .mcp.json              MCP servers: chrome-devtools, playwright, graphify (free, local, no keys)
       .gitignore
@@ -182,6 +184,12 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+- To bring a v2.12 project up to v2.13 (commands and hooks), from the project root:
+  ```bash
+  cp -r <kit>/templates/project/.claude/commands <kit>/templates/project/.claude/hooks .claude/
+  # merge the "hooks" block of <kit>/templates/project/.claude/settings.json into .claude/settings.json
+  cp <kit>/dashboard.py <kit>/start.sh scripts/ && bash scripts/start.sh check
+  ```
 - To bring a v2.8 project up to v2.9 (dashboard), from the project root:
   ```bash
   cp <kit>/dashboard.py <kit>/loop.sh <kit>/gate.sh <kit>/pr.sh <kit>/start.sh <kit>/autopilot.sh scripts/
@@ -204,6 +212,16 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v2.13
+
+- `.claude/commands/`: every kit command is a slash command (type `/` in Claude). Each file points at its row in CLAUDE.md section 9, which stays the single description; plain words still work.
+- `.claude/hooks/`, registered in `.claude/settings.json`, so rules are enforced instead of only requested:
+  `guard-files.sh` blocks code edits (src, tests, migrations, scripts) on main and any read or write of `.env` files;
+  `guard-bash.sh` blocks `.env` access, force-push, `git reset --hard`, `--no-verify`, deletes outside the project and pushes to main;
+  `format-file.sh` formats every Python file Claude writes; `on-stop.sh` and `on-notify.sh` tell the dashboard when Claude is idle or waiting for you (with a terminal bell).
+- Dashboard: "Claude is waiting for you" at the top of Needs you. `start.sh check` verifies commands and hooks. Walking skeleton runs on `chore/walking-skeleton`.
+- Guide: slash commands everywhere, reference rows for commands and hooks, tips. `.claude/settings.local.json` is gitignored.
 
 ## Changes in v2.12
 

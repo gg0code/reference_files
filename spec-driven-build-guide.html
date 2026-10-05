@@ -218,7 +218,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.12 · new project walkthrough</div>
+      <div class="eyebrow">Reference kit v2.13 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Start with <b>Your setup</b>: choose Windows, Mac or Linux, check the folders, and press Save; every command then uses your values and only the steps for your computer are shown. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -357,7 +357,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
             <span class="k t">bash · terminal</span><span>A <b>terminal command</b>: paste it into the terminal<span data-os="windows"> (the Ubuntu window)</span>, or the git pane once you have panes. Boxes labelled <b>powershell</b> or <b>cmd</b> go into PowerShell or CMD.</span>
             <span class="k c">&#9000; Type inside Claude</span><span>Typed at <b>Claude's prompt</b>: first start Claude Code with <code>claude</code> in a terminal (or use the claude pane), then type it in Claude's input box. If the box says <i>first type /model opus</i>, type that line, press Enter, then type the box's text.</span>
           </div>
-          <p style="margin:8px 0 0">Always typed inside Claude, never in a terminal: the words <code>setup</code>, <code>next</code>, <code>review</code>, <code>explain</code>, <code>status</code>, <code>audit</code>, <code>wrap up</code>, <code>mcp</code>, and every command starting with <code>/</code> (<code>/model</code>, <code>/mcp</code>, <code>/statusline</code>, <code>/compact</code>, <code>/rc</code>, <code>/graphify</code>, <code>/exit</code>).</p>
+          <p style="margin:8px 0 0">Always typed inside Claude, never in a terminal: every command starting with <code>/</code>. The kit's own (<code>/setup</code>, <code>/next</code>, <code>/review</code>, <code>/explain</code>, <code>/status</code>, <code>/scope</code>, <code>/wrap-up</code> ...; type <code>/</code> to see them all) and Claude Code's (<code>/model</code>, <code>/mcp</code>, <code>/statusline</code>, <code>/compact</code>, <code>/rc</code>, <code>/exit</code>).</p>
         </div>
         <p class="osnote" data-os="windows">Showing steps for <b>Windows</b>. The kit's scripts are written for Linux, so on Windows everything runs inside <b>Ubuntu</b>, a Linux system Windows installs for you (Microsoft calls this WSL). After step 1 you type every command in this guide into the Ubuntu window, never into PowerShell, unless a step says PowerShell.</p>
         <div class="osnote" data-os="windows">
@@ -583,7 +583,7 @@ if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux
               <div class="step-head"><h3>Start Claude and run setup</h3></div>
               <p>The first time in a new repo, accept the trust dialog (without it <code>loop.sh</code> runs untrusted and may not write files) and approve the project MCP servers.</p>
               <pre data-label="bash · claude pane">claude</pre>
-              <pre data-label="prompt · claude pane" class="prompt">setup</pre>
+              <pre data-label="prompt · claude pane" class="prompt">/setup</pre>
               <p class="expect">You should see: a table of every doc still at TEMPLATE or DRAFT, and the setup order. If an MCP server is not connected, also a short ✅/❌ list with the install commands (nothing about MCP when all are connected). Claude will not write application code until setup is approved.</p>
             </div>
           </li>
@@ -831,7 +831,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
             <div class="step-body">
               <div class="step-head"><h3>Close setup and protect main</h3></div>
               <p>Approve <code>docs/MEMORY.md</code> with a first session-log line, then run <code>setup</code> once more. Once CI has run on GitHub at least once, turn on branch protection. From here on every change goes through a branch and a PR.</p>
-              <pre data-label="prompt · claude pane" class="prompt">setup</pre>
+              <pre data-label="prompt · claude pane" class="prompt">/setup</pre>
               <p class="expect">You should see: nothing left at TEMPLATE or DRAFT.</p>
               <pre data-label="bash · git pane · after CI has run once">gh api -X PUT repos/{GHUSER}/{APP}/branches/main/protection \
   -F required_status_checks[strict]=true \
@@ -853,11 +853,11 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
           <div class="tablewrap"><table class="ref">
             <thead><tr><th>You want</th><th>Inside Claude</th><th>or in the git pane (on main)</th></tr></thead>
             <tbody>
-              <tr><td>Only phase 1</td><td><code>scope P1</code></td><td><code>bash scripts/start.sh scope P1</code></td></tr>
-              <tr><td>Phases 1 and 2 together</td><td><code>scope P1 P2</code></td><td><code>bash scripts/start.sh scope P1 P2</code></td></tr>
-              <tr><td>Phases 1 and 2 plus three REQs from phase 3</td><td><code>scope P1 P2 REQ-017 REQ-019 REQ-021</code></td><td><code>bash scripts/start.sh scope P1 P2 REQ-017 REQ-019 REQ-021</code></td></tr>
-              <tr><td>Everything</td><td><code>scope all</code></td><td><code>bash scripts/start.sh scope all</code></td></tr>
-              <tr><td>See the phases, progress and scope</td><td><code>phases</code></td><td><code>bash scripts/start.sh scope</code></td></tr>
+              <tr><td>Only phase 1</td><td><code>/scope P1</code></td><td><code>bash scripts/start.sh scope P1</code></td></tr>
+              <tr><td>Phases 1 and 2 together</td><td><code>/scope P1 P2</code></td><td><code>bash scripts/start.sh scope P1 P2</code></td></tr>
+              <tr><td>Phases 1 and 2 plus three REQs from phase 3</td><td><code>/scope P1 P2 REQ-017 REQ-019 REQ-021</code></td><td><code>bash scripts/start.sh scope P1 P2 REQ-017 REQ-019 REQ-021</code></td></tr>
+              <tr><td>Everything</td><td><code>/scope all</code></td><td><code>bash scripts/start.sh scope all</code></td></tr>
+              <tr><td>See the phases, progress and scope</td><td><code>/phases</code></td><td><code>bash scripts/start.sh scope</code></td></tr>
             </tbody>
           </table></div>
           When everything in the scope is live, <code>start.sh</code> says so and the dashboard shows "Build scope done": widen the scope to continue. Naming a REQ outside the scope (<code>bash scripts/start.sh REQ-030</code>) still works, with a warning.
@@ -875,7 +875,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
             <div class="step-body">
               <div class="step-head"><h3>Plan only, no code</h3></div>
               <p>Claude drafts <code>docs/plans/&lt;REQ&gt;.md</code> for the REQ in the current branch.</p>
-              <pre data-label="prompt · claude pane · /model opus" class="prompt">next</pre>
+              <pre data-label="prompt · claude pane · /model opus" class="prompt">/next</pre>
             </div>
           </li>
           <li class="step gate" data-id="b-plan-gate" data-pane="you">
@@ -912,7 +912,7 @@ git add -A && git commit -m "feat: what this change does"</pre>
             <div class="step-body">
               <div class="step-head"><h3>Review by the second agent</h3></div>
               <p>The reviewer runs on Opus in a fresh context, can only read, and checks the branch against the plan, the PRD row, the TC rows and RULES.md. Its report is saved to <code>docs/reviews/&lt;REQ&gt;.md</code> and committed.</p>
-              <pre data-label="prompt · claude pane" class="prompt">review</pre>
+              <pre data-label="prompt · claude pane" class="prompt">/review</pre>
               <p class="expect">You should see: <b>Verdict: APPROVE</b> or <b>Verdict: CHANGES REQUESTED</b>, with findings ranked Critical, Major, Minor.</p>
             </div>
           </li>
@@ -922,14 +922,14 @@ git add -A && git commit -m "feat: what this change does"</pre>
               <p>The loop reads the findings and fixes the Critical and Major ones, and lists any it disputes for you to decide. Skip this step when the verdict is APPROVE. Maximum 2 rounds; a second CHANGES REQUESTED means the plan is wrong.</p>
               <pre data-label="bash · git pane">bash scripts/loop.sh
 git add -A && git commit -m "fix: address review findings"</pre>
-              <pre data-label="prompt · claude pane" class="prompt">review</pre>
+              <pre data-label="prompt · claude pane" class="prompt">/review</pre>
             </div>
           </li>
           <li class="step" data-id="b-explain" data-pane="claude" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Read the walkthrough</h3></div>
               <p>After APPROVE, Claude explains the change in plain language and appends it to <code>docs/reviews/&lt;ID&gt;.md</code>: what the user can now do, each file changed and why, the path a request takes (route, service, repository), and where to look if it breaks.</p>
-              <pre data-label="prompt · claude pane" class="prompt">explain</pre>
+              <pre data-label="prompt · claude pane" class="prompt">/explain</pre>
               <p class="expect">Read it before the PR. If you cannot follow it, ask Claude to simplify the code now: this is the moment it is cheapest.</p>
             </div>
           </li>
@@ -963,7 +963,7 @@ docs/04-testplan.md and whether each currently PASSES, plus its row in
 docs/02-architecture.md section 8. Flag any REQ-ID with zero passing tests (UNVERIFIABLE),
 any failing test, and any architecture row that no longer matches the code.
 Output a markdown table.</pre>
-              <pre data-label="prompt · claude pane · /model haiku" class="prompt">wrap up</pre>
+              <pre data-label="prompt · claude pane · /model haiku" class="prompt">/wrap-up</pre>
               <p class="expect">Then press <b>Start next REQ</b> above and go back to step 1.</p>
             </div>
           </li>
@@ -1011,7 +1011,7 @@ gh pr list</pre>
                 <li>Plans marked <code>by reviewer agent</code>: read them, you did not approve them.</li>
                 <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge with <code>bash scripts/pr.sh merge</code> on that branch, then Phase 4 step 11.</li>
               </ul>
-              <pre data-label="prompt · claude pane" class="prompt">wrap up</pre>
+              <pre data-label="prompt · claude pane" class="prompt">/wrap-up</pre>
             </div>
           </li>
         </ol>
@@ -1058,7 +1058,7 @@ the full suite must stay green. Do not weaken or skip any test.</pre>
           <li class="step gate" data-id="g-pr" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Review, PR, merge</h3></div>
-              <pre data-label="prompt · claude pane · reviewer agent" class="prompt">review</pre>
+              <pre data-label="prompt · claude pane · reviewer agent" class="prompt">/review</pre>
               <p>Fix and review again until <b>APPROVE</b> (maximum 2 rounds), then:</p>
               <pre data-label="bash · git pane">bash scripts/pr.sh
 # review the PR on GitHub, then:
@@ -1077,7 +1077,7 @@ bash scripts/pr.sh merge</pre>
           <li class="step" data-id="r-audit" data-pane="claude" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Audit, without fixing</h3></div>
-              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">audit</pre>
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">/audit</pre>
               <p class="expect">You should see: every item marked Pass, Fail or N/A with evidence (tool output, file:line or screenshot), and a table of Fails with A and B first.</p>
             </div>
           </li>
@@ -1098,7 +1098,7 @@ bash scripts/pr.sh merge</pre>
           <li class="step" data-id="r-check" data-pane="claude" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Release check and tag</h3></div>
-              <pre data-label="prompt · claude pane" class="prompt">release check</pre>
+              <pre data-label="prompt · claude pane" class="prompt">/release-check</pre>
               <pre data-label="bash · git pane">git checkout main && git pull
 git tag v1.0.0 && git push --tags</pre>
             </div>
@@ -1166,7 +1166,7 @@ Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -D
           <li class="step" data-id="d-stop" data-pane="claude">
             <div class="step-body">
               <div class="step-head"><h3>Before you stop</h3></div>
-              <pre data-label="prompt · claude pane" class="prompt">wrap up</pre>
+              <pre data-label="prompt · claude pane" class="prompt">/wrap-up</pre>
               <pre data-label="bash · git pane">git add -A && git commit -m "wip: exactly where I stopped" && git push</pre>
             </div>
           </li>
@@ -1230,6 +1230,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
 
         <h3 class="sub">Staying safe</h3>
         <div class="tips">
+          <div class="tip"><h4>"Blocked by the kit" is a hook doing its job</h4><p>The project's hooks stop Claude from editing code on main, touching <code>.env</code>, force-pushing, hard resets, <code>--no-verify</code> and pushing straight to main. The message says what to do instead (usually <code>bash scripts/start.sh</code> for a branch). Never remove a hook to get past it.</p></div>
+          <div class="tip"><h4>The bell means Claude needs you</h4><p>When Claude waits for a permission or an answer, the terminal beeps and the dashboard shows "Claude is waiting for you" at the top of Needs you.</p></div>
           <div class="tip"><h4>Lost? Ask the script</h4><p><code>bash scripts/start.sh status</code> shows the current REQ, plan, review, PR and the exact next action.</p></div>
           <div class="tip"><h4>Main is red after a merge</h4><p>Revert first, diagnose second. <code>pr.sh merge</code> prints the revert command.</p></div>
           <div class="tip"><h4>Secrets never in files</h4><p>Keys go in <code>.env</code> (gitignored) and paid MCP servers use <code>claude mcp add --scope local</code>. CI runs gitleaks on every PR.</p></div>
@@ -1241,23 +1243,24 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
       <section class="phase" id="reference" data-phase="reference">
         <div class="phase-head"><h2>Reference</h2><span class="when">Commands, files, models and fixes at a glance.</span></div>
 
-        <h3 class="sub">Words you type inside Claude (claude pane), never in a terminal</h3>
+        <h3 class="sub">Commands you type inside Claude (claude pane), never in a terminal</h3>
+        <p>Each is a slash command: type <code>/</code> in Claude and pick from the list (the project's <code>.claude/commands/</code>). The plain word without the slash works too.</p>
         <div class="tablewrap"><table class="ref">
           <thead><tr><th>Type</th><th>What happens</th></tr></thead>
           <tbody>
-            <tr><td><code>setup</code></td><td>Lists docs still at TEMPLATE or DRAFT and continues the setup order.</td></tr>
-            <tr><td><code>next</code></td><td>Drafts the plan for the REQ in the current branch (runs <code>start.sh</code> first if you are on main).</td></tr>
-            <tr><td><code>review</code></td><td>Runs the read-only reviewer agent on the current branch; saves its report to <code>docs/reviews/</code> and shows the verdict.</td></tr>
-            <tr><td><code>status</code></td><td>Runs the REQ ledger and summarises it with MEMORY and open TASKS in 5 lines.</td></tr>
-            <tr><td><code>audit</code></td><td>Goes through the launch checklist with evidence. Fixes nothing.</td></tr>
-            <tr><td><code>fix A3, B1</code></td><td>Fixes only those checklist items and re-checks them with the same tool.</td></tr>
-            <tr><td><code>release check</code></td><td>Re-runs the blocking sections and adds an audit-log row.</td></tr>
-            <tr><td><code>explain</code></td><td>After APPROVE: appends a plain-language walkthrough to <code>docs/reviews/&lt;ID&gt;.md</code> (files changed, request path, where to look if it breaks).</td></tr>
-            <tr><td><code>mcp</code></td><td>Re-runs the MCP setup check and lists any missing server with its install command.</td></tr>
-            <tr><td><code>diagram &lt;what&gt;</code></td><td>With Archify: draws or updates a diagram in <code>docs/diagrams/</code> (e.g. <code>diagram architecture</code>, <code>diagram the checkout flow</code>). Open the <code>.html</code> in a browser.</td></tr>
-            <tr><td><code>phases</code></td><td>Shows the release phases, progress per phase and the current build scope.</td></tr>
-            <tr><td><code>scope P1 P2 REQ-017</code></td><td>Sets what to build now (phases and single REQs; <code>scope all</code> for everything). Commits the <code>Build scope:</code> line in TASKS.md.</td></tr>
-            <tr><td><code>wrap up</code></td><td>Regenerates <code>docs/REQUIREMENTS_STATUS.md</code>, ticks TASKS from closed Issues, updates MEMORY.</td></tr>
+            <tr><td><code>/setup</code></td><td>Lists docs still at TEMPLATE or DRAFT and continues the setup order.</td></tr>
+            <tr><td><code>/next</code></td><td>Drafts the plan for the REQ in the current branch (runs <code>start.sh</code> first if you are on main).</td></tr>
+            <tr><td><code>/review</code></td><td>Runs the read-only reviewer agent on the current branch; saves its report to <code>docs/reviews/</code> and shows the verdict.</td></tr>
+            <tr><td><code>/status</code></td><td>Runs the REQ ledger and summarises it with MEMORY and open TASKS in 5 lines.</td></tr>
+            <tr><td><code>/audit</code></td><td>Goes through the launch checklist with evidence. Fixes nothing.</td></tr>
+            <tr><td><code>/fix A3 B1</code></td><td>Fixes only those checklist items and re-checks them with the same tool.</td></tr>
+            <tr><td><code>/release-check</code></td><td>Re-runs the blocking sections and adds an audit-log row.</td></tr>
+            <tr><td><code>/explain</code></td><td>After APPROVE: appends a plain-language walkthrough to <code>docs/reviews/&lt;ID&gt;.md</code> (files changed, request path, where to look if it breaks).</td></tr>
+            <tr><td><code>/mcp</code></td><td>Re-runs the MCP setup check and lists any missing server with its install command.</td></tr>
+            <tr><td><code>/diagram &lt;what&gt;</code></td><td>With Archify: draws or updates a diagram in <code>docs/diagrams/</code> (e.g. <code>diagram architecture</code>, <code>diagram the checkout flow</code>). Open the <code>.html</code> in a browser.</td></tr>
+            <tr><td><code>/phases</code></td><td>Shows the release phases, progress per phase and the current build scope.</td></tr>
+            <tr><td><code>/scope P1 P2 REQ-017</code></td><td>Sets what to build now (phases and single REQs; <code>scope all</code> for everything). Commits the <code>Build scope:</code> line in TASKS.md.</td></tr>
+            <tr><td><code>/wrap-up</code></td><td>Regenerates <code>docs/REQUIREMENTS_STATUS.md</code>, ticks TASKS from closed Issues, updates MEMORY.</td></tr>
           </tbody>
         </table></div>
 
@@ -1296,7 +1299,9 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/MEMORY.md</code></td><td>Status, decisions, gotchas, session log</td><td>Claude, at wrap up</td></tr>
             <tr><td><code>docs/plans/REQ-00X.md</code></td><td>Approved plan the loop enforces, with a review focus</td><td>Claude drafts, you approve</td></tr>
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
-            <tr><td><code>.claude/settings.json</code></td><td>Pre-approved read-only commands for the reviewer; blocks force-push and reading <code>.env</code></td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>.claude/settings.json</code></td><td>Pre-approved read-only commands for the reviewer; blocks force-push and reading <code>.env</code>; registers the hooks</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>.claude/commands/</code></td><td>The kit's slash commands (<code>/next</code>, <code>/review</code>, <code>/scope</code> ...); each points at its row in CLAUDE.md section 9</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>.claude/hooks/</code></td><td>Automatic guards (main, <code>.env</code>, force-push, hard reset, <code>--no-verify</code>), auto-format of Python files, and the idle and needs-you signals for the dashboard</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.mcp.json</code></td><td>MCP servers for Claude: chrome-devtools, playwright, graphify (free, local). No API keys in it, ever</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>docs/MCP.md</code></td><td>The MCP setup check Claude runs at session start, and when to use each server. Loaded by CLAUDE.md section 0</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>
@@ -1355,7 +1360,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.12: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.13: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>

@@ -38,6 +38,20 @@ ICON_PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAA5rUl
 STATIONS = ["Plan", "Approved", "Building", "Checking", "Your review", "Live"]
 ID_RE = re.compile(r"(REQ|BUG)-\d{3}")
 TASK_RE = re.compile(r"^\s*- \[( |x|X)\] (REQ-\d{3}) \(#(\d+)\)\s*(.*)$")
+PHASE_RE = re.compile(r"^##\s+Phase\s+(\d+)\s*-?\s*(.*)$", re.I)
+
+
+def parse_scope(tasks_txt: str) -> tuple[str, set[str]]:
+    """The "Build scope:" line of docs/TASKS.md -> (text, tokens). No line or "all" means everything."""
+    m = re.search(r"^Build scope:\s*(.*?)\s*(<!--.*)?$", tasks_txt, re.M)
+    text = m.group(1).strip() if m else ""
+    norm = re.sub(r"PHASE\s*", "P", text.upper())
+    return text, {t for t in re.split(r"[\s,;]+", norm) if t}
+
+
+def in_scope(rid: str, phase: int | None, tokens: set[str]) -> bool:
+    """Same rule as start.sh: the scope names the REQ or its phase (empty scope or "ALL" = everything)."""
+    return not tokens or "ALL" in tokens or rid in tokens or (phase is not None and f"P{phase}" in tokens)
 SPEC_DOCS = [
     ("00-idea.md", "Idea"), ("01-prd.md", "Requirements (PRD)"), ("02-architecture.md", "Architecture"),
     ("03-ui-design.md", "UI design"), ("04-testplan.md", "Test plan"), ("TASKS.md", "Task list"),
@@ -373,12 +387,33 @@ def build_state() -> dict:
     tasks_txt = read("docs/TASKS.md")
     tasks_template = tasks_txt.startswith("Status: TEMPLATE")
     features = []
+    scope_text, scope_tokens = parse_scope(tasks_txt)
+    phases: list[dict] = []
     if not tasks_template:
+        cur_phase = None
         for line in tasks_txt.splitlines():
+            pm = PHASE_RE.match(line)
+            if pm:
+                cur_phase = int(pm.group(1))
+                phases.append({"n": cur_phase, "goal": pm.group(2).strip(), "total": 0, "live": 0, "in_scope": False,
+                               "scoped": 0})
+                continue
+            if line.startswith("## "):
+                cur_phase = None
+                continue
             m = TASK_RE.match(line)
             if m:
-                features.append(feature_state(m.group(2), int(m.group(3)), m.group(4).strip() or m.group(2),
-                                              m.group(1).lower() == "x", ctx))
+                f = feature_state(m.group(2), int(m.group(3)), m.group(4).strip() or m.group(2),
+                                  m.group(1).lower() == "x", ctx)
+                f["phase"] = cur_phase
+                f["in_scope"] = in_scope(f["id"], cur_phase, scope_tokens)
+                features.append(f)
+                if cur_phase is not None and phases:
+                    ph = phases[-1]
+                    ph["total"] += 1
+                    ph["live"] += f["stage"] == 5
+                    ph["in_scope"] = ph["in_scope"] or f["in_scope"]
+                    ph["scoped"] += f["in_scope"]
     if ctx["cur_id"].startswith("BUG-"):
         bid = ctx["cur_id"]
         issue = next((n for n, i in GH.issues.items() if i["title"].startswith(bid)), 0)
@@ -404,14 +439,27 @@ def build_state() -> dict:
     needs.sort(key=lambda n: (not n.get("action") or n.get("switch", False), n["id"]))
     for line in ap["needs"]:
         needs.append({"id": "", "title": "Autopilot", "text": line})
+    # Claude Code hooks (.claude/hooks): waiting for a permission or an answer, until it finishes again
+    last_claude = next((e for e in reversed(events) if e.get("kind") in ("claude_waiting", "claude_idle")), None)
+    if last_claude and last_claude.get("kind") == "claude_waiting" and event_age(last_claude) < 3600:
+        needs.insert(0, {"id": "", "title": "Claude is waiting for you", "claude": "answer",
+                         "text": str(last_claude.get("msg", "")).replace("Claude needs you: ", "")
+                         + " - answer in the claude pane"})
     if any(s["state"] != "approved" for s in spec[:6]):
         needs.insert(0, {"id": "", "title": "Specification", "claude": "setup",
                          "text": "Finish the specification with Claude: type  setup"})
-    if not needs and not loops and not JOBS.busy() and any(f["stage"] < 0 for f in features) \
-            and not any(0 <= f["stage"] < 5 for f in features if f["current"]):
-        nxt = next(f for f in features if f["stage"] < 0)
-        needs.append({"id": nxt["id"], "title": nxt["title"], "text": "Start the next feature",
+    idle = not needs and not loops and not JOBS.busy() \
+        and not any(0 <= f["stage"] < 5 for f in features if f["current"])
+    todo_in_scope = [f for f in features if f["stage"] < 0 and f.get("in_scope", True)]
+    if idle and todo_in_scope:
+        nxt = todo_in_scope[0]
+        needs.append({"id": nxt["id"], "title": nxt["title"], "text": "Start the next feature in the build scope",
                       "action": "start_next", "label": "Start"})
+    elif idle and features and any(f["stage"] < 5 for f in features) \
+            and not any(f["stage"] < 5 for f in features if f.get("in_scope", True)):
+        needs.append({"id": "", "title": "Build scope done",
+                      "text": "Everything in the build scope is live. Widen it: type  scope P1 P2 ...  inside Claude",
+                      "claude": "scope"})
 
     now = {"kind": "idle", "text": "Nothing is running right now."}
     job = JOBS.view()
@@ -435,8 +483,11 @@ def build_state() -> dict:
     return {
         "project": title or os.path.basename(ROOT), "branch": git("branch", "--show-current"),
         "features": features, "live": live, "total": len(features), "needs": needs, "now": now,
+        "scope": scope_text, "phases": phases,
+        "scope_live": sum(1 for f in features if f.get("in_scope", True) and f["stage"] == 5),
+        "scope_total": sum(1 for f in features if f.get("in_scope", True)),
         "events": [{"ts": e.get("ts", ""), "kind": e.get("kind", ""), "id": e.get("id", ""), "msg": e.get("msg", "")}
-                   for e in events[-30:]][::-1],
+                   for e in events if e.get("kind") != "claude_idle"][-30:][::-1],
         "gate": {"ok": gate.get("ok"), "msg": gate.get("msg"), "ts": gate.get("ts")} if gate else None,
         "cost_today": round(cost, 2), "spec": spec, "spec_done": not any(s["state"] != "approved" for s in spec[:6]),
         "job": job, "gh": GH.ok, "repo_url": GH.repo_url, "summary": summary,
@@ -720,6 +771,14 @@ a{color:var(--green-deep)}
 .facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13px;color:var(--ink-2)}
 .facts .bad{color:var(--red);font-weight:600}
 .facts .good{color:var(--green-deep);font-weight:600}
+.phases{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.ph{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:3px 10px;color:var(--mute);background:var(--paper-2)}
+.ph b{color:var(--ink);font-weight:600;margin-right:4px}
+.ph.in{border-color:var(--green-line);background:var(--green-soft);color:var(--green-deep)}
+.ph.part{border-style:dashed;border-color:var(--green);color:var(--green-deep);background:var(--paper)}
+.ph.done{border-color:var(--green);color:var(--green-deep)}
+.ph.done b::after{content:" ✓"}
+.outscope{font-size:11px;font-weight:600;color:var(--mute);border:1px solid var(--line);border-radius:99px;padding:0 7px;margin-left:6px;white-space:nowrap}
 
 .cols{display:grid;grid-template-columns:1fr}
 @media(min-width:900px){.cols{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}.side{border-left:1px solid var(--line)}}
@@ -900,7 +959,18 @@ function render(){
   if (s.gate) h += '<span class="' + (s.gate.ok ? 'good' : 'bad') + '">' + (s.gate.ok ? 'Last quality check: passing' : 'Last quality check: ' + esc((s.gate.msg || '').replace(/^Quality checks: /, ''))) + '</span>';
   h += '<span>Build cost today: $' + (s.cost_today || 0).toFixed(2) + '</span>';
   if (!s.spec_done) h += '<span>Specification in progress</span>';
-  h += '</div></div><div class="cols"><div class="main">';
+  if (s.scope) h += '<span><b>Build scope: ' + esc(s.scope) + '</b> · ' + s.scope_live + ' of ' + s.scope_total + ' live</span>';
+  h += '</div>';
+  if (s.phases && s.phases.length){
+    h += '<div class="phases" aria-label="Phases">';
+    s.phases.forEach(function(ph){
+      var part = ph.scoped > 0 && ph.scoped < ph.total;
+      var cls = 'ph' + (part ? ' part' : (ph.in_scope ? ' in' : '')) + (ph.total && ph.live === ph.total ? ' done' : '');
+      h += '<span class="' + cls + '" title="' + esc(ph.goal) + (part ? ' (' + ph.scoped + ' of ' + ph.total + ' in the build scope)' : (ph.in_scope ? ' (in the build scope)' : ' (not in the build scope)')) + '"><b>P' + ph.n + '</b>' + ph.live + '/' + ph.total + (ph.goal ? ' · ' + esc(ph.goal) : '') + (part ? ' · ' + ph.scoped + ' in scope' : '') + '</span>';
+    });
+    h += '</div>';
+  }
+  h += '</div><div class="cols"><div class="main">';
 
   // needs you
   h += '<section class="needs"><h2>Needs you <span class="n">' + s.needs.length + '</span></h2>';
@@ -944,7 +1014,7 @@ function render(){
   if (!s.features.length) h += '<p class="empty">No features yet. They appear here once the task list (docs/TASKS.md) is approved during the specification.</p>';
   else if (!list.length) h += '<p class="empty">' + ({progress:"Nothing in progress. Start the next feature from Needs you.", ahead:"Nothing left to start.", live:"Nothing live yet. The first one is worth celebrating."})[tab] + '</p>';
   list.forEach(function(f){
-    h += '<div class="feat' + (f.current ? ' here' : '') + '"><div class="head"><div class="name">' + esc(f.title) + '</div><div class="id">' + esc(f.id) + (f.issue ? ' · #' + f.issue : '') + '</div></div>';
+    h += '<div class="feat' + (f.current ? ' here' : '') + '"><div class="head"><div class="name">' + esc(f.title) + (f.in_scope === false && f.stage < 5 ? '<span class="outscope">not in scope</span>' : '') + '</div><div class="id">' + (f.phase ? 'P' + f.phase + ' · ' : '') + esc(f.id) + (f.issue ? ' · #' + f.issue : '') + '</div></div>';
     h += '<div class="status">' + esc(f.status) + '</div>';
     if (f.stage >= 0) h += rail(f);
     if (f.has_plan || f.has_review || f.pr_url){

@@ -1,7 +1,7 @@
 # CLAUDE.md - project constitution
 
 <!--
-Template v2.12 - 2026-10-04
+Template v2.13 - 2026-10-05
 Reusable constitution for spec-driven, fully traceable development.
 Sections marked FIXED are the same in every project. Do not edit them per project.
 Sections marked FILL IN are tailored per project, then approved by the user.
@@ -83,7 +83,10 @@ Wrong values here cause wrong commands.
 - `src/` - implementation. `tests/` - automated tests. Python stack: a running starter app in `src/app/` (read `src/app/README.md` first) with a UI kit in `src/app/templates/macros/ui.html`; the `notes` feature is an example to copy, then delete.
 - `scripts/`: `start.sh` (next REQ, `bug`, `status`, `check`), `loop.sh` (section 8), `pr.sh` (PR / `merge`), `gate.sh` (the quality gate, section 2), `dashboard.py` (live progress view for people, computer or phone), `doclint.sh` (RULES.md s3), `req_status.sh` (REQ ledger), `autopilot.sh` (section 8a).
 - `pyproject.toml` (Python) - dependencies and the gate's limits (ruff, mypy, pytest). Limits change only with an approved decision.
-- `.claude/settings.json` - shared permissions: pre-approves read-only git, gh, test and script commands (the reviewer needs them); denies force-push and reading `.env`.
+- `.claude/settings.json` - shared permissions: pre-approves read-only git, gh, test and script commands (the reviewer needs them); denies force-push and reading `.env`; registers the hooks.
+- `.claude/commands/` - one slash command per row of section 9 (`/next`, `/review`, `/scope P1 P2` ...). Each only points at its row here, so section 9 stays the single description.
+- `.claude/hooks/` - scripts Claude Code runs automatically: `guard-files.sh` and `guard-bash.sh` block what section 10 forbids (code edits on main, `.env`, force-push, hard reset, `--no-verify`, deletes outside the project, pushes to main), `format-file.sh` formats each Python file Claude writes, `on-stop.sh` and `on-notify.sh` tell the dashboard when Claude is idle or waiting for you.
+- `.claude/settings.local.json` - your personal overrides (gitignored).
   All of them read the current REQ or BUG from the branch name and its Issue number from `docs/TASKS.md`, so commands need no IDs.
 - `.mcp.json` - MCP servers: chrome-devtools, playwright, graphify (free, local). Never put an API key in it.
 - `.github/workflows/ci.yml` - full regression suite plus traceability check on every PR and push to main.
@@ -180,6 +183,9 @@ Run on a feature branch: `bash scripts/loop.sh [max-iters]` (ID and Issue come f
 - When the user returns: read that report, review the open PRs (review file first), then `wrap up`.
 
 ## 9. Commands (FIXED)
+Each command is also a slash command (`.claude/commands/`): `/setup`, `/next`, `/review` ..., `release check` is `/release-check`, `wrap up` is `/wrap-up`.
+The user may type either form; both mean the row below.
+
 | User types | Claude does |
 |---|---|
 | `setup` | Run the section 0 check and continue the setup order |
@@ -200,6 +206,7 @@ Evidence rule: an item with no evidence (test output, tool output, file:line, sc
 Never mark Pass from reading code alone when a tool can check it.
 
 ## 10. Hard rules (FIXED - full detail in docs/RULES.md)
+Several of these are enforced by `.claude/hooks/`: a blocked tool call explains why and what to do instead. Do what it says; never try to work around a hook.
 - No new libraries, CDNs, external services or network calls without asking.
 - The simplest design that meets the PRD wins. No abstraction, layer or service until a requirement needs it (RULES.md section 4).
 - Never loosen the gate (limits in `pyproject.toml`, `GATE_SKIP`, `# noqa`, `# type: ignore`) to get green without the user's approval and a written reason.

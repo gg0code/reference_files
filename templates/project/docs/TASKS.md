@@ -23,7 +23,7 @@ How to read this file:
 - [ ] RULES.md and 05-launch-checklist.md tailored (proposed changes approved)
 - [ ] `bash scripts/start.sh check` passes; CI green once; branch protection on
 - [ ] Wireframe in `docs/03-wireframe/` with `data-req` tags
-- [ ] Walking skeleton (chore, before REQ-001). Python: the starter app already has config, logging, `GET /health`, error pages,
+- [ ] Walking skeleton (chore, before REQ-001, on branch `chore/walking-skeleton`: the hooks block code edits on main). Python: the starter app already has config, logging, `GET /health`, error pages,
       security headers, CSRF, migrations, the UI kit and an example feature. Run it, set APP_NAME and the tokens, keep the gate
       and CI green, and deploy it once to the real host. Deployment problems found now cost minutes; at release they cost days.
 

@@ -1,6 +1,6 @@
 # Spec-Driven Build Runbook
 
-Kit version: v2.12 (2026-10-04).
+Kit version: v2.13 (2026-10-05).
 A copy-paste runbook for the full traceability loop:
 
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
@@ -131,6 +131,12 @@ Every feature copies the Notes pattern (routes, service, repository, models, tem
 Install once per machine: `npx skills add tt-a1i/archify -g` (or inside Claude: "Install this skill: https://github.com/tt-a1i/archify").
 The architecture step then draws `docs/diagrams/architecture` and `data-flow`; `explain` adds a flow diagram per REQ; `diagram <what>` draws on request.
 Each diagram is a `.json` source (edit this) plus an `.html` file (open in a browser). The reviewer checks every arrow against the code.
+
+### 0a4. Slash commands and hooks (in every project)
+- Every kit command is a slash command: type `/` in Claude (`/next`, `/review`, `/explain`, `/scope P1 P2`, `/wrap-up` ...). Plain words still work.
+- Hooks in `.claude/hooks/` run automatically on Claude's tool calls: they block code edits on main, `.env` access, force-push, `git reset --hard`, `--no-verify`, deletes outside the project and pushes to main, and explain what to do instead.
+  They also format Python files Claude writes, and signal "idle" and "waiting for you" (terminal bell, dashboard).
+- Hooks act on Claude only; commands you type yourself in a terminal are not affected.
 
 ### 0b. Connect GitHub to Claude
 ```bash

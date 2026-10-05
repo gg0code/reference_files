@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.8. Drafted by Claude (Opus) from 00-idea.md, approved by the user. REQ-IDs are permanent and never renumbered. -->
+<!-- Template v2.10. Drafted by Claude (Opus) from 00-idea.md, approved by the user. REQ-IDs are permanent and never renumbered. -->
 
 # <Product name> - Product Requirements
 
@@ -19,12 +19,32 @@ Status: TEMPLATE
 
 ## 4. Requirements
 Each requirement is testable and owns exactly one REQ-ID.
-Priority uses MoSCoW: Must, Should, Could.
+Priority uses MoSCoW: Must, Should, Could. Phase says when it is built (section 4a).
+Write a deferrable edge case as its own REQ-ID (for example "bulk import reports invalid rows"), so it can sit in a later phase than the main flow.
 
-| REQ-ID | Requirement | Priority | Acceptance criteria |
-|---|---|---|---|
-| REQ-001 | <what the user can do or what the system guarantees> | Must | <observable, testable condition> |
-| REQ-002 | | | |
+| REQ-ID | Requirement | Priority | Phase | Acceptance criteria |
+|---|---|---|---|---|
+| REQ-001 | <what the user can do or what the system guarantees> | Must | P1 | <observable, testable condition> |
+| REQ-002 | | | | |
+
+## 4a. Release phases
+Every REQ-ID in sections 4 and 5 belongs to exactly one phase. Each phase ends with something a real user can use, and could be released on its own.
+The build scope (which phases or REQs to build now) is set in docs/TASKS.md, not here.
+
+| Phase | Goal: at the end, a user can... | REQ-IDs | Exit criteria | Depends on |
+|---|---|---|---|---|
+| P1 | <the smallest end-to-end path that delivers the main value> | REQ-001 ... | <demonstrable outcome> | - |
+| P2 | | | | P1 |
+| P3 | | | | P2 |
+
+How Claude proposes phases (the user adjusts):
+- P1, walking skeleton: the one main journey end to end, happy path only, plus the security and data basics it cannot ship without. About 15 to 25 percent of the REQs.
+- P2, complete core: the remaining Must requirements, the main error and edge cases, roles and permissions.
+- P3 and later: Should requirements grouped by user goal (reporting, efficiency, secondary roles, integrations), one goal per phase.
+- Last phase, hardening: performance at the stated scale, accessibility polish, admin tools, remaining edge cases.
+- Could requirements go to "Later" (no phase) until promoted.
+- Size: 5 to 12 REQs per phase. A REQ never depends on a REQ in a later phase. Non-functional REQs go in the first phase that needs them (for example security in P1).
+- Rule of thumb: 20 to 30 REQs make 3 or 4 phases; 50 to 70 REQs make 5 to 7.
 
 ## 5. Non-functional requirements
 | REQ-ID | Area | Requirement |

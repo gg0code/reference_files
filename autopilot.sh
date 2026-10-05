@@ -55,6 +55,20 @@ info() { echo "    ..    : $*"; }
 warn() { echo "    WARN  : $*"; }
 err()  { echo "    ERROR : $*" >&2; }
 step() { echo ""; echo "==> $*"; }
+
+# ---------- build scope (docs/TASKS.md "Build scope:" line; no line or "all" = everything) ----------
+scope_line() { grep -m1 -E '^Build scope:' docs/TASKS.md 2>/dev/null | sed -E 's/^Build scope:[[:space:]]*//; s/[[:space:]]*<!--.*//; s/[[:space:]]+$//'; }
+scope_tokens() { scope_line | tr '[:lower:]' '[:upper:]' | sed -E 's/PHASE[[:space:]]*/P/g' | tr ',;' '  '; }
+# req_phase REQ-00X: N of the "## Phase N" heading the REQ line sits under in docs/TASKS.md
+req_phase() { awk -v id="$1" '/^##[[:space:]]+Phase[[:space:]]+[0-9]+/{match($0,/[0-9]+/); p=substr($0,RSTART,RLENGTH)} index($0, "] " id " ") && /- \[[ xX]\]/ {print p; exit}' docs/TASKS.md 2>/dev/null; }
+in_scope() {   # in_scope REQ-00X: true if the build scope includes the REQ or its phase
+  local s t p; s="$(scope_tokens)"
+  [ -z "${s// /}" ] && return 0
+  for t in $s; do [ "$t" = ALL ] || [ "$t" = "$1" ] && return 0; done
+  p="$(req_phase "$1")"; [ -n "$p" ] || return 1
+  for t in $s; do case "$t" in P[0-9]*) [ "${t#P}" = "$p" ] && return 0 ;; esac; done
+  return 1
+}
 die()  { err "$*"; exit 1; }
 
 # kit_event <kind> <id> <message> [extra-json]: one line in .kit/events.jsonl for the dashboard (scripts/dashboard.py)
@@ -228,7 +242,9 @@ declare -A ISSUE_OF=() TITLE_OF=()
 while IFS= read -r line; do
   if [[ "$line" =~ ^[[:space:]]*-\ \[\ \]\ (REQ-[0-9]{3})\ \(#([0-9]+)\)\ *(.*)$ ]]; then
     r="${BASH_REMATCH[1]}"; ISSUE_OF[$r]="${BASH_REMATCH[2]}"; TITLE_OF[$r]="${BASH_REMATCH[3]}"
-    [ $# -eq 0 ] && QUEUE+=("$r")
+    if [ $# -eq 0 ]; then
+      if in_scope "$r"; then QUEUE+=("$r"); else info "$r is outside the build scope ($(scope_line)) - skipped"; fi
+    fi
   fi
 done < docs/TASKS.md
 if [ $# -gt 0 ]; then
@@ -242,7 +258,7 @@ if [ $# -gt 0 ]; then
     QUEUE+=("$r")
   done
 fi
-[ ${#QUEUE[@]} -gt 0 ] || { STOPPED="no unticked REQ lines in docs/TASKS.md"; exit 0; }
+[ ${#QUEUE[@]} -gt 0 ] || { STOPPED="no unticked REQ inside the build scope ($(scope_line)) in docs/TASKS.md"; exit 0; }
 QUEUE=("${QUEUE[@]:0:$MAX_REQS}")
 ok "queue: ${QUEUE[*]}"
 

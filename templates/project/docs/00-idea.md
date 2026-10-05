@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.8. Written by the user (or dictated). Rough is fine. Claude does not invent this. -->
+<!-- Template v2.10. Written by the user (or dictated). Rough is fine. Claude does not invent this. -->
 
 # Idea
 
@@ -17,6 +17,12 @@ Status: TEMPLATE
 -
 -
 -
+
+## Phases (rough, optional)
+<!-- If you already know an order: what must work first, what can wait. The PRD turns this into exact phases. -->
+- First:
+- Then:
+- Later:
 
 ## What it definitely does not do (yet)
 -

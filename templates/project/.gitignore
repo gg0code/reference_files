@@ -4,6 +4,7 @@ FAILURES.txt
 .loop-*
 .autopilot/
 CLAUDE.local.md
+.claude/settings.local.json
 .kit/
 
 # (.kit/ holds the dashboard's local event log and job output)
