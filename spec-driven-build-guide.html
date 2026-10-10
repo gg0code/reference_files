@@ -533,7 +533,7 @@ claude --version &amp;&amp; uv --version &amp;&amp; node --version   # node: v18
             <div class="step-body">
               <div class="step-head"><h3>Terminal layout: WezTerm and tmux (optional, recommended)</h3></div>
               <p>The guide works in four side-by-side panes (claude, git, tests, frontend): WezTerm is the window, tmux makes the panes. <b>a. Check what you have; install only what is missing.</b></p>
-              <pre data-label="cmd (Command Prompt) · WezTerm is a Windows app" data-os="windows">winget list --id wez.wezterm -e &gt;nul 2&gt;&amp;1 &amp;&amp; echo WezTerm already installed || winget install --id wez.wezterm -e</pre>
+              <pre data-label="bash · Ubuntu window · WezTerm is a Windows app, so this hands the line to Windows CMD" data-os="windows">(cd /mnt/c &amp;&amp; cmd.exe /c "winget list --id wez.wezterm -e &gt;nul 2&gt;&amp;1 &amp;&amp; echo WezTerm already installed || winget install --id wez.wezterm -e")</pre>
               <pre data-label="bash · Ubuntu window · tmux" data-os="windows">command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || sudo apt install -y tmux</pre>
               <pre data-label="bash · Terminal" data-os="mac">[ -d /Applications/WezTerm.app ] &amp;&amp; echo "WezTerm already installed" || brew install --cask wezterm
 command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || brew install tmux</pre>
