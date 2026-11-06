@@ -663,13 +663,15 @@ if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux
           <li class="step" data-id="o-panes" data-pane="git" data-shell="wsl unix">
             <div class="step-body">
               <div class="step-head"><h3>Make four panes and give each its role</h3></div>
-              <p>Prefix is <b>Ctrl-a</b>. Split with <code>Ctrl-a |</code> then <code>Ctrl-a -</code> twice. Right-click each pane and pick its role from the menu so the colours match the chips in this guide: Claude, Tests, Git, Development (frontend). Move between panes with <code>Ctrl-h/j/k/l</code>.</p>
+              <p>Prefix is <b>Ctrl-a</b>. Press <code>Ctrl-a W</code>: it opens a window with the four panes already split and titled, claude on the left and git, test, frontend stacked on the right. Each pane's top border shows its number and role on the left and what it is for on the right (for example <code>1 · GIT</code> … <code>BRANCH · COMMITS · PR</code>). The claude pane's title follows Claude itself: the model you picked with <code>/model</code> and the one stage you are in, <b>PLAN</b> (<code>/next</code>, plan mode, or the plan not yet approved), <b>BUILD</b> (plan <code>APPROVED</code>, or <code>/fix</code>) or <b>REVIEW</b> (<code>/review</code>, <code>/explain</code>), e.g. <code>SONNET · BUILD</code>. Before <code>claude</code> starts, and after you quit it, it reads <code>CLAUDE NOT RUNNING</code>. Plan mode (Shift+Tab) shows on your next prompt, not on the key press, and REVIEW stays until <code>/fix</code> or <code>/next</code>. The project hook <code>.claude/hooks/tmux-pane.sh</code> does this; following <code>/model</code> as you switch needs Claude Code v2.1.251 or newer (older versions pick up the model when <code>claude</code> restarts). Move between panes with <code>Ctrl-h/j/k/l</code>; <code>Ctrl-a z</code> zooms one pane.</p>
               <ul>
-                <li><span class="chip pane claude">claude</span> every prompt in this guide</li>
-                <li><span class="chip pane test">test</span> the watcher; you only look at it</li>
-                <li><span class="chip pane git">git</span> every shell, git, gh and script command</li>
-                <li><span class="chip pane frontend">frontend</span> dev server, wireframe, or the cost monitor</li>
+                <li><b>0</b> <span class="chip pane claude">claude</span> every prompt in this guide</li>
+                <li><b>1</b> <span class="chip pane git">git</span> every shell, git, gh and script command</li>
+                <li><b>2</b> <span class="chip pane test">test</span> the watcher; you only look at it</li>
+                <li><b>3</b> <span class="chip pane frontend">frontend</span> dev server, wireframe, or the cost monitor</li>
               </ul>
+              <p>The green bar along the bottom shows the session and its panes on the left (<code>[{APP}] 0:claude 1:git 2:test 3:frontend</code>), and on the right the REQ of the current branch with its last gate result (<code>REQ-014 · gate ✓ green</code> or <code>gate ✗ red</code>), refreshed every few seconds.</p>
+              <p>By hand instead: split with <code>Ctrl-a |</code> then <code>Ctrl-a -</code> twice, and right-click each pane to pick its role (Claude, Git, Tests, Frontend), which also colours it. <code>Ctrl-a T</code> names a pane yourself.</p>
             </div>
           </li>
           <li class="step" data-id="o-claude" data-pane="claude" data-model="Sonnet">
@@ -1338,6 +1340,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           <div class="tip"><h4>Lost? Ask the script</h4><p><code>bash scripts/start.sh status</code> shows the current REQ, plan, review, PR and the exact next action.</p></div>
           <div class="tip"><h4>Main is red after a merge</h4><p>Revert first, diagnose second. <code>pr.sh merge</code> prints the revert command.</p></div>
           <div class="tip"><h4>Secrets never in files</h4><p>Keys go in <code>.env</code> (gitignored) and paid MCP servers use <code>claude mcp add --scope local</code>. CI runs gitleaks on every PR.</p></div>
+          <div class="tip"><h4>Claude pane title stuck or missing</h4><p>The model and stage on the claude pane come from <code>.claude/hooks/tmux-pane.sh</code>. Projects made before it existed do not have it, because re-running the scaffold keeps existing files: copy <code>templates/project/.claude/hooks/tmux-pane.sh</code> from the kit into the project's <code>.claude/hooks/</code>, and copy the kit's <code>.claude/settings.json</code> over the project's (or merge in its <code>SessionStart</code>, <code>PostModelSwitch</code>, <code>UserPromptSubmit</code>, <code>Stop</code> and <code>SessionEnd</code> entries for <code>tmux-pane.sh</code> if you changed yours). Then restart <code>claude</code>. If only <code>/model</code> is not followed, update Claude Code (<code>claude update</code>).</p></div>
           <div class="tip"><h4>Something feels off with Claude</h4><p>Ask: <i>"Which project files have you read this session?"</i>. If CLAUDE.md, RULES, TASKS, MEMORY and MCP are not listed, quit and restart <code>claude</code> from the project folder.</p></div>
         </div>
       </section>
@@ -1405,7 +1408,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
             <tr><td><code>.claude/settings.json</code></td><td>Pre-approved read-only commands for the reviewer; blocks force-push and reading <code>.env</code>; registers the hooks</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/commands/</code></td><td>The kit's slash commands (<code>/next</code>, <code>/review</code>, <code>/scope</code> ...); each points at its row in CLAUDE.md section 9</td><td>Nobody; refresh from the kit</td></tr>
-            <tr><td><code>.claude/hooks/</code></td><td>Automatic guards (main, <code>.env</code>, force-push, hard reset, <code>--no-verify</code>), auto-format of Python files, and the idle and needs-you signals for the dashboard</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>.claude/hooks/</code></td><td>Automatic guards (main, <code>.env</code>, force-push, hard reset, <code>--no-verify</code>), auto-format of Python files, the idle and needs-you signals for the dashboard, and the claude pane's tmux title (model and stage, <code>tmux-pane.sh</code>)</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.mcp.json</code></td><td>MCP servers for Claude: chrome-devtools, playwright, graphify (free, local). No API keys in it, ever</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>docs/MCP.md</code></td><td>The MCP setup check Claude runs at session start, and when to use each server. Loaded by CLAUDE.md section 0</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>

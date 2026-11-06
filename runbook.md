@@ -161,18 +161,27 @@ Ctrl-a |          # split left/right → 2 panes
 Ctrl-a -          # split the focused pane top/bottom → repeat to get 4 panes
 Ctrl-h/j/k/l      # move between panes (no prefix; also works across nvim splits)
 Ctrl-a H/J/K/L    # resize (hold to repeat) · Ctrl-a m zooms one pane
-Ctrl-a T          # name the pane: claude, test, git, frontend
+Ctrl-a T          # name the pane: role (claude, git, test, frontend), then what it does
 ```
+Or in one step: **Ctrl-a W** opens a window with the whole layout already split and titled:
+```
+┌ 0 · CLAUDE                  SONNET · BUILD ┬ 1 · GIT        BRANCH · COMMITS · PR ┐
+│                                          ├ 2 · TEST   WATCHER · RE-RUNS ON SAVE ┤
+│                                          ├ 3 · FRONTEND  APP RUNNING · LIVE RELOAD┤
+[invoicer] 0:claude 1:git 2:test 3:frontend      REQ-014 · gate ✓ green · Ctrl-a z zoom · Ctrl-a d detach
+```
+The green bar at the bottom shows the session, the panes, the REQ/BUG id of the current branch and the last `gate.sh` result for it (from `.kit/events.jsonl`, via `tmux-status.sh`).
+The claude pane's title follows Claude itself (the project hook `.claude/hooks/tmux-pane.sh`): the model you picked with `/model`, and one stage - **PLAN** (`/next`, plan mode, or the plan is not approved yet), **BUILD** (the plan is `APPROVED`, or `/fix`), **REVIEW** (`/review`, `/explain`). Before `claude` starts it reads `CLAUDE NOT RUNNING`.
 Or right-click a pane and pick its role from the menu (Claude, Development, Tests, Git, Logs); that names and colours it.
 
 ### PANE MAP - which step runs where
 
 | Pane | Name | Owns | Runs |
 |---|---|---|---|
-| **1** | `claude` | the driver | `claude` - **every prompt in this runbook goes here** |
+| **0** | `claude` | the driver | `claude` - **every prompt in this runbook goes here** |
+| **1** | `git` | version control + GitHub | all `git` / `gh` commands, `scripts/loop.sh`, `scripts/req_status.sh` |
 | **2** | `test` | the red/green signal | the test watcher - never stops running |
-| **3** | `git` | version control + GitHub | all `git` / `gh` commands, `scripts/loop.sh`, `scripts/req_status.sh` |
-| **4** | `frontend` | what it looks like | dev server, `docs/03-wireframe/index.html`, or `ccusage blocks --live` |
+| **3** | `frontend` | what it looks like | dev server, `docs/03-wireframe/index.html`, or `ccusage blocks --live` |
 
 > The discipline: **claude proposes, test decides.** You never merge on "it looks right"; you merge when the test pane is green.
 
@@ -188,7 +197,7 @@ mkdir -p ~/.claude   # rtk init -g writes here; Claude Code may not have created
 rtk init -g          # installs a PreToolUse hook into Claude Code
 ```
 If you see `Failed to write RTK.md ... No such file or directory`, run the `mkdir -p` above and re-run `rtk init -g`.
-Then restart Claude Code in pane 1 and re-source your shell in the other panes.
+Then restart Claude Code in pane 0 (claude) and re-source your shell in the other panes.
 Verify:
 ```bash
 rtk --version

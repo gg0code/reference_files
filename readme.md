@@ -35,6 +35,7 @@ reference_files/
                              04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, MCP, plans/, reviews/
       src/  tests/  scripts/ each with a README.md
   .bashrc  .tmux.conf  .wezterm.lua   optional terminal setup (four-pane layout; not used by the scripts)
+  tmux-status.sh             REQ id + gate result for the tmux status bar (read by .tmux.conf)
   .gitattributes             keeps LF line endings so the bash scripts work after any clone
 ```
 

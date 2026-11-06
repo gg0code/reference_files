@@ -85,7 +85,7 @@ Wrong values here cause wrong commands.
 - `pyproject.toml` (Python) - dependencies and the gate's limits (ruff, mypy, pytest). Limits change only with an approved decision.
 - `.claude/settings.json` - shared permissions: pre-approves read-only git, gh, test and script commands (the reviewer needs them); denies force-push and reading `.env`; registers the hooks.
 - `.claude/commands/` - one slash command per row of section 9 (`/next`, `/review`, `/scope P1 P2` ...). Each only points at its row here, so section 9 stays the single description.
-- `.claude/hooks/` - scripts Claude Code runs automatically: `guard-files.sh` and `guard-bash.sh` block what section 10 forbids (code edits on main, `.env`, force-push, hard reset, `--no-verify`, deletes outside the project, pushes to main), `format-file.sh` formats each Python file Claude writes, `on-stop.sh` and `on-notify.sh` tell the dashboard when Claude is idle or waiting for you.
+- `.claude/hooks/` - scripts Claude Code runs automatically: `guard-files.sh` and `guard-bash.sh` block what section 10 forbids (code edits on main, `.env`, force-push, hard reset, `--no-verify`, deletes outside the project, pushes to main), `format-file.sh` formats each Python file Claude writes, `on-stop.sh` and `on-notify.sh` tell the dashboard when Claude is idle or waiting for you, `tmux-pane.sh` shows the current model and stage (PLAN, BUILD or REVIEW) on the claude pane's tmux border.
 - `.claude/settings.local.json` - your personal overrides (gitignored).
   All of them read the current REQ or BUG from the branch name and its Issue number from `docs/TASKS.md`, so commands need no IDs.
 - `.mcp.json` - MCP servers: chrome-devtools, playwright, graphify (free, local). Never put an API key in it.
