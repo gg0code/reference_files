@@ -312,3 +312,4 @@ alias h='history'
 alias hg='history | grep'
 alias cc='claude'
 export BROWSER="/mnt/c/Windows/explorer.exe"
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64

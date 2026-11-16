@@ -20,7 +20,9 @@
   --p-claude-bg:#24152f; --p-claude-fg:#f5e9ff;
   --p-test-bg:#14301f;   --p-test-fg:#e9ffe9;
   --p-git-bg:#35250d;    --p-git-fg:#fff3d6;
-  --p-front-bg:#10243e;  --p-front-fg:#e8f1ff;
+  --p-front-bg:#0f2e2e;  --p-front-fg:#e6fffb;
+  --p-files-bg:#1c1c1c;  --p-files-fg:#e6e6e6;
+  --p-rev-bg:#33200f;    --p-rev-fg:#fff0e3;
   --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
   --mono:"JetBrains Mono","Cascadia Code",Consolas,monospace;
@@ -147,12 +149,13 @@ li.step.is-next{box-shadow:0 0 0 2px var(--accent)}
 .chip.test{background:var(--p-test-bg);color:var(--p-test-fg)}
 .chip.git{background:var(--p-git-bg);color:var(--p-git-fg)}
 .chip.frontend{background:var(--p-front-bg);color:var(--p-front-fg)}
+.chip.files{background:var(--p-files-bg);color:var(--p-files-fg)}
+.chip.reviewer{background:var(--p-rev-bg);color:var(--p-rev-fg)}
 .chip.you{background:var(--gate-soft);color:var(--gate);border:1px solid var(--gate)}
 .chip.model{background:transparent;color:var(--muted);border:1px solid var(--line-strong);font-family:var(--mono);font-weight:400}
 .chip.once{background:var(--accent-soft);color:var(--accent)}
-.chip.agent{background:var(--surface);color:var(--p-claude-bg);border:1px dashed currentColor}
-:root[data-theme="dark"] .chip.agent{color:var(--p-claude-fg)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip.agent{color:var(--p-claude-fg)}}
+.chip.agent{background:var(--p-rev-bg);color:var(--p-rev-fg);border:1px dashed currentColor}
+kbd{font:600 .85em var(--mono);background:var(--surface);border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:4px;padding:0 5px;white-space:nowrap}
 
 .code{margin:8px 0 10px;border-radius:8px;overflow:hidden;background:var(--code-bg);border:1px solid var(--line)}
 .code .ch{display:flex;align-items:center;gap:8px;padding:5px 8px 5px 12px;font:500 11.5px var(--body);color:var(--code-com);border-bottom:1px solid rgba(255,255,255,.06)}
@@ -289,9 +292,10 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
       <div class="legend">
         <span><span class="chip pane claude">claude</span> prompts to Claude</span>
         <span><span class="chip pane git">git</span> shell, git, gh, scripts</span>
+        <span><span class="chip pane files">files</span> changed files, live</span>
         <span><span class="chip pane test">test</span> watcher, look only</span>
         <span><span class="chip pane frontend">frontend</span> app, wireframe</span>
-        <span><span class="chip agent">reviewer agent</span> second agent, read-only</span>
+        <span><span class="chip agent">reviewer agent</span> second agent, read-only (<kbd>Ctrl-a V</kbd>)</span>
         <span><span class="chip you">you</span> human gate</span>
       </div>
     </nav>
@@ -371,9 +375,9 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
         </div>
         <div class="osnote" data-os="windows"><b>Which shell on Windows?</b> Change it in <b>Your setup</b> at the top; every command box below is rewritten for it.
           <div class="tablewrap"><table class="ref">
-            <thead><tr><th>Shell</th><th>Kit scripts</th><th>Four work panes</th><th>Choose it when</th></tr></thead>
+            <thead><tr><th>Shell</th><th>Kit scripts</th><th>Work panes</th><th>Choose it when</th></tr></thead>
             <tbody>
-              <tr><td><b>Ubuntu bash (WSL)</b><span class="rec">Recommended</span></td><td>Run exactly as written</td><td>tmux</td><td>You can install WSL. The kit, its scripts and CI are all Linux, so nothing is translated and nothing is missing.</td></tr>
+              <tr><td><b>Ubuntu bash (WSL)</b><span class="rec">Recommended</span></td><td>Run exactly as written</td><td>tmux: five panes, a reviewer window and diff popups</td><td>You can install WSL. The kit, its scripts and CI are all Linux, so nothing is translated and nothing is missing.</td></tr>
               <tr><td><b>Git Bash</b></td><td>Run as written (Linux-only extras such as <code>watch</code> and <code>notify-send</code> are replaced or missing)</td><td>Windows Terminal</td><td>WSL is blocked (many company laptops), or you want your files to stay plain Windows files.</td></tr>
               <tr><td><b>PowerShell 7</b></td><td>Through <code>kitsh</code>, a one-line helper that hands them to Git Bash</td><td>Windows Terminal</td><td>You already live in PowerShell. git, gh, claude, uv and python run directly.</td></tr>
               <tr><td><b>CMD</b></td><td>Through <code>kitsh</code></td><td>Windows Terminal</td><td>You must. Quoting in CMD is fragile; PowerShell 7 does the same job better.</td></tr>
@@ -474,7 +478,7 @@ if ($p -notlike "*$HOME\bin*") { [Environment]::SetEnvironmentVariable('Path', "
               <pre data-label="bash · Terminal">xcode-select --install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</pre>
               <p>At the end Homebrew prints <b>Next steps</b> with two or three commands that add <code>brew</code> to your PATH. Run them, then:</p>
-              <pre data-label="bash · Terminal">brew install git gh jq tmux node python</pre>
+              <pre data-label="bash · Terminal">brew install git gh jq tmux watch node python</pre>
               <p class="expect">You should see: <code>brew --version</code> and <code>gh --version</code> both print a version.</p>
             </div>
           </li>
@@ -532,11 +536,12 @@ claude --version &amp;&amp; uv --version &amp;&amp; node --version   # node: v18
           <li class="step" data-id="m-dotfiles" data-once="1" data-shell="wsl unix">
             <div class="step-body">
               <div class="step-head"><h3>Terminal layout: WezTerm and tmux (optional, recommended)</h3></div>
-              <p>The guide works in four side-by-side panes (claude, git, tests, frontend): WezTerm is the window, tmux makes the panes. <b>a. Check what you have; install only what is missing.</b></p>
+              <p>The guide works in five side-by-side panes (claude, git, files, test, frontend) plus a separate reviewer window: WezTerm is the window, tmux makes the panes. <b>a. Check what you have; install only what is missing.</b></p>
               <pre data-label="bash · Ubuntu window · WezTerm is a Windows app, so this hands the line to Windows CMD" data-os="windows">(cd /mnt/c &amp;&amp; cmd.exe /c "winget list --id wez.wezterm -e &gt;nul 2&gt;&amp;1 &amp;&amp; echo WezTerm already installed || winget install --id wez.wezterm -e")</pre>
               <pre data-label="bash · Ubuntu window · tmux" data-os="windows">command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || sudo apt install -y tmux</pre>
               <pre data-label="bash · Terminal" data-os="mac">[ -d /Applications/WezTerm.app ] &amp;&amp; echo "WezTerm already installed" || brew install --cask wezterm
-command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || brew install tmux</pre>
+command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || brew install tmux
+command -v watch &gt;/dev/null &amp;&amp; echo "watch already installed" || brew install watch    # the files pane uses it</pre>
               <pre data-label="bash · terminal" data-os="linux">command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || sudo apt install -y tmux
 command -v wezterm &gt;/dev/null &amp;&amp; echo "WezTerm already installed" || echo "Install WezTerm from https://wezterm.org/install/linux.html"</pre>
               <p><b>b. Use the kit's settings.</b> Your current files are kept as <code>*.before-kit</code>; linking means <code>git -C {KIT} pull</code> also updates them.<span data-os="windows"> The WezTerm settings make it open Ubuntu with tmux running.</span></p>
@@ -558,8 +563,13 @@ ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua
 source ~/.bashrc</pre>
               <p data-os="mac">The Mac's shell is zsh, so the kit's <code>.bashrc</code> (aliases only) is not used; nothing in the kit needs it.</p>
               <p data-os="windows linux">Already have a <code>.bashrc</code> you like? Skip its link and add one line to yours instead: <code>source {KIT}/.bashrc</code>.</p>
-              <p class="expect" data-os="windows">You should see: close this window and open <b>WezTerm</b>. It opens Ubuntu with tmux already running (a status bar along the bottom), in <b>one</b> pane. That is right at this point: the four panes are made per project in <b>2 · Open the work session</b>, after <b>1 · Create the project</b> has made the project folder.</p>
-              <p class="expect" data-os="mac linux">You should see: <code>tmux -V</code> prints a version and WezTerm opens normally, in <b>one</b> pane. That is right at this point: the four panes are made per project in <b>2 · Open the work session</b>, after <b>1 · Create the project</b> has made the project folder.</p>
+              <p>Keep <code>~/.tmux.conf</code> a <b>link</b>, not a copy: the status bar finds <code>tmux-status.sh</code> next to the real file in the kit.</p>
+              <p><b>c. tmux version and session saving.</b> The diff popups and pane borders need tmux <b>3.2 or newer</b> (the right-click menu colours need 3.4; Ubuntu 22.04 has 3.2, 24.04 has 3.4). The config also loads <b>tmux-resurrect</b>, which saves and restores your panes across a reboot; install it once:</p>
+              <pre data-label="bash · terminal">tmux -V                                   # 3.2 or newer
+[ -d ~/.tmux/plugins/tmux-resurrect ] &amp;&amp; echo "tmux-resurrect already installed" || git clone https://github.com/tmux-plugins/tmux-resurrect ~/.tmux/plugins/tmux-resurrect
+tmux source-file ~/.tmux.conf 2&gt;/dev/null; echo done   # reload if tmux is already running</pre>
+              <p class="expect" data-os="windows">You should see: close this window and open <b>WezTerm</b>. It opens Ubuntu with tmux already running (a green status bar along the bottom), in <b>one</b> pane. That is right at this point: the five panes are made per project in <b>2 · Open the work session</b>, after <b>1 · Create the project</b> has made the project folder.</p>
+              <p class="expect" data-os="mac linux">You should see: <code>tmux -V</code> prints 3.2 or newer and WezTerm opens normally, in <b>one</b> pane. That is right at this point: the five panes are made per project in <b>2 · Open the work session</b>, after <b>1 · Create the project</b> has made the project folder.</p>
             </div>
           </li>
           <li class="step" data-id="m-mcp" data-once="1">
@@ -650,6 +660,7 @@ bash scripts/gate.sh              # all PASS</pre>
                 <li><span class="chip pane git">git</span> every shell, git, gh and script command</li>
                 <li><span class="chip pane frontend">frontend</span> dev server, wireframe, or the cost monitor</li>
               </ul>
+              <p class="expect">The tmux review keys (<kbd>Ctrl-a F</kbd>, <kbd>G</kbd>, <kbd>B</kbd>, <kbd>V</kbd>) are not available here. Where the guide uses them, type the same thing in the git pane: <code>git status -s</code> and <code>git diff --stat HEAD</code> (files), <code>git diff HEAD</code> (diff), <code>git diff main...HEAD</code> (branch), and open a second tab with <code>claude --permission-mode plan</code> for the read-only reviewer.</p>
             </div>
           </li>
           <li class="step" data-id="o-tmux" data-pane="git" data-shell="wsl unix">
@@ -662,16 +673,32 @@ if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux
           </li>
           <li class="step" data-id="o-panes" data-pane="git" data-shell="wsl unix">
             <div class="step-body">
-              <div class="step-head"><h3>Make four panes and give each its role</h3></div>
-              <p>Prefix is <b>Ctrl-a</b>. Press <code>Ctrl-a W</code>: it opens a window with the four panes already split and titled, claude on the left and git, test, frontend stacked on the right. Each pane's top border shows its number and role on the left and what it is for on the right (for example <code>1 · GIT</code> … <code>BRANCH · COMMITS · PR</code>). The claude pane's title follows Claude itself: the model you picked with <code>/model</code> and the one stage you are in, <b>PLAN</b> (<code>/next</code>, plan mode, or the plan not yet approved), <b>BUILD</b> (plan <code>APPROVED</code>, or <code>/fix</code>) or <b>REVIEW</b> (<code>/review</code>, <code>/explain</code>), e.g. <code>SONNET · BUILD</code>. Before <code>claude</code> starts, and after you quit it, it reads <code>CLAUDE NOT RUNNING</code>. Plan mode (Shift+Tab) shows on your next prompt, not on the key press, and REVIEW stays until <code>/fix</code> or <code>/next</code>. The project hook <code>.claude/hooks/tmux-pane.sh</code> does this; following <code>/model</code> as you switch needs Claude Code v2.1.251 or newer (older versions pick up the model when <code>claude</code> restarts). Move between panes with <code>Ctrl-h/j/k/l</code>; <code>Ctrl-a z</code> zooms one pane.</p>
+              <div class="step-head"><h3>Make the five panes and give each its role</h3></div>
+              <p>Prefix is <b>Ctrl-a</b>. Press <kbd>Ctrl-a W</kbd>: it opens a window named <b>work</b> with five panes already split and titled: claude on the left (55%), and git, files, test, frontend stacked on the right. The files pane starts its live monitor by itself. Each pane's top border shows its number and role on the left and what it is for on the right (for example <code>1 · GIT</code> … <code>BRANCH · DIFF · COMMIT</code>); the focused pane is outlined in green and the others are dimmed.</p>
               <ul>
-                <li><b>0</b> <span class="chip pane claude">claude</span> every prompt in this guide</li>
-                <li><b>1</b> <span class="chip pane git">git</span> every shell, git, gh and script command</li>
-                <li><b>2</b> <span class="chip pane test">test</span> the watcher; you only look at it</li>
-                <li><b>3</b> <span class="chip pane frontend">frontend</span> dev server, wireframe, or the cost monitor</li>
+                <li><b>0</b> <span class="chip pane claude">claude</span> the builder: every prompt in this guide. It writes code; it never commits</li>
+                <li><b>1</b> <span class="chip pane git">git</span> every shell, git, gh and script command, and every commit</li>
+                <li><b>2</b> <span class="chip pane files">files</span> live list of changed files (<code>git status -s</code> and <code>git diff --stat HEAD</code>, every 5 s); look only</li>
+                <li><b>3</b> <span class="chip pane test">test</span> the watcher; you only look at it</li>
+                <li><b>4</b> <span class="chip pane frontend">frontend</span> dev server, wireframe, or the dashboard</li>
               </ul>
-              <p>The green bar along the bottom shows the session and its panes on the left (<code>[{APP}] 0:claude 1:git 2:test 3:frontend</code>), and on the right the REQ of the current branch with its last gate result (<code>REQ-014 · gate ✓ green</code> or <code>gate ✗ red</code>), refreshed every few seconds.</p>
-              <p>By hand instead: split with <code>Ctrl-a |</code> then <code>Ctrl-a -</code> twice, and right-click each pane to pick its role (Claude, Git, Tests, Frontend), which also colours it. <code>Ctrl-a T</code> names a pane yourself.</p>
+              <p>The claude pane's title follows Claude itself: the model you picked with <code>/model</code> and the one stage you are in, <b>PLAN</b> (<code>/next</code>, plan mode, or the plan not yet approved), <b>BUILD</b> (plan <code>APPROVED</code>, or <code>/fix</code>) or <b>REVIEW</b> (<code>/review</code>, <code>/explain</code>), e.g. <code>SONNET · BUILD</code>. Before <code>claude</code> starts, and after you quit it, it reads <code>CLAUDE NOT RUNNING</code>. Plan mode (Shift+Tab) shows on your next prompt, not on the key press, and REVIEW stays until <code>/fix</code> or <code>/next</code>. The project hook <code>.claude/hooks/tmux-pane.sh</code> does this; following <code>/model</code> as you switch needs Claude Code v2.1.251 or newer (older versions pick up the model when <code>claude</code> restarts).</p>
+              <p>The green bar along the bottom has three parts: on the left the session and its panes, focused one in bold (<code>[{APP}] 0:claude 1:git 2:files 3:test 4:frontend</code>); in the middle the windows (<code>1:work 2:review</code>); on the right the REQ of the current branch with its last gate result (<code>REQ-014 · gate ✓ green</code> or <code>gate ✗ red</code>) and a key reminder (<code>F files · G diff · V review · Ctrl-a z zoom</code>).</p>
+              <p><b>The review keys</b> open a popup over whatever pane you are in, in that pane's folder; scroll with <kbd>j</kbd>/<kbd>k</kbd>/<kbd>space</kbd>, close with <kbd>q</kbd>:</p>
+              <div class="tablewrap"><table class="ref">
+                <thead><tr><th>Keys</th><th>Shows</th><th>Use it</th></tr></thead>
+                <tbody>
+                  <tr><td><kbd>Ctrl-a F</kbd></td><td>Which files changed (<code>??</code> = new, not yet tracked) and lines per file</td><td>After each loop pass, before every commit</td></tr>
+                  <tr><td><kbd>Ctrl-a G</kbd></td><td>The full diff of uncommitted work against the last commit</td><td>Read it before you commit</td></tr>
+                  <tr><td><kbd>Ctrl-a B</kbd></td><td>This branch against main: everything the REQ changed once committed</td><td>Before <code>pr.sh</code> and before merging</td></tr>
+                  <tr><td><kbd>Ctrl-a Y</kbd></td><td>History: every commit on main with the files it touched</td><td>"When did this file last change, and for which REQ?"</td></tr>
+                  <tr><td><kbd>Ctrl-a V</kbd></td><td>Goes to the <b>review</b> window; creates it the first time and starts a separate, read-only Claude in plan mode there (it cannot edit files)</td><td>A second opinion on the diff before you commit</td></tr>
+                  <tr><td><kbd>Ctrl-a Tab</kbd></td><td>Back to the previous window (work and review)</td><td>Jump between builder and reviewer</td></tr>
+                  <tr><td><kbd>Ctrl-a z</kbd></td><td>Zooms the focused pane to full screen; again to restore</td><td>Reading long output or a diff</td></tr>
+                </tbody>
+              </table></div>
+              <p>Move between panes with <kbd>Ctrl-h/j/k/l</kbd> (they also move between Neovim splits). Pane colours: right-click a pane for the role menu (Claude, Reviewer, Development, Tests, Git, Files monitor, Frontend, Logs), which colours it and sets its title; <b>Files monitor</b> also starts the watch. By hand instead of <kbd>Ctrl-a W</kbd>: split with <kbd>Ctrl-a |</kbd> and <kbd>Ctrl-a -</kbd>, then right-click each pane to pick its role; <kbd>Ctrl-a T</kbd> names a pane yourself.</p>
+              <p class="expect">You should see: five titled panes, the files pane listing changes (empty on a clean tree), and <code>1:work</code> in the middle of the status bar. A popup that does nothing, or <code>unknown command: display-popup</code>, means tmux is older than 3.2 (Phase 0).</p>
             </div>
           </li>
           <li class="step" data-id="o-claude" data-pane="claude" data-model="Sonnet">
@@ -717,7 +744,7 @@ if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux
             <li>Screens cannot show everything: who may see what, data rules, errors and numbers are still asked in the PRD interview.</li>
           </ol>
         </div>
-        <div class="osnote"><b>Which window for each step.</b> Every step here uses the four panes from <b>2 · Open the work session</b>:
+        <div class="osnote"><b>Which window for each step.</b> Every step here uses the panes from <b>2 · Open the work session</b>:
           <div class="tablewrap"><table class="ref">
             <thead><tr><th>Box or action</th><th>Where</th></tr></thead>
             <tbody>
@@ -727,7 +754,7 @@ if [ -n "$TMUX" ]; then tmux new-session -d -s {APP} -c "$PWD" 2>/dev/null; tmux
               <tr><td>Opening the prototype or the wireframe (<code>docs/prototype/index.html</code>, <code>docs/03-wireframe/index.html</code>)</td><td><b>Your browser</b>: from any pane or folder, <span data-os="windows"><code>explorer.exe "$(wslpath -w {ROOT}/{APP}/docs/03-wireframe/index.html)"</code></span><span data-os="mac"><code>open {ROOT}/{APP}/docs/03-wireframe/index.html</code></span><span data-os="linux"><code>xdg-open {ROOT}/{APP}/docs/03-wireframe/index.html</code></span> (for the prototype, <code>docs/prototype/index.html</code> instead)</td></tr>
             </tbody>
           </table></div>
-          The tests and frontend panes are not used in this phase.
+          The test and frontend panes are not used in this phase. The files pane (or <kbd>Ctrl-a F</kbd>) shows which docs Claude just wrote, and <kbd>Ctrl-a G</kbd> shows exactly what it changed, before you commit.
         </div>
         <ol class="steps">
           <li class="step" data-id="s-idea" data-pane="you">
@@ -944,7 +971,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
       <section class="phase" id="build" data-phase="build">
         <div class="phase-head"><h2>4 · Build a requirement</h2><span class="when">Repeat for each REQ in TASKS.md. Nothing to type in: the scripts find the next REQ and its Issue.</span>
           <span class="confirm" data-reset="build"><button class="btn small warn" type="button">Start next REQ</button></span></div>
-        <div class="callout gatey">Two human stops: the plan (step 3) and the PR (step 10). One agent gate: <code>pr.sh</code> will not open a PR until the reviewer says APPROVE. One hard signal: the test pane must be green. Lost at any point? <code>bash scripts/start.sh status</code> tells you where you are and what to do next.</div>
+        <div class="callout gatey">Three human stops: the plan (step 3), reading the diff before you commit (step 6), and the PR (step 12). Claude in the claude pane builds but never commits: you read <kbd>Ctrl-a F</kbd> and <kbd>G</kbd>, check the tests, optionally get a second opinion with <kbd>Ctrl-a V</kbd>, then commit in the git pane. One agent gate: <code>pr.sh</code> will not open a PR until the reviewer says APPROVE. One hard signal: the test pane must be green. Lost at any point? <code>bash scripts/start.sh status</code> tells you where you are and what to do next.</div>
         <div class="osnote"><b>Build scope: what to build now.</b> Every requirement belongs to a release phase (P1, P2, ...; <code>docs/01-prd.md</code> section 4a). The <code>Build scope:</code> line at the top of <code>docs/TASKS.md</code> says which phases and single REQs to build now. <code>start.sh</code>, autopilot and the dashboard only pick requirements inside it, in TASKS order.
           <div class="tablewrap"><table class="ref">
             <thead><tr><th>You want</th><th>Inside Claude</th><th>or in the git pane (on main)</th></tr></thead>
@@ -985,7 +1012,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
           <li class="step" data-id="b-loop" data-pane="git" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Implement: run the loop</h3></div>
-              <p>Fresh Claude context each pass, tests first, until the quality gate (<code>bash scripts/gate.sh</code>: docs, lint, complexity, format, types, full tests) is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running.</p>
+              <p>Fresh Claude context each pass, tests first, until the quality gate (<code>bash scripts/gate.sh</code>: docs, lint, complexity, format, types, full tests) is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running; the <span class="chip pane files">files</span> pane shows each file as the loop touches it.</p>
               <pre data-label="bash · test pane">{WATCH}</pre>
               <pre data-label="bash · git pane">bash scripts/loop.sh</pre>
               <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run.</p>
@@ -997,12 +1024,23 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
               <p>If there is UI, run it and be picky: spacing, states, mobile width, dark mode. Missing docs, complex functions, missing type hints and format problems already turned the loop red, because the loop's exit condition is <code>gate.sh</code>. Check the UI against <code>03-ui-design.md</code>. Small unrelated fixes (lint, typo, flaky test, obvious UI defect, under about 20 lines) go in their own <code>chore(hygiene)</code> commit. Anything bigger becomes a bug later.</p>
             </div>
           </li>
+          <li class="step gate" data-id="b-read" data-pane="you">
+            <div class="step-body">
+              <div class="step-head"><h3>Read the change before it is committed</h3></div>
+              <p>Nothing is committed yet, so this is the cheapest moment to catch a surprise.</p>
+              <ul>
+                <li><kbd>Ctrl-a F</kbd>: are these the files the plan said would change? A file you did not expect, or a <code>??</code> file nobody asked for, is a question for Claude now.</li>
+                <li><kbd>Ctrl-a G</kbd>: read the full diff (<kbd>Ctrl-a z</kbd> first if the pane is small). The <span class="chip pane test">test</span> pane must be green.</li>
+                <li>Optional, <kbd>Ctrl-a V</kbd>: a second, read-only Claude in its own <b>review</b> window. Ask it to review the uncommitted diff against <code>docs/plans/&lt;REQ&gt;.md</code> (the border reminds you of the review command, <code>/review-req REQ-NN</code>). It cannot edit files; <kbd>Ctrl-a Tab</kbd> takes you back. For the next REQ start it fresh: <code>/exit</code>, <kbd>Ctrl-a &amp;</kbd> to close the window, then <kbd>Ctrl-a V</kbd> again.</li>
+              </ul>
+              <p class="expect">This quick read does not replace step 8: <code>pr.sh</code> only opens a PR after the reviewer agent's <code>/review</code> has saved APPROVE.</p>
+            </div>
+          </li>
           <li class="step" data-id="b-commit" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Commit locally</h3></div>
               <p>Use the commit line the loop printed (it already contains the REQ and Issue), or:</p>
-              <pre data-label="bash · git pane">git diff
-git add -A && git commit -m "feat: what this change does"</pre>
+              <pre data-label="bash · git pane">git add -A && git commit -m "feat: what this change does"</pre>
             </div>
           </li>
           <li class="step" data-id="b-review" data-pane="claude" data-agent="reviewer">
@@ -1040,7 +1078,7 @@ git add -A && git commit -m "fix: address review findings"</pre>
           <li class="step gate" data-id="b-pr-gate" data-pane="you">
             <div class="step-body">
               <div class="step-head"><h3>Review the PR, then merge</h3></div>
-              <p>Read the review report first, then the diff. You can overrule a finding, but write why in the PR.</p>
+              <p>Read the review report first, then the diff: on GitHub, or locally with <kbd>Ctrl-a B</kbd> (the whole branch against main). You can overrule a finding, but write why in the PR.</p>
               <ul>
                 <li>Full suite green locally and in CI</li>
                 <li>Reviewer verdict APPROVE</li>
@@ -1106,7 +1144,7 @@ gh pr list</pre>
               <ul>
                 <li>"Needs you": each line says what stopped and what to do next.</li>
                 <li>Plans marked <code>by reviewer agent</code>: read them, you did not approve them.</li>
-                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge with <code>bash scripts/pr.sh merge</code> on that branch, then Phase 4 step 11.</li>
+                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge with <code>bash scripts/pr.sh merge</code> on that branch, then Phase 4 step 13.</li>
               </ul>
               <pre data-label="prompt · claude pane" class="prompt">/wrap-up</pre>
             </div>
@@ -1149,6 +1187,7 @@ single best hypothesis for the root cause. Don't patch yet.</pre>
               <div class="step-head"><h3>Minimal fix</h3></div>
               <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Apply the minimal fix for the bug in the current branch name. The failing test must go green and
 the full suite must stay green. Do not weaken or skip any test.</pre>
+              <p>Read the fix with <kbd>Ctrl-a G</kbd> before committing: a minimal fix is a small diff, and any change to a test file other than the new one is a red flag.</p>
               <pre data-label="bash · git pane">git add -A && git commit -m "fix: the cause in a few words"</pre>
             </div>
           </li>
@@ -1273,6 +1312,7 @@ Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -D
               <div class="step-head"><h3>Before you stop</h3></div>
               <pre data-label="prompt · claude pane" class="prompt">/wrap-up</pre>
               <pre data-label="bash · git pane">git add -A && git commit -m "wip: exactly where I stopped" && git push</pre>
+              <p data-shell="wsl unix">Shutting the computer down? Press <kbd>Ctrl-a Ctrl-s</kbd> to save the tmux layout (tmux-resurrect; "Tmux environment saved" appears at the bottom).</p>
             </div>
           </li>
           <li class="step" data-id="d-resume" data-pane="git" data-model="Sonnet">
@@ -1280,6 +1320,7 @@ Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -D
               <div class="step-head"><h3>Next morning: where am I?</h3></div>
               <pre data-label="bash · git pane">cd {ROOT}/{APP}
 bash scripts/start.sh status</pre>
+              <p data-shell="wsl unix">After a reboot, open the terminal and press <kbd>Ctrl-a Ctrl-r</kbd>: your sessions, windows, panes and their folders come back. Programs do not restart, so start <code>claude</code> in pane 0 and the watcher in the test pane again, and right-click the files pane &gt; <b>Files monitor</b> to restart its watch. No saved layout? <kbd>Ctrl-a W</kbd> builds a fresh one.</p>
               <p class="expect">Shows the current REQ or bug, its Issue, plan, review and PR state, and <b>the next action</b>.</p>
               <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Resuming. Before any code: run `bash scripts/start.sh status`, `git log --oneline -5`, `bash scripts/req_status.sh`
 and the full test suite; read docs/MEMORY.md, the current REQ in docs/01-prd.md and its plan in docs/plans/.
@@ -1299,6 +1340,14 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           <div class="tip"><h4>If you cannot follow the diff, do not merge</h4><p>Type inside Claude (claude pane): <i>"Simplify this change so a returning developer can follow it. Keep behaviour and tests the same."</i> Simplifying before merge costs minutes; after, it costs a bug.</p></div>
           <div class="tip"><h4>Find where a change goes</h4><p>Open the change map, <code>docs/02-architecture.md</code> section 3a. Rules are in <code>service.py</code>, storage in <code>repository.py</code>, pages and APIs in <code>routes.py</code>. Or search the REQ-ID: <code>grep -rn REQ-004 src tests docs</code>.</p></div>
           <div class="tip"><h4>Ask "who calls this?" before changing it</h4><p>With graphify connected, ask Claude for the callers and impact of a function. Without it, use your editor's Find References. Do not trust a <code>Called by:</code> line you did not just check.</p></div>
+        </div>
+
+        <h3 class="sub">Working in tmux</h3>
+        <div class="tips">
+          <div class="tip"><h4>Read before every commit</h4><p><kbd>Ctrl-a F</kbd> then <kbd>Ctrl-a G</kbd> takes ten seconds. The builder never commits, so nothing Claude wrote reaches git without passing your eyes first.</p></div>
+          <div class="tip"><h4>One reviewer per requirement</h4><p>The review window keeps its context. Start each REQ's review fresh: <code>/exit</code>, <kbd>Ctrl-a &amp;</kbd>, <kbd>Ctrl-a V</kbd>. A reviewer that already saw the last REQ is less sharp on this one.</p></div>
+          <div class="tip"><h4>Zoom, don't squint</h4><p><kbd>Ctrl-a z</kbd> toggles any pane full screen; <kbd>Ctrl-a H/J/K/L</kbd> (hold to repeat) resizes. Long output: <kbd>Ctrl-a v</kbd> for copy mode, <kbd>v</kbd> to select, <kbd>y</kbd> to copy, <kbd>Esc</kbd> to leave.</p></div>
+          <div class="tip"><h4>Ctrl-l moves, it no longer clears</h4><p><kbd>Ctrl-h/j/k/l</kbd> move between panes, so <kbd>Ctrl-l</kbd> does not clear the screen: type <code>clear</code>. Edited the config? <kbd>Ctrl-a r</kbd> reloads it.</p></div>
         </div>
 
         <h3 class="sub">Keeping requirements small</h3>
@@ -1390,6 +1439,27 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
+        <h3 class="sub" data-shell="wsl unix">tmux keys (prefix <kbd>Ctrl-a</kbd>, from the kit's <code>.tmux.conf</code>)</h3>
+        <div class="tablewrap" data-shell="wsl unix"><table class="ref">
+          <thead><tr><th>Keys</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>Ctrl-a W</kbd></td><td>New <b>work</b> window: 0 claude | 1 git, 2 files, 3 test, 4 frontend</td></tr>
+            <tr><td><kbd>Ctrl-a V</kbd></td><td>Go to the <b>review</b> window; creates it and starts <code>claude --permission-mode plan</code> (read-only) if missing</td></tr>
+            <tr><td><kbd>Ctrl-a Tab</kbd></td><td>Previous window (work and review)</td></tr>
+            <tr><td><kbd>Ctrl-a F</kbd> / <kbd>G</kbd></td><td>Popup: changed files / full uncommitted diff against the last commit</td></tr>
+            <tr><td><kbd>Ctrl-a B</kbd> / <kbd>Y</kbd></td><td>Popup: this branch against main / history of main with the files each commit touched</td></tr>
+            <tr><td><kbd>Ctrl-a z</kbd> (or <kbd>m</kbd>)</td><td>Zoom the focused pane; again to restore</td></tr>
+            <tr><td><kbd>Ctrl-h/j/k/l</kbd></td><td>Move between panes (and Neovim splits), no prefix</td></tr>
+            <tr><td><kbd>Ctrl-a |</kbd> / <kbd>-</kbd></td><td>Split side by side / one above the other, in the same folder</td></tr>
+            <tr><td><kbd>Ctrl-a H/J/K/L</kbd></td><td>Resize the pane (hold to repeat)</td></tr>
+            <tr><td><kbd>Ctrl-a T</kbd> · right-click</td><td>Name the pane yourself · role and colour menu, layout and pane actions</td></tr>
+            <tr><td><kbd>Ctrl-a n</kbd> / <kbd>p</kbd> · <kbd>Ctrl-a &amp;</kbd></td><td>Next / previous window · close the current window</td></tr>
+            <tr><td><kbd>Ctrl-a v</kbd></td><td>Copy mode with vi keys (<kbd>v</kbd> select, <kbd>y</kbd> copy, <kbd>Esc</kbd> leave)</td></tr>
+            <tr><td><kbd>Ctrl-a Ctrl-s</kbd> / <kbd>Ctrl-r</kbd></td><td>Save / restore the whole layout (tmux-resurrect)</td></tr>
+            <tr><td><kbd>Ctrl-a r</kbd></td><td>Reload <code>~/.tmux.conf</code></td></tr>
+          </tbody>
+        </table></div>
+
         <h3 class="sub">What lives where in the project</h3>
         <div class="tablewrap"><table class="ref">
           <thead><tr><th>File</th><th>Holds</th><th>Who changes it</th></tr></thead>
@@ -1454,6 +1524,12 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td>The reviewer asks permission for every command</td><td><code>.claude/settings.json</code> is missing: copy it from the kit's <code>templates/project/.claude/</code>.</td></tr>
             <tr><td>Red on main after a merge</td><td><code>git revert -m 1 MERGE_SHA</code> first, then diagnose on a branch.</td></tr>
             <tr><td>tmux opens inside tmux</td><td>Use the switch command in Phase 2 instead of <code>tmux new</code>.</td></tr>
+            <tr><td><code>unknown command: display-popup</code>, or <kbd>Ctrl-a F</kbd> / <kbd>G</kbd> do nothing</td><td>tmux is older than 3.2 (<code>tmux -V</code>). Upgrade it (Ubuntu 22.04 or newer, or <code>brew upgrade tmux</code>).</td></tr>
+            <tr><td><code>invalid option: menu-style</code> when tmux starts</td><td>tmux 3.2 or 3.3: only the right-click menu colours are lost; everything else works. tmux 3.4 removes the message.</td></tr>
+            <tr><td><code>resurrect.tmux ... returned 127</code></td><td>tmux-resurrect is not installed: <code>git clone https://github.com/tmux-plugins/tmux-resurrect ~/.tmux/plugins/tmux-resurrect</code>, then <kbd>Ctrl-a r</kbd>.</td></tr>
+            <tr><td>Files pane says <code>watch: command not found</code></td><td>Mac: <code>brew install watch</code>, then right-click the pane &gt; <b>Files monitor</b>.</td></tr>
+            <tr><td>Right side of the status bar shows no REQ or gate</td><td><code>~/.tmux.conf</code> is a copy, not a link to the kit, so <code>tmux-status.sh</code> is not found. Re-run the <code>ln -sf</code> line from Phase 0, then <kbd>Ctrl-a r</kbd>. On main there is no REQ to show; that is normal.</td></tr>
+            <tr><td>The review window's Claude cannot save or edit anything</td><td>By design: <kbd>Ctrl-a V</kbd> starts it in plan mode. The review <code>pr.sh</code> checks is <code>/review</code> in the claude pane.</td></tr>
           </tbody>
         </table></div>
 
@@ -1467,7 +1543,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.14: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project and the reviewer agent. Progress and your project values are stored only in this browser.
+        <div class="foot">Built from reference kit v2.14: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project, the reviewer agent and .tmux.conf (five-pane work window, review window, diff popups). Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>
