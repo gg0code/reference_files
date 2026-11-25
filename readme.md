@@ -1,6 +1,6 @@
 # vibecode - Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v3.13 (2026-11-25).
+Kit version: v3.14 (2026-11-25).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -255,6 +255,16 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v3.14 (vibecode)
+
+- **Kit renamed:** every `reference_files` mention (folder, clone URL, scaffold usage, guide) is now `vibecode`; the kit lives at `~/kits/vibecode`.
+  An existing clone: `mv ~/kits/reference_files ~/kits/vibecode`, or set `KIT_DIR`.
+- **`start.sh` v6:** before creating a new branch it warns, lists the commits and asks when local main is ahead of origin/main.
+  Such a branch carries them and `integrity.sh` (which compares with origin/main) blames them on it: a false I1 FAIL. No terminal: stops unless `ALLOW_AHEAD=1`.
+- **Docs:** a free-plan private repo cannot have branch protection, so autopilot cannot run and `pr.sh merge` refuses; merge by hand after review.
+- Stale v3.12 stamps fixed (reviewer agent header).
+- Existing v3.13 projects: `cp <kit>/start.sh <project>/scripts/` on a `chore/kit-v3.14` branch.
 
 ## Changes in v3.13 (vibecode)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# start.sh - start the next piece of work, or show where you are.      VERSION: v6 (kit v3.13)
+# start.sh - start the next piece of work, or show where you are.      VERSION: v6 (kit v3.14)
 # v5: status knows the test lock (/tests, read docs/tests/<ID>.md, lock_tests.sh); check lists lock_tests.sh.
 # v6: before creating a new branch, warns and asks when local main is ahead of origin/main (ALLOW_AHEAD=1 skips the question).
 #
