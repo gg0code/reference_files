@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# autopilot.sh - unattended builder for several REQs in a row.        VERSION: v3
+# autopilot.sh - unattended builder for several REQs in a row.        VERSION: v4 (kit v3.13)
 #
 # Optional. The normal, attended flow (runbook.md Phase 2) is unchanged; this script
 # only automates the steps between your human gates, at the level you choose.
@@ -33,9 +33,14 @@
 # Requires: claude, git, gh (authenticated), jq.
 # v2: every prompt starts with "NON-INTERACTIVE RUN" so Claude skips the MCP setup check (docs/MCP.md).
 # v3: builds must pass scripts/gate.sh (docs, lint, format, types, tests) when it exists.
+# v4: risk tiers. A standard or strict plan is built only when its tests are locked (/tests + your
+#     scripts/lock_tests.sh); otherwise the REQ is skipped and listed under "Needs you". A loop that stops on a
+#     Disputed entry (a disputed locked test, or locked tests below the coverage floor) is listed with that entry.
+#     PRs are opened by scripts/pr.sh (evidence, boundary changes); AUTO_MERGE never merges a PR labelled
+#     needs-human-review. Exports KIT_LOOP=1 so the Stop hook leaves the gate to the loop.
 set -uo pipefail
 
-AP_VERSION="v3"
+AP_VERSION="v4"
 AUTOPILOT="${AUTOPILOT:-build}"
 AUTO_MERGE="${AUTO_MERGE:-0}"
 MAX_REQS="${MAX_REQS:-3}"
@@ -137,6 +142,7 @@ echo $$ > "$LOCK"
 # never commit run files, even if .gitignore lacks the entry (local-only exclude)
 grep -qx '.autopilot/' .git/info/exclude 2>/dev/null || echo '.autopilot/' >> .git/info/exclude
 export TEST_CMD
+export KIT_LOOP=1   # the Stop hook leaves the gate to loop.sh
 TOTAL_COST=0
 ROWS=""
 NEEDS_YOU=""
@@ -276,10 +282,14 @@ if [ "$DRY_RUN" = 1 ]; then
   for r in "${QUEUE[@]}"; do
     p="docs/plans/$r.md"; ps="missing"
     [ -f "$p" ] && { head -1 "$p" | grep -q '^Status: APPROVED' && ps="approved" || ps="draft"; }
+    rk="$(sed -nE 's/^Risk:[[:space:]]*([A-Za-z]+).*/\1/p' "$p" 2>/dev/null | head -1 | tr '[:upper:]' '[:lower:]')"; rk="${rk:-standard}"
+    br="$(git branch --format='%(refname:short)' --list "feat/${r}-*" | head -1)"
+    lk="$( [ -n "$br" ] && git show "$br:$p" 2>/dev/null | sed -nE 's/^Tests locked:[[:space:]]*([0-9a-f]{7}).*/\1/p' | head -1)"
     act="build -> review -> PR"
+    [ "$ps" = approved ] && [ "$rk" != light ] && [ -z "$lk" ] && act="SKIP (Risk: $rk, tests not locked: /tests + lock_tests.sh)"
     [ "$ps" != approved ] && { [ "$PLAN_LEVEL" = 1 ] && act="draft plan -> plan review -> $act" || act="SKIP (needs your approved plan)"; }
     if [ "$AUTO_MERGE" = 1 ] && { [ "$ps" = approved ] || [ "$PLAN_LEVEL" = 1 ]; }; then act="$act -> wait CI -> merge -> after-merge checks"; fi
-    echo "    $r (#${ISSUE_OF[$r]}) plan: $ps  =>  $act"
+    echo "    $r (#${ISSUE_OF[$r]}) plan: $ps, risk: $rk, lock: ${lk:-none}  =>  $act"
   done
   STOPPED="dry run"
   exit 0
@@ -333,6 +343,7 @@ process_req() {
 "Issue #${issue} / ${req}. Write an implementation plan ONLY to ${plan}, starting from docs/plans/_TEMPLATE.md.
 Read CLAUDE.md, docs/RULES.md, ${req} in docs/01-prd.md, its TC rows in docs/04-testplan.md and docs/02-architecture.md.
 Fill: goal, TC-IDs covered, approach, files to create or change, risks, out of scope, review focus, and the iteration cap.
+Set the 'Risk:' line (light, standard or strict, with a one-line reason) by the rules in the template; when unsure, the stricter tier.
 If it needs another REQ merged first, add a line 'Depends on: REQ-00X'.
 Keep line 1 exactly 'Status: DRAFT'. Do not create or change any other file. No code.${extra}" || return 1
       local stray; stray="$(git status --porcelain --untracked-files=all | grep -vE " (${plan}|docs/reviews/${req}\.plan\.md)\$")"
@@ -363,6 +374,19 @@ then a findings table (# | Severity | Section | Finding). Return only the report
     ok "plan approved by reviewer agent"
   fi
 
+  # ----- risk tier: standard and strict need tests the user read and locked -----
+  local risk lock
+  risk="$(sed -nE 's/^Risk:[[:space:]]*([A-Za-z]+).*/\1/p' "$plan" | head -1 | tr '[:upper:]' '[:lower:]')"; risk="${risk:-standard}"
+  lock="$(sed -nE 's/^Tests locked:[[:space:]]*([0-9a-f]{7,40}).*/\1/p' "$plan" | head -1)"
+  if [ "$risk" != light ] && [ -z "$lock" ]; then
+    git checkout -q "$BASE_BRANCH"   # keep the branch if it holds a plan autopilot just drafted
+    [ "$new_branch" = 1 ] && [ "$plan_by" = you ] && git branch -q -D "$branch" 2>/dev/null
+    record "$req" "$issue" "$plan_by" 0 "-" "-" "skipped" "Risk: $risk, tests not locked"
+    needs_you "$req" "Risk: $risk needs locked tests: on branch $branch run /tests $req in the claude pane, read docs/tests/$req.md, then bash scripts/lock_tests.sh"
+    return 2
+  fi
+  [ -n "$lock" ] && ok "Risk: $risk, tests locked at ${lock:0:7}" || ok "Risk: light"
+
   # ----- build + review rounds -----
   local r loop_out
   for r in $(seq 1 "$REVIEW_ROUNDS"); do
@@ -379,6 +403,11 @@ then a findings table (# | Severity | Section | Finding). Return only the report
     local lc=$?
     add_cost "$(grep -oE 'total cost : \$[0-9.]+' "$loop_out" | tail -1 | grep -oE '[0-9.]+$')"
     cat "$loop_out" >> "$LOG"
+    if [ $lc -eq 4 ]; then
+      needs_you "$req" "the loop stopped on a Disputed entry (tests are locked, so you decide). From FAILURES.txt on branch $branch:
+$(sed -n '/^Disputed/,$p' FAILURES.txt 2>/dev/null | head -14 | sed 's/^/    /')"
+      record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "-" "NEEDS YOU" "Disputed (locked tests)"; return 1
+    fi
     if [ $lc -ne 0 ]; then
       needs_you "$req" "loop stopped (cap or error) in round $r: read $loop_out and FAILURES.txt on branch $branch, then re-plan"
       record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "-" "NEEDS YOU" "loop did not go green"; return 1
@@ -414,17 +443,12 @@ Follow your instructions exactly and return only the report, starting with the V
     record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "-" "NEEDS YOU" "review not approved"; return 1
   fi
 
-  # ----- push + PR -----
-  git push -q -u origin "$branch" 2>>"$LOG" || { needs_you "$req" "git push failed (see $LOG)"; record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "-" "NEEDS YOU" "push failed"; return 1; }
-  pr="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number' 2>/dev/null)"
-  if [ -z "$pr" ] || [ "$pr" = "null" ]; then
-    gh pr create --base "$BASE_BRANCH" --head "$branch" --title "feat(${req}): ${title}" --body "Implements ${req}. Closes #${issue}.
-
-Review: docs/reviews/${req}.md (APPROVE, round ${rounds}).
-Plan approved by: ${plan_by}.
-Opened unattended by autopilot run ${RUN_ID}." >>"$LOG" 2>&1 || { needs_you "$req" "gh pr create failed"; record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "-" "NEEDS YOU" "PR failed"; return 1; }
-    pr="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number' 2>/dev/null)"
+  # ----- push + PR (scripts/pr.sh: gate --full evidence, lock sha, boundary changes and label) -----
+  if ! PR_NOTE="Plan approved by: ${plan_by}. Opened unattended by autopilot run ${RUN_ID}." bash scripts/pr.sh >>"$LOG" 2>&1; then
+    needs_you "$req" "scripts/pr.sh could not open the PR (gate --full red, push or gh failed): see $LOG"
+    record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "-" "NEEDS YOU" "PR failed"; return 1
   fi
+  pr="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number' 2>/dev/null)"
   ok "PR #$pr open"
 
   if [ "$AUTO_MERGE" != 1 ]; then
@@ -433,6 +457,10 @@ Opened unattended by autopilot run ${RUN_ID}." >>"$LOG" 2>&1 || { needs_you "$re
   fi
 
   # ----- level 3: CI, merge, after-merge checks -----
+  if gh pr view "$pr" --json labels --jq '.labels[].name' 2>/dev/null | grep -qx needs-human-review; then
+    needs_you "$req" "PR #$pr changes boundary files (label needs-human-review; see 'Boundary changes' in the PR). Review and merge it yourself"
+    record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "#$pr" "PR open" "needs-human-review: never auto-merged"; return 1
+  fi
   info "waiting for CI on PR #$pr"
   if ! gh pr checks "$pr" --watch --fail-fast >>"$LOG" 2>&1; then
     needs_you "$req" "CI failed on PR #$pr"; record "$req" "$issue" "$plan_by" "$rounds" "$verdict" "#$pr" "NEEDS YOU" "CI red"; return 1
