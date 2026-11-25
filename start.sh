@@ -297,6 +297,7 @@ guard_ahead() {
   git log --oneline "origin/$BASE..$BASE" | head -10 | sed 's/^/              /'
   echo "              integrity.sh compares with origin/$BASE, so they would count as this branch's changes (false I1-I6 FAILs)."
   echo "              Fix: push them (usually setup or doc commits that were never pushed): git push origin $BASE"
+  echo "              (protected main: put them on a branch and open a PR)"
   echo "              Only if they should NOT be on $BASE: git switch $BASE && git reset --keep origin/$BASE"
   echo "              (WARNING: that drops them from $BASE; save them on a branch first if you still need them)."
   if [ "${ALLOW_AHEAD:-0}" = 1 ]; then warn "continuing anyway (ALLOW_AHEAD=1)"; return 0; fi
