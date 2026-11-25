@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# start.sh - start the next piece of work, or show where you are.      VERSION: v5 (kit v3.13)
+# start.sh - start the next piece of work, or show where you are.      VERSION: v6 (kit v3.13)
 # v5: status knows the test lock (/tests, read docs/tests/<ID>.md, lock_tests.sh); check lists lock_tests.sh.
+# v6: before creating a new branch, warns and asks when local main is ahead of origin/main (ALLOW_AHEAD=1 skips the question).
 #
 #   bash scripts/start.sh                    start the next unticked REQ in docs/TASKS.md
 #   bash scripts/start.sh REQ-004            start (or resume) that REQ
@@ -16,6 +17,8 @@
 # pr.sh and Claude's `next` / `review` all know which work you are on.
 #
 # Refuses to start new work while you are on an unfinished REQ/BUG branch (FORCE=1 overrides).
+# Asks before branching from a local main that is ahead of origin/main: the new branch would carry
+# those unpushed commits, and integrity.sh (which compares with origin/main) would blame them on it.
 set -uo pipefail
 
 ok()   { echo "    OK    : $*"; }
@@ -280,7 +283,24 @@ checkout_branch() {   # checkout_branch <name>
   git pull -q --ff-only 2>/dev/null || warn "could not pull $BASE (offline?) - continuing from the local copy"
   if git rev-parse --verify -q "$b" >/dev/null; then git checkout -q "$b"; ok "resumed branch $b"
   elif git rev-parse --verify -q "origin/$b" >/dev/null; then git checkout -q -b "$b" "origin/$b"; ok "resumed remote branch $b"
-  else git checkout -q -b "$b"; ok "created branch $b from $BASE"; fi
+  else guard_ahead; git checkout -q -b "$b"; ok "created branch $b from $BASE"; fi
+}
+
+# guard_ahead: local main has commits origin/main lacks (pull failed, or a commit made on main).
+# A branch made from it carries them, and integrity.sh then reports them as this branch's changes
+# (e.g. a false I1 FAIL). Warn and ask; ALLOW_AHEAD=1 continues without asking.
+guard_ahead() {
+  git rev-parse --verify -q "origin/$BASE" >/dev/null || return 0
+  local n; n="$(git rev-list --count "origin/$BASE..$BASE" 2>/dev/null)" || return 0
+  [ "${n:-0}" -gt 0 ] || return 0
+  warn "local $BASE is $n commit(s) ahead of origin/$BASE; a new branch would carry them:"
+  git log --oneline "origin/$BASE..$BASE" | head -10 | sed 's/^/              /'
+  echo "              integrity.sh compares with origin/$BASE, so they would count as this branch's changes (false I1-I6 FAILs)."
+  echo "              Fix: push them through a PR, or drop them: git switch $BASE && git reset --keep origin/$BASE"
+  if [ "${ALLOW_AHEAD:-0}" = 1 ]; then warn "continuing anyway (ALLOW_AHEAD=1)"; return 0; fi
+  [ -t 0 ] || die "local $BASE is ahead of origin/$BASE - not asking without a terminal. Fix it, or re-run with ALLOW_AHEAD=1"
+  local a; read -r -p "    Continue anyway? [y/N] " a
+  case "$a" in y|Y|yes|YES) warn "continuing from the local $BASE" ;; *) die "stopped: local $BASE is ahead of origin/$BASE" ;; esac
 }
 
 start_req() {   # start_req [REQ-00X]
