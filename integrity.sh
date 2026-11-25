@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# integrity.sh - did this branch weaken the checks that judge it?   VERSION: v1 (kit v3.12)
+# integrity.sh - did this branch weaken the checks that judge it?   VERSION: v2 (kit v3.13)
 #
-#   bash scripts/integrity.sh            check the current branch (committed + uncommitted + untracked)
-#   bash scripts/integrity.sh --list     only list the protected paths and patterns
+#   bash scripts/integrity.sh                     check the current branch (committed + uncommitted + untracked)
+#   bash scripts/integrity.sh --list              only list the protected paths and patterns
+#   bash scripts/integrity.sh --lock-state        print "<ID> <sha>" when this branch's tests are locked, else nothing
+#   bash scripts/integrity.sh --lock-files        the test files the lock covers (added or changed by the branch up to the lock)
+#   bash scripts/integrity.sh --is-locked-test P  exit 0 when path P is a test path and this branch's tests are locked
+#   bash scripts/integrity.sh --is-test-path P    exit 0 when path P is a path the lock covers
 #
 # The builder writes the code AND could edit the things that judge the code. This script compares the
 # branch with its merge-base on main and FAILS when, without an exception in the approved plan, it:
@@ -12,6 +16,9 @@
 #   I3 removes test functions or assertions from an existing test file
 #   I4 adds a skip / xfail / only marker to a test
 #   I5 adds a lint or type suppression (# noqa, type: ignore, pragma: no cover, eslint-disable, @ts-ignore, nolint, #[allow])
+#   I6 (v2) changes, deletes, renames or adds ANY test path (TEST_PATH_RE, conftest.py, fixtures/; not *.md) after the
+#      plan's lock line "Tests locked: <sha>" (written by scripts/lock_tests.sh). A path whose content equals the
+#      base branch's version came from main and is ignored. Only the user removes the lock line.
 #
 # Exceptions: the plan (docs/plans/<ID>.md) may hold a section
 #     ## Allowed exceptions
@@ -32,15 +39,45 @@ SKIP_RE='(@pytest\.mark\.(skip|xfail)|pytest\.skip\(|unittest\.skip|\.skip\(|\.o
 SUPPRESS_RE='(#[[:space:]]*noqa|type:[[:space:]]*ignore|pragma:[[:space:]]*no[[:space:]]*cover|eslint-disable|@ts-ignore|@ts-nocheck|@ts-expect-error|//[[:space:]]*nolint|#\[allow\(|#!\[allow\(|NOSONAR)'
 TEST_PATH_RE='(^|/)(tests?|__tests__|spec)/|(^|/)test_[^/]*\.py$|_test\.(py|go)$|\.(test|spec)\.[jt]sx?$'
 TEST_DEF_RE='^-[[:space:]]*(def test_|async def test_|func Test|#\[test\]|(it|test|describe)\(|assert|expect\(|self\.assert)'
+LOCK_RE="${TEST_PATH_RE}|(^|/)conftest\.py\$|(^|/)fixtures?/"   # I6: what the lock freezes (minus *.md)
+is_lock_path() { printf '%s' "$1" | grep -qE "$LOCK_RE" && ! printf '%s' "$1" | grep -qE '\.md$'; }
 
 if [ "${1:-}" = "--list" ]; then
   echo "Protected files (I1):    $PROTECTED_RE"
   echo "Skip markers (I4):       $SKIP_RE"
   echo "Suppressions (I5):       $SUPPRESS_RE"
+  echo "Locked test paths (I6):  $LOCK_RE  (not *.md)"
   exit 0
 fi
 
 BRANCH="${GITHUB_HEAD_REF:-$(git branch --show-current 2>/dev/null)}"
+ID="$(printf '%s' "$BRANCH" | grep -oE '(REQ|BUG)-[0-9]{3}' | head -1)"
+PLAN="docs/plans/${ID:-none}.md"
+ALLOWED=""; LOCK=""
+# Read the COMMITTED plan, and only when it is approved: an uncommitted or draft edit to the plan
+# (for example by the builder during a loop) grants nothing and removes no lock.
+if [ -n "$ID" ] && git cat-file -e "HEAD:$PLAN" 2>/dev/null; then
+  PLAN_TXT="$(git show "HEAD:$PLAN")"
+  case "$(printf '%s\n' "$PLAN_TXT" | grep -m1 -v '^[[:space:]]*$')" in
+    "Status: APPROVED"*)
+      ALLOWED="$(printf '%s\n' "$PLAN_TXT" | awk '/^##[[:space:]]+Allowed exceptions/{on=1;next} /^##[[:space:]]/{on=0} on' | grep -vE '^[[:space:]]*(<!--|None\.?$)')"
+      case "$BRANCH" in feat/*|fix/*)
+        LOCK="$(printf '%s\n' "$PLAN_TXT" | sed -nE 's/^Tests locked:[[:space:]]*([0-9a-f]{7,40}).*/\1/p' | head -1)" ;;
+      esac ;;
+  esac
+fi
+
+case "${1:-}" in
+  --lock-state) [ -n "$LOCK" ] && echo "$ID $LOCK"; exit 0 ;;
+  --is-locked-test) [ -n "$LOCK" ] && is_lock_path "${2:-}"; exit $? ;;
+  --is-test-path) is_lock_path "${2:-}"; exit $? ;;
+  --lock-files)
+    [ -n "$LOCK" ] || exit 0
+    for ref in origin/main main origin/master master; do git rev-parse --verify -q "$ref" >/dev/null 2>&1 && { LB="$(git merge-base "$ref" "$LOCK" 2>/dev/null)"; break; }; done
+    git diff --name-only "${LB:-$LOCK}" "$LOCK" 2>/dev/null | while IFS= read -r p; do is_lock_path "$p" && echo "$p"; done
+    exit 0 ;;
+esac
+
 case "$BRANCH" in main|master|"") echo "integrity: on '${BRANCH:-detached}' - nothing to compare (PASS)"; exit 0 ;; esac
 BASE=""
 for ref in origin/main main origin/master master; do
@@ -49,18 +86,6 @@ done
 [ -n "$BASE" ] || { echo "integrity: no main branch found - nothing to compare (PASS)"; exit 0; }
 MB="$(git merge-base "$BASE" HEAD 2>/dev/null)" || { echo "integrity: no merge-base with $BASE (PASS)"; exit 0; }
 
-ID="$(printf '%s' "$BRANCH" | grep -oE '(REQ|BUG)-[0-9]{3}' | head -1)"
-PLAN="docs/plans/${ID:-none}.md"
-ALLOWED=""
-# Read the COMMITTED plan, and only when it is approved: an uncommitted or draft edit to the plan
-# (for example by the builder during a loop) grants nothing.
-if [ -n "$ID" ] && git cat-file -e "HEAD:$PLAN" 2>/dev/null; then
-  PLAN_TXT="$(git show "HEAD:$PLAN")"
-  case "$(printf '%s\n' "$PLAN_TXT" | grep -m1 -v '^[[:space:]]*$')" in
-    "Status: APPROVED"*)
-      ALLOWED="$(printf '%s\n' "$PLAN_TXT" | awk '/^##[[:space:]]+Allowed exceptions/{on=1;next} /^##[[:space:]]/{on=0} on' | grep -vE '^[[:space:]]*(<!--|None\.?$)')" ;;
-  esac
-fi
 allowed() { [ -n "$ALLOWED" ] && printf '%s\n' "$ALLOWED" | grep -qF -- "$1"; }
 # Kit upgrades (new scripts, hooks, CI from the kit) run on a branch named chore/kit-<version>:
 # protected-file changes (I1) are allowed there and listed; tests rules (I2-I5) still apply. The PR and your review decide.
@@ -124,12 +149,38 @@ while IFS=$'\t' read -r st p1 p2; do
   ;; esac
 done <<< "$CHANGES"
 
-echo "integrity.sh v1 - branch $BRANCH vs $BASE ($(git rev-parse --short "$MB")) - plan: $([ -f "$PLAN" ] && echo "$PLAN" || echo none)"
+# I6 tests locked: no test path may differ from the lock commit (committed, staged, unstaged or untracked)
+same_as_base() {   # same_as_base <path>: the file (or its absence) matches the base branch, so the change came from main
+  local want; want="$(git rev-parse -q --verify "$BASE:$1" 2>/dev/null)"
+  if [ -f "$1" ]; then [ -n "$want" ] && [ "$(git hash-object "$1")" = "$want" ]; else [ -z "$want" ]; fi
+}
+if [ -n "$LOCK" ]; then
+  if ! git cat-file -e "${LOCK}^{commit}" 2>/dev/null; then
+    flag I6 "$PLAN" "lock sha $LOCK not found in this repo - the user re-locks (bash scripts/lock_tests.sh)"
+  elif ! git merge-base --is-ancestor "$LOCK" HEAD 2>/dev/null; then
+    flag I6 "$PLAN" "lock sha $LOCK is not an ancestor of HEAD (history rewritten?) - the user re-locks"
+  else
+    LOCK_CHANGES="$(git diff --name-status -M "$LOCK" -- . 2>/dev/null)"
+    [ -n "$UNTRACKED" ] && LOCK_CHANGES="${LOCK_CHANGES}
+$(printf '%s\n' "$UNTRACKED" | sed 's/^/A\t/')"
+    while IFS=$'\t' read -r st p1 p2; do
+      [ -n "${st:-}" ] || continue
+      for p in "$p1" ${p2:+"$p2"}; do
+        is_lock_path "$p" || continue
+        same_as_base "$p" && continue
+        flag I6 "$p" "test path changed after the lock at ${LOCK:0:7} ($st) - tests are locked"
+      done
+    done <<< "$LOCK_CHANGES"
+  fi
+fi
+
+echo "integrity.sh v2 - branch $BRANCH vs $BASE ($(git rev-parse --short "$MB")) - plan: $([ -f "$PLAN" ] && echo "$PLAN" || echo none)${LOCK:+ - tests locked at ${LOCK:0:7}}"
 [ -n "$REPORT" ] && printf '%s' "$REPORT"
 if [ "$FINDINGS" -gt 0 ]; then
   echo "  RESULT: FAIL - $FINDINGS change(s) weaken or alter the checks."
   echo "  Fix the cause instead. If a change is truly needed, the USER adds the path with a reason under"
   echo "  '## Allowed exceptions' in $PLAN (a plan change, so it is approved again)."
+  [ -n "$LOCK" ] && echo "  I6: a locked test that is wrong goes under 'Disputed' (FAILURES.txt or docs/tests/$ID.md); the user unlocks."
   exit 1
 fi
 echo "  RESULT: PASS ($EXCEPTED allowed by the plan)"

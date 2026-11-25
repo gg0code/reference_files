@@ -18,6 +18,7 @@ reference_files/
   dashboard.py               live ZeroZeta dashboard: progress, needs-you, buttons; phone access with a PIN (copied into each project)
   gate.sh                    the quality gate: doclint, lint, format, types, tests, coverage, integrity; --full adds audits (copied into each project)
   integrity.sh               fails a branch that weakens its own checks (tests, gate config, suppressions) without a plan exception (copied into each project)
+  lock_tests.sh              YOU lock a REQ's or BUG's tests after reading docs/tests/<ID>.md; integrity I6 then freezes them (copied into each project)
   protect.sh                 turns on GitHub branch protection for main; pr.sh merge and autopilot require it (copied into each project)
   loop.sh                    bounded implement-and-test loop for one Issue (copied into each project)
   req_status.sh              REQ-ID ledger and CI traceability check (copied into each project)
@@ -28,13 +29,13 @@ reference_files/
     project/                 everything a new project starts with
       CLAUDE.md              the project constitution (FIXED + FILL IN sections)
       .claude/agents/reviewer.md   the second agent: read-only code reviewer (Opus)
-      .claude/commands/      slash commands: /setup /next /review /explain /status /audit /fix /release-check /wrap-up /phases /scope /diagram /mcp
+      .claude/commands/      slash commands: /setup /next /tests /review /explain /status /audit /fix /release-check /wrap-up /phases /scope /diagram /mcp
       .claude/hooks/         guards (main, .env, force-push, hard reset, --no-verify, pushes to main), Python auto-format, idle and needs-you signals
       .claude/settings.json        pre-approved read-only commands (the reviewer runs without prompts)
       .mcp.json              MCP servers: chrome-devtools, playwright, graphify (free, local, no keys)
       .gitignore
       docs/                  00-idea, 01-prd, 02-architecture, 03-ui-design, 03-wireframe/,
-                             04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, MCP, plans/, reviews/
+                             04-testplan, 05-launch-checklist, RULES, TASKS, MEMORY, MCP, plans/, tests/, reviews/
       src/  tests/  scripts/ each with a README.md
   .bashrc  .tmux.conf  .wezterm.lua   optional terminal setup (four-pane layout; not used by the scripts)
   tmux-status.sh             REQ id + gate result for the tmux status bar (read by .tmux.conf)
@@ -188,6 +189,41 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 - Existing projects are not updated automatically.
   To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
+- Kit upgrades go on a branch named `chore/kit-<version>`: there `integrity.sh` lists the changed kit files as ALLOWED instead of failing,
+  and you review them in the PR. Run the commands below yourself in the git pane (the hooks block Claude from editing the kit's checks).
+  `pr.sh` only handles REQ and BUG branches, so open and merge the kit PR with `gh` as shown.
+- To bring a v3.12 project up to v3.13 (risk tiers, `/tests`, test lock, blocking Stop hook, PR evidence), from the project root:
+  ```bash
+  git switch main && git pull --ff-only && git switch -c chore/kit-v3.13
+  cp <kit>/integrity.sh <kit>/lock_tests.sh <kit>/loop.sh <kit>/pr.sh <kit>/autopilot.sh <kit>/start.sh scripts/
+  cp <kit>/templates/project/.claude/hooks/guard-files.sh <kit>/templates/project/.claude/hooks/guard-bash.sh <kit>/templates/project/.claude/hooks/on-stop.sh .claude/hooks/
+  cp <kit>/templates/project/.claude/commands/tests.md <kit>/templates/project/.claude/commands/next.md .claude/commands/
+  cp <kit>/templates/project/.claude/agents/reviewer.md .claude/agents/
+  cp <kit>/templates/project/docs/plans/_TEMPLATE.md docs/plans/
+  mkdir -p docs/tests && cp <kit>/templates/project/docs/tests/README.md docs/tests/
+  sed -i '/on-stop\.sh/{n;s/"timeout": 30/"timeout": 90/}' .claude/settings.json    # the Stop hook now runs the gate
+  # CLAUDE.md: copy sections 3, 5, 8, the `tests` row of 9, and 10 from <kit>/templates/project/CLAUDE.md (your FILL IN sections stay)
+  # docs/RULES.md: copy sections 9, 10 (Boundaries: tailor the paths) and 11 from <kit>/templates/project/docs/RULES.md
+  bash scripts/start.sh check && bash scripts/gate.sh
+  git add -A && git commit -m "chore(kit): protected verification loop (kit v3.13)"
+  git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, then: gh pr merge --squash --delete-branch
+  ```
+  A REQ already in progress: its plan has no `Risk:` line, so it counts as standard and `loop.sh` asks for the lock.
+  Add `Risk: light - <reason>` to the plan only if that is true; otherwise run `/tests`, read `docs/tests/<ID>.md`, then `bash scripts/lock_tests.sh`.
+- To bring a v3.11 project up to v3.12 (integrity, branch protection, fail-closed hooks), from the project root:
+  ```bash
+  git switch main && git pull --ff-only && git switch -c chore/kit-v3.12
+  cp <kit>/integrity.sh <kit>/protect.sh <kit>/gate.sh <kit>/loop.sh <kit>/pr.sh <kit>/autopilot.sh <kit>/start.sh scripts/
+  cp <kit>/templates/project/.claude/hooks/*.sh .claude/hooks/
+  cp <kit>/templates/project/.claude/agents/reviewer.md .claude/agents/
+  cp <kit>/templates/project/docs/plans/_TEMPLATE.md docs/plans/
+  # .claude/settings.json: merge the "permissions" block of <kit>/templates/project/.claude/settings.json (integrity allowed, git clean and rm -rf spellings denied)
+  # CLAUDE.md: copy sections 3, 8 and 10; docs/RULES.md: copy sections 5 and 9 (your FILL IN sections stay)
+  bash scripts/start.sh check && bash scripts/gate.sh      # integrity lists the kit files as ALLOWED on chore/kit-*
+  git add -A && git commit -m "chore(kit): integrity, branch protection, fail-closed hooks (kit v3.12)"
+  git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, then: gh pr merge --squash --delete-branch
+  git switch main && git pull --ff-only && bash scripts/protect.sh      # once CI has run on main
+  ```
 - To bring a v2.12 project up to v2.13 (commands and hooks), from the project root:
   ```bash
   cp -r <kit>/templates/project/.claude/commands <kit>/templates/project/.claude/hooks .claude/
@@ -216,6 +252,32 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v3.13 (vibecode)
+
+Goal: the protected verification loop. Tests are written from the spec before the code, read by you, then locked, so the code must meet the tests.
+
+- **Risk tier in every plan:** `Risk: light | standard | strict` with a one-line reason; `next` proposes it, you approve it with the plan.
+  Strict: auth, payments, deleting data, a public API or routes, `shared/`, migrations, a new dependency. Light: copy, styling, a refactor with no behaviour change. Otherwise standard; no line counts as standard.
+- **New `/tests <ID>`** (standard and strict, REQ and BUG): failing tests from the TC rows and edge cases only, never `src/`, each failing on an assertion or "not implemented", enough for the coverage floor;
+  writes `docs/tests/<ID>.md` (TC-ID | test name | what it checks | fails now), commits the tests alone, and stops for you to read.
+- **New `lock_tests.sh`** (you run it, Claude cannot): writes `Tests locked: <sha>` into the plan and commits it.
+- **`integrity.sh` v2, rule I6:** after the lock, any changed, deleted, renamed or new test path (tests, `conftest.py`, fixtures; not `*.md`) fails the gate, unless the plan lists it under "Allowed exceptions".
+  A path equal to main's version is ignored. Since `gate.sh` runs integrity, loop, autopilot, pr.sh and CI all enforce it with no new CI step.
+- **Hooks:** `guard-files.sh` and `guard-bash.sh` block edits to locked tests and to a locked plan, and block Claude running `lock_tests.sh`.
+  `on-stop.sh` runs the gate when Claude stops on a feat/ or fix/ branch with changed code and exits 2 while it is red (never twice in a row; skips main, `chore/kit-*`, loops, docs-only and the `/tests` stage).
+- **`loop.sh` v15:** refuses standard and strict plans without the lock; PROMPT.md lists the locked test files and forbids test changes; stops (exit 4) on a "Disputed" entry, or when the locked tests pass but miss the coverage floor (file, coverage, gap in FAILURES.txt).
+- **`autopilot.sh` v4:** skips unlocked standard and strict REQs and lists them under "Needs you", shows loop disputes there, opens PRs through `pr.sh`, and never auto-merges a `needs-human-review` PR.
+- **`pr.sh` v4:** runs `bash scripts/gate.sh --full` first and refuses on red; the PR body holds the command and its last 40 lines, the tier, the lock sha and a link to `docs/tests/<ID>.md`;
+  files matching the new RULES.md section 10 "Boundaries" are listed under "Boundary changes" and add the label `needs-human-review`, on every tier.
+- **`start.sh` v5:** `status` shows the tier and lock and the next step; `check` knows `lock_tests.sh`. **Reviewer:** checks the lock, the table and the tier.
+- **CLAUDE.md** sections 3, 5, 8, 9 and 10, **RULES.md** sections 9, 10 and 11 (with a TODO for mutation and holdout tests).
+
+### Known limits (still true after v3.13)
+- The lock freezes the test files, not their meaning: you still have to read the table and the tests before you lock. A weak test locked is a weak test kept.
+- Coverage gaps are found only when the loop runs. `/tests` aims for the floor, but the gap shows up once the code exists, and then needs your unlock.
+- The Stop hook runs the fast gate inside the hook's time limit (80 s, `STOP_GATE_TIMEOUT`); a slower gate never blocks there, and loop.sh and CI still run it.
+- `pr.sh` now runs `gate.sh --full`, which needs the network for the dependency audit, so opening a PR takes longer.
 
 ## Changes in v3.12 (vibecode)
 
@@ -258,7 +320,7 @@ Goal: the builder cannot quietly weaken what judges it, and the guards hold when
 - A pass stopped by `ITER_TIMEOUT` reports no cost, so the dollar cap can be exceeded by at most one pass.
 - Builder and reviewer are the same model family. Keep your own plan approval (autopilot level 1) for anything that matters.
 - `spec-driven-build-guide.html` and `runbook.md` now use `protect.sh` (their old protection command required a check named `test`, but the CI job is `gate`, and it exempted admins).
-  Otherwise they still describe v2.13: they do not mention integrity, "Allowed exceptions" or the new loop caps yet.
+  v3.13 adds the `/tests` and lock steps to both.
 - The reference_files clone URL in "Getting the kit" is unchanged: point it at the vibecode repo once you publish it.
 
 ## Changes in v2.13

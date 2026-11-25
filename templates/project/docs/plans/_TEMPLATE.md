@@ -1,12 +1,20 @@
 Status: TEMPLATE
-<!-- Template v3.12. Copy to docs/plans/<ID>.md and set line 1 to "Status: DRAFT". `next` does this for you.
+<!-- Template v3.13. Copy to docs/plans/<ID>.md and set line 1 to "Status: DRAFT". `next` does this for you.
      The user approves by changing line 1 to "Status: APPROVED - <date>". loop.sh refuses anything else.
      Keep it to one page: a plan the user cannot read in five minutes is too big; split the REQ. -->
 
 # Plan: <ID> - <title> (#<Issue>)
 
 Depends on: none
+Risk: standard - <one-line reason>
 Maximum loop iterations: 6
+<!-- Risk tier (CLAUDE.md section 5). `next` proposes it; the user approves it with the plan.
+     strict   : touches auth, payments, deleting data, a public API or routes, shared/, migrations, or adds a dependency.
+     light    : copy, styling, or a refactor with no behaviour change. Nothing else.
+     standard : everything else. A plan with no Risk line counts as standard.
+     standard and strict: /tests writes the failing tests, the user reads docs/tests/<ID>.md and runs
+     bash scripts/lock_tests.sh, which adds the lock line below Risk. After that no test file changes
+     (integrity.sh I6), and loop.sh refuses to start without the lock. Only the user removes the lock line. -->
 
 ## Goal
 <!-- One or two sentences: what the user can do when this is merged. Quote the acceptance criterion from 01-prd.md. -->

@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.8. Mostly reusable. Claude PROPOSES project additions and removals as a list; the user approves each one. Never rewrite wholesale. -->
+<!-- Template v3.13. Mostly reusable. Claude PROPOSES project additions and removals as a list; the user approves each one. Never rewrite wholesale. -->
 
 # Rules
 
@@ -183,3 +183,29 @@ Every REQ and BUG branch is reviewed by the read-only reviewer agent before its 
 - Present placeholder, mock or synthetic data as real.
 - Edit the kit's checks (`.claude/hooks/`, `.claude/settings.json`, `.claude/agents/`, `scripts/gate.sh`, `scripts/integrity.sh`, CI): the builder never changes what judges it.
 - Treat a test that passed once as green: a flaky test is a failing test (the loop re-runs the gate to catch it).
+- Change, add or delete a test after its lock, run `scripts/lock_tests.sh`, or edit a locked plan: only the user does that (section 11).
+
+## 10. Boundaries
+Changes to these paths carry the most risk. `scripts/pr.sh` lists every changed file that matches under "Boundary changes"
+in the PR and adds the label `needs-human-review`; `autopilot.sh` never auto-merges such a PR, whatever the plan's Risk tier.
+One extended regular expression per bullet, in backticks, matched against the changed file paths. Tailor them in setup.
+- `(^|/)routes?(/|\.[a-z]+$)` - HTTP routes
+- `(^|/)api/` - the public API
+- `(^|/)(auth|security|permissions?)[^/]*(/|$)` - authentication, authorisation and security helpers
+- `(^|/)shared/` - code every feature depends on
+- `(^|/)migrations/` - database schema and data migrations
+- `^(pyproject\.toml|uv\.lock|requirements[^/]*\.txt|package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|go\.mod|go\.sum|Cargo\.toml|Cargo\.lock)$` - dependencies and lockfiles
+
+## 11. Protected verification loop
+The tests are written from the spec before the code, read by the user, then locked, so the code must meet the tests.
+- Risk tier, set in the plan (`Risk:`), proposed by `next`, approved by the user with the plan:
+  **strict** if the change touches auth, payments, deleting data, a public API or routes, `shared/`, migrations, or adds a dependency;
+  **light** only for copy, styling, or a refactor with no behaviour change; **standard** otherwise. No `Risk:` line counts as standard.
+- Working loop: plan (with tier) -> `/tests` -> the user reads `docs/tests/<ID>.md` -> `bash scripts/lock_tests.sh` -> `bash scripts/loop.sh`
+  -> review -> explain -> `bash scripts/pr.sh` -> merge. Light plans skip `/tests` and the lock. BUGs follow the same tiers.
+- After the lock, no test path changes (`scripts/integrity.sh` I6, inside the gate), unless the plan lists it under "Allowed exceptions".
+  A test the builder thinks is wrong goes under "Disputed" (`FAILURES.txt` in a loop, `docs/tests/<ID>.md` otherwise); the loop then stops.
+- Locked tests that pass but leave coverage below the floor also stop the loop with a "Disputed" entry. The user decides:
+  remove the lock line and commit, re-run `/tests`, read, lock again; or add an Allowed exception for the new test path.
+- TODO (not built yet): mutation testing of the locked tests (would they fail if the code were wrong?), and holdout tests
+  the builder never sees, run only by CI.

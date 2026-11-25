@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v14 (kit v3.12)
+# loop.sh - bounded Ralph loop for ONE GitHub Issue.        VERSION: v15 (kit v3.13)
 # Usage:  bash scripts/loop.sh [max-iters]          (ID from the branch, Issue from docs/TASKS.md)
 #         bash scripts/loop.sh <issue-number> <REQ-00X|BUG-00X> [max-iters]   (explicit form)
 #
@@ -27,9 +27,13 @@
 #   v14 pins the model (LOOP_MODEL, default sonnet), a dollar cap (MAX_COST) and a time cap per pass
 #       (ITER_TIMEOUT); refuses an uncommitted plan and stops if the plan changes during the run;
 #       re-runs the gate on green (FLAKE_RUNS) so a flaky test counts as failing; the gate includes integrity.sh.
+#   v15 risk tiers: a standard or strict plan (no Risk line = standard), REQ or BUG, needs the test lock
+#       (/tests, the user reads docs/tests/<ID>.md, scripts/lock_tests.sh). Locked: the prompt lists the locked
+#       test files and forbids test changes; a Disputed entry, or locked tests that pass but miss the coverage
+#       floor, stops the loop (exit 4) for the user. Exports KIT_LOOP=1 so the Stop hook leaves the gate to the loop.
 set -uo pipefail
 
-LOOP_VERSION="v14"
+LOOP_VERSION="v15"
 
 # ---------- help / usage ----------
 usage() {
@@ -74,6 +78,15 @@ ENV OVERRIDES
 PLAN GATE
   The plan file's first line must be "Status: APPROVED - <date>".
   A DRAFT plan is refused: approve it first, then commit it.
+
+RISK TIER AND TEST LOCK (v15)
+  The plan's "Risk: light | standard | strict" line (none = standard) decides the flow.
+  standard / strict (REQ and BUG): the loop refuses to start until the plan carries
+  "Tests locked: <sha>". Get there with: claude pane /tests, read docs/tests/<ID>.md,
+  then bash scripts/lock_tests.sh. The builder then writes code only; tests are fixed.
+  It stops (exit 4) when it disputes a locked test, or when the locked tests pass but
+  miss the coverage floor: the Disputed entry in FAILURES.txt says what is missing.
+  light: today's flow (the builder writes tests first, then code).
 
 REVIEW FINDINGS
   If docs/reviews/<ID>.md starts with "Verdict: CHANGES REQUESTED", its findings
@@ -273,6 +286,24 @@ if ! git ls-files --error-unmatch "$PLAN_FILE" >/dev/null 2>&1 || ! git diff --q
   exit 1
 fi
 PLAN_BLOCK="$(cat "$PLAN_FILE")"
+RISK="$(sed -nE 's/^Risk:[[:space:]]*([A-Za-z]+).*/\1/p' "$PLAN_FILE" | head -1 | tr '[:upper:]' '[:lower:]')"
+RISK="${RISK:-standard}"
+LOCK="$(sed -nE 's/^Tests locked:[[:space:]]*([0-9a-f]{7,40}).*/\1/p' "$PLAN_FILE" | head -1)"
+case "$RISK" in
+  light) ok "risk  : light - no test lock; the builder writes the tests first, then the code" ;;
+  standard|strict)
+    if [ -z "$LOCK" ]; then
+      err "plan $PLAN_FILE is Risk: $RISK, and its tests are not locked yet. The tests come first, from the spec:"
+      echo "            1. claude pane: /tests ${ID}        (writes the failing tests and docs/tests/${ID}.md, commits them)"
+      echo "            2. you: read docs/tests/${ID}.md"
+      echo "            3. git pane:    bash scripts/lock_tests.sh"
+      echo "            then re-run: bash scripts/loop.sh"
+      exit 1
+    fi
+    LOCKED_FILES="$( [ -f scripts/integrity.sh ] && bash scripts/integrity.sh --lock-files)"
+    ok "risk  : $RISK - tests locked at ${LOCK:0:7} ($(printf '%s\n' "$LOCKED_FILES" | grep -c .) file(s)); the builder writes code only" ;;
+  *) err "plan $PLAN_FILE has an unknown Risk tier '$RISK' (light, standard or strict)"; exit 1 ;;
+esac
 PLAN_HASH="$(git hash-object "$PLAN_FILE")"
 
 # ---------- reviewer findings (second agent), if a review asked for changes ----------
@@ -303,7 +334,16 @@ fi
 case "$MAX_ITERS" in ''|*[!0-9]*) err "max-iters must be a number (got '$MAX_ITERS')"; exit 1 ;; esac
 
 # ---------- the prompt, re-read fresh every iteration ----------
-if [ "$KIND" = feat ]; then
+if [ -n "$LOCK" ]; then
+  TASK_LINES="2. Read ${ID} in docs/01-prd.md$([ "$KIND" = fix ] && echo " and the Issue #${ISSUE} description") and its TC-### rows in docs/04-testplan.md.
+   The TESTS ARE LOCKED at ${LOCK:0:7}: the user read them in docs/tests/${ID}.md and locked them. Locked test files:
+$(printf '%s\n' "$LOCKED_FILES" | sed 's/^/     - /')
+   Do NOT create, edit, rename or delete ANY test file, conftest.py or fixture (the hooks block it and
+   integrity.sh I6 fails the gate). Do not add tests, even to reach the coverage floor.
+3. Write the implementation so the locked tests pass and the full gate is green.
+   If you believe a locked test is wrong, do not work around it: write the file, the test name and why under
+   \"Disputed\" in FAILURES.txt and stop. The user decides and unlocks it."
+elif [ "$KIND" = feat ]; then
   TASK_LINES="2. Read ${ID} in docs/01-prd.md and its TC-### rows in docs/04-testplan.md.
 3. Write the tests from those TC rows FIRST, then the implementation."
 else
@@ -403,7 +443,36 @@ list_generated_files() {
   echo "    ($n path(s) total - review with: git diff  and  git status)"
 }
 
+# locked_stop <iter>: with locked tests the builder cannot add or change tests, so two reds need the user:
+#   a Disputed entry the builder wrote, or locked tests that pass but leave coverage below the floor.
+locked_stop() {
+  local why="" cov
+  if grep -qE '^[[:space:]]+PASS[[:space:]]+tests' .loop-test-out.txt && grep -qE '^[[:space:]]+FAIL[[:space:]]+coverage' .loop-test-out.txt; then
+    cov="$(awk -v min="${COV_MIN:-85}" '/^[[:space:]]+\|[[:space:]].*[0-9]+%[[:space:]]*$/ && $2 != "Name" && $2 != "TOTAL" {
+             p=$NF; sub(/%/,"",p); if (p+0 < min) printf "  - %s: %s%% covered, gap %d points to the %d%% floor\n", $2, p, min-p, min }' .loop-test-out.txt)"
+    { echo ""; echo "Disputed"
+      echo "- coverage: the locked tests pass but leave service coverage below the floor (COV_MIN ${COV_MIN:-85}%)."
+      printf '%s\n' "${cov:-  - (see the coverage step in the gate output)}"
+      echo "  The builder may not add tests (tests locked at ${LOCK:0:7}). Your options: remove the lock line from"
+      echo "  ${PLAN_FILE} and commit, re-run /tests ${ID}, read, bash scripts/lock_tests.sh again;"
+      echo "  or list the new test path under '## Allowed exceptions' in the plan."; } >> FAILURES.txt
+    why="locked tests pass but miss the coverage floor"
+  elif grep -qi '^Disputed' FAILURES.txt 2>/dev/null; then
+    why="the builder disputes a locked test"
+  fi
+  [ -n "$why" ] || return 0
+  kit_event loop_end "$ID" "Building stopped: $why - your decision" "\"pid\":$$,\"result\":\"disputed\""
+  echo ""; echo "=============================================="
+  err "STOPPED after iteration $1: $why. Tests are locked, so this needs you."
+  echo "=============================================="
+  sed -n '/^Disputed/,$p' FAILURES.txt | sed 's/^/    /'
+  echo "    Full gate output: .loop-test-out.txt   Unlock: remove the lock line in $PLAN_FILE (only you), commit."
+  usage_summary "$1"; list_generated_files
+  exit 4
+}
+
 # ---------- the loop ----------
+export KIT_LOOP=1   # the Stop hook (.claude/hooks/on-stop.sh) leaves the gate to this loop
 kit_event loop_start "$ID" "Building started (up to $MAX_ITERS attempts)" "\"pid\":$$,\"max\":$MAX_ITERS"
 trap 'kit_event loop_end "$ID" "Building stopped" "\"pid\":$$,\"result\":\"stopped\""' INT TERM
 for i in $(seq 1 "$MAX_ITERS"); do
@@ -537,6 +606,7 @@ for i in $(seq 1 "$MAX_ITERS"); do
     exit 0
   fi
 
+  if [ -n "$LOCK" ]; then locked_stop "$i"; fi
   { tail -40 .loop-test-out.txt; grep -A50 -iE '^(Noticed|Disputed)' FAILURES.txt 2>/dev/null; } > .loop-failures.tmp
   mv .loop-failures.tmp FAILURES.txt
   err "tests RED after iteration $i - feeding failures back"

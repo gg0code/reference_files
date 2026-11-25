@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# start.sh - start the next piece of work, or show where you are.      VERSION: v4
+# start.sh - start the next piece of work, or show where you are.      VERSION: v5 (kit v3.13)
+# v5: status knows the test lock (/tests, read docs/tests/<ID>.md, lock_tests.sh); check lists lock_tests.sh.
 #
 #   bash scripts/start.sh                    start the next unticked REQ in docs/TASKS.md
 #   bash scripts/start.sh REQ-004            start (or resume) that REQ
@@ -30,7 +31,7 @@ kit_event() {
     "$(date +%Y-%m-%dT%H:%M:%S%z)" "$(basename "$0" .sh)" "$1" "${2:-}" "$m" "${4:+,$4}" >> .kit/events.jsonl 2>/dev/null || true
 }
 
-case "${1:-}" in -h|--help|help) sed -n '2,17p' "$0"; exit 0 ;; esac
+case "${1:-}" in -h|--help|help) sed -n '2,18p' "$0"; exit 0 ;; esac
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repo"
 cd "$ROOT" || die "cannot enter $ROOT"
@@ -75,7 +76,7 @@ in_scope() {   # in_scope REQ-00X: true if the build scope includes the REQ or i
 
 # ---------- status ----------
 show_status() {
-  local id br issue plan pl rv vl pr dirty nxt
+  local id br issue plan pl rv vl pr dirty nxt risk lock
   br="$(git branch --show-current)"; id="$(current_id)"
   echo ""
   echo "  branch : $br"
@@ -99,6 +100,14 @@ show_status() {
   case "$pl" in
     "") nxt="claude pane: next          (drafts $plan)" ;;
     "Status: APPROVED"*)
+      risk="$(sed -nE 's/^Risk:[[:space:]]*([A-Za-z]+).*/\1/p' "$plan" | head -1 | tr '[:upper:]' '[:lower:]')"
+      lock="$(sed -nE 's/^Tests locked:[[:space:]]*([0-9a-f]{7}).*/\1/p' "$plan" | head -1)"
+      echo "  tests  : Risk: ${risk:-standard}$( [ -n "$lock" ] && echo ", locked at $lock" || { [ "${risk:-standard}" = light ] && echo " (no lock needed)" || echo ", not locked yet"; })"
+      if [ "${risk:-standard}" != light ] && [ -z "$lock" ]; then
+        if git cat-file -e "HEAD:docs/tests/$id.md" 2>/dev/null; then nxt="read docs/tests/$id.md, then: bash scripts/lock_tests.sh"
+        else nxt="claude pane: /tests $id     (failing tests from the spec), then read docs/tests/$id.md and: bash scripts/lock_tests.sh"; fi
+        echo "  next   : $nxt"; return 0
+      fi
       case "$vl" in
         "") if [ "$dirty" -gt 0 ]; then nxt="commit, then claude pane: review"; else nxt="bash scripts/loop.sh      (then commit, then: review)"; fi ;;
         "Verdict: CHANGES REQUESTED"*) nxt="bash scripts/loop.sh      (reads the findings), commit, then: review" ;;
@@ -175,10 +184,10 @@ kit_check() {
   if [ -f .claude/settings.json ] && python3 -m json.tool .claude/settings.json >/dev/null 2>&1; then pass ".claude/settings.json (pre-approved read-only commands for the reviewer)"
   else wrn ".claude/settings.json missing or invalid JSON: the reviewer will ask permission for every command"; fi
   n=0
-  for f in start.sh loop.sh pr.sh doclint.sh gate.sh integrity.sh protect.sh req_status.sh autopilot.sh dashboard.py; do
+  for f in start.sh loop.sh pr.sh doclint.sh gate.sh integrity.sh lock_tests.sh protect.sh req_status.sh autopilot.sh dashboard.py; do
     [ -f "scripts/$f" ] || { n=$((n+1)); if [ "$f" = autopilot.sh ] || [ "$f" = dashboard.py ]; then wrn "scripts/$f missing (optional)"; else bad "scripts/$f missing: copy it from the kit"; fi; }
   done
-  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, gate, integrity, protect, req_status, autopilot, dashboard"
+  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, gate, integrity, lock_tests, protect, req_status, autopilot, dashboard"
   # the guard hooks fail closed: without a working Python every guarded tool call is blocked
   if [ -f .claude/hooks/guard-bash.sh ]; then
     if printf '{"tool_name":"Bash","tool_input":{"command":"git push --force"}}' | CLAUDE_PROJECT_DIR="$ROOT" bash .claude/hooks/guard-bash.sh >/dev/null 2>&1; then

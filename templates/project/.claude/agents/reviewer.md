@@ -50,6 +50,10 @@ In PLAN REVIEW MODE (autopilot level 2) you review the plan file only, as the pr
    A test that only checks a status code, that a function was called, or that a REQ-ID string exists is Major.
 11. Migrations in the diff: read each one. A drop, rename or narrowing without the data plan and the
    upgrade-downgrade-upgrade test (RULES.md section 5) is Critical.
+12. Test lock (kit v3.13): read the plan's `Risk:` tier. Standard or strict without the line `Tests locked: <sha>` is Critical.
+   With a lock, every test in `docs/tests/<ID>.md` must exist and check what its row says (a mismatch is Major), and
+   `bash scripts/integrity.sh` must show no I6 line (a FAIL is Critical). A "light" plan whose diff changes behaviour,
+   or touches a Boundary path (RULES.md section 10), is Major: the tier was wrong.
 
 ## What to judge (severities from docs/RULES.md section 8)
 - **Correctness:** the code does what the acceptance criteria say, including empty, error and boundary cases.

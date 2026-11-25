@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# pr.sh - open the PR for the current branch, or merge it and run the after-merge checks.   VERSION: v3 (kit v3.12)
+# pr.sh - open the PR for the current branch, or merge it and run the after-merge checks.   VERSION: v4 (kit v3.13)
 # v3: runs scripts/integrity.sh before opening a PR; merge refuses while main has no branch protection
 #     (scripts/protect.sh) unless you set ALLOW_UNPROTECTED=1 yourself.
+# v4: runs bash scripts/gate.sh --full before opening the PR and refuses when it is red (integrity runs inside it).
+#     The PR body carries the evidence (the command, its last 40 lines, the lock sha, docs/tests/<ID>.md) and a
+#     "Boundary changes" list from docs/RULES.md section 10; a boundary hit adds the label needs-human-review,
+#     which autopilot never auto-merges. Re-running refreshes the body and label. PR_NOTE="..." adds a line.
 #
 #   bash scripts/pr.sh           push and open the PR (refuses until docs/reviews/<ID>.md says APPROVE)
 #   bash scripts/pr.sh merge     after YOUR review of the PR (asks you to confirm; YES=1 skips the question):
@@ -45,15 +49,21 @@ REVIEW="docs/reviews/$ID.md"
 
 existing_pr() { gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty' 2>/dev/null; }
 
+# boundary_res: the extended regexes in docs/RULES.md "## 10. Boundaries" (the first `...` of each bullet)
+boundary_res() {
+  awk '/^##[[:space:]]+[0-9]*\.?[[:space:]]*Boundaries/{on=1;next} /^##[[:space:]]/{on=0} on && /^[[:space:]]*-[[:space:]]*`/' docs/RULES.md 2>/dev/null \
+    | sed -nE 's/^[[:space:]]*-[[:space:]]*`([^`]+)`.*/\1/p'
+}
+
 open_pr() {
-  local dirty vl round note=""
+  local dirty vl round note="" gate_cmd="bash scripts/gate.sh --full" gate_out gate_tail lock risk mb boundary="" re url body pr
   dirty="$(git status --porcelain | grep -vE ' (PROMPT\.md|FAILURES\.txt|\.loop-[^ ]*)$')"
   [ -z "$dirty" ] || die "uncommitted changes - commit them first:
 $dirty"
   vl="$( [ -f "$REVIEW" ] && grep -m1 -v '^[[:space:]]*$' "$REVIEW")"
   case "$vl" in
     "Verdict: APPROVE"*) round="$(echo "$vl" | grep -oE 'round [0-9]+')"; ok "review: $vl"
-      grep -q '^## Walkthrough' "$REVIEW" || warn "no walkthrough in $REVIEW yet: in the claude pane type 'explain' (CLAUDE.md section 5 step 6)" ;;
+      grep -q '^## Walkthrough' "$REVIEW" || warn "no walkthrough in $REVIEW yet: in the claude pane type 'explain' (CLAUDE.md section 5 step 8)" ;;
     *)
       if [ "${FORCE:-0}" = 1 ]; then
         warn "no APPROVE review ($REVIEW: ${vl:-missing}) - opening anyway because FORCE=1"
@@ -62,24 +72,87 @@ $dirty"
         die "no reviewer APPROVE yet ($REVIEW: ${vl:-missing}). In the claude pane type: review"
       fi ;;
   esac
-  if [ -f scripts/integrity.sh ]; then
-    bash scripts/integrity.sh || die "integrity check failed: this branch weakens tests or the gate without a plan exception (see above)"
+
+  # evidence: the full gate (integrity included), run now on exactly what is pushed
+  gate_out="$(mktemp)"
+  if [ -f scripts/gate.sh ]; then
+    info "running: $gate_cmd"
+    if ! bash scripts/gate.sh --full >"$gate_out" 2>&1; then
+      tail -40 "$gate_out"; rm -f "$gate_out"
+      die "the gate is red ($gate_cmd) - fix it before opening the PR"
+    fi
+    ok "gate green: $gate_cmd"
+  else
+    gate_cmd="bash scripts/integrity.sh"
+    bash scripts/integrity.sh >"$gate_out" 2>&1 || { cat "$gate_out"; rm -f "$gate_out"; die "integrity check failed: this branch weakens tests or the gate without a plan exception"; }
   fi
-  local pr; pr="$(existing_pr)"
+  gate_tail="$(tail -40 "$gate_out")"; rm -f "$gate_out"
+
+  # lock and risk tier from the committed plan
+  risk="$(git show "HEAD:docs/plans/$ID.md" 2>/dev/null | sed -nE 's/^Risk:[[:space:]]*([A-Za-z]+).*/\1/p' | head -1 | tr '[:upper:]' '[:lower:]')"
+  lock="$(git show "HEAD:docs/plans/$ID.md" 2>/dev/null | sed -nE 's/^Tests locked:[[:space:]]*([0-9a-f]{7,40}).*/\1/p' | head -1)"
+
+  # boundary changes (docs/RULES.md section 10)
+  mb="$(git merge-base "$(git rev-parse --verify -q "origin/$BASE" >/dev/null && echo "origin/$BASE" || echo "$BASE")" HEAD)"
+  while IFS= read -r re; do
+    [ -n "$re" ] || continue
+    boundary="${boundary}$(git diff --name-only "$mb" HEAD | grep -E -- "$re")
+"
+  done <<< "$(boundary_res)"
+  boundary="$(printf '%s' "$boundary" | grep . | sort -u)"
+
   git push -q -u origin "$BRANCH" || die "git push failed"
-  if [ -n "$pr" ]; then ok "pushed; PR #$pr already open: $(gh pr view "$pr" --json url --jq .url)"; return 0; fi
-  gh pr create --base "$BASE" --head "$BRANCH" --title "${KIND}(${ID}): ${TITLE}" --body "${CLOSE}
+  url="$(gh repo view --json url --jq .url 2>/dev/null)"
+  body="${CLOSE}
 
 Review: ${REVIEW} (${vl:-none}${round:+, $round}).
-${note}
+${note}${PR_NOTE:+
+${PR_NOTE}}
+
+## Evidence
+- Risk tier: ${risk:-standard (no Risk line)}
+- Tests locked: $( [ -n "$lock" ] && echo "\`$lock\` (read and locked by the user before the code)" || echo "no lock$( [ "${risk:-standard}" = light ] && echo " (light plan)")")
+- Test table: $( [ -f "docs/tests/$ID.md" ] && echo "[docs/tests/$ID.md](${url}/blob/${BRANCH}/docs/tests/$ID.md)" || echo "none")
+- Gate: \`${gate_cmd}\` green
+
+<details><summary>Last 40 lines of <code>${gate_cmd}</code></summary>
+
+\`\`\`
+${gate_tail}
+\`\`\`
+</details>
+
+## Boundary changes
+$( [ -n "$boundary" ] && printf '%s\n' "$boundary" | sed 's/^/- `/; s/$/`/' && echo "" && echo "These match docs/RULES.md section 10 (Boundaries): label needs-human-review, never auto-merged.$( [ "${risk:-standard}" = light ] && echo " The plan says Risk: light - check the tier.")" || echo "None.")
 
 Checklist:
-- [ ] Quality gate green locally (bash scripts/gate.sh) and in CI
+- [ ] Quality gate green locally (bash scripts/gate.sh --full, above) and in CI
 - [ ] Regression gate green
 - [ ] Reviewer verdict APPROVE (read ${REVIEW} first, walkthrough at its end)
+- [ ] Tests match docs/tests/${ID}.md and were not changed after the lock (integrity I6)
 - [ ] File headers, function doc blocks and READMEs present
 - [ ] Architecture row and test plan still match the code
-- [ ] Hygiene fixes in their own chore(hygiene) commits" || die "gh pr create failed"
+- [ ] Hygiene fixes in their own chore(hygiene) commits"
+
+  # REST calls, not 'gh pr edit': gh 2.4x's GraphQL edit fails on repos since Projects (classic) was retired.
+  local existing=""
+  pr="$(existing_pr)"
+  if [ -n "$pr" ]; then
+    existing=1
+    gh api -X PATCH "repos/{owner}/{repo}/pulls/$pr" -f body="$body" >/dev/null \
+      || die "pushed, but could not refresh the body of PR #$pr (gh api PATCH failed)"
+    ok "PR #$pr already open: body refreshed"
+  else
+    gh pr create --base "$BASE" --head "$BRANCH" --title "${KIND}(${ID}): ${TITLE}" --body "$body" || die "gh pr create failed"
+    pr="$(existing_pr)"
+  fi
+  if [ -n "$boundary" ]; then
+    gh label create needs-human-review --color B60205 --description "Changes boundary files (RULES.md section 10): a human reviews and merges" >/dev/null 2>&1 || true
+    gh api "repos/{owner}/{repo}/issues/$pr/labels" -f "labels[]=needs-human-review" >/dev/null \
+      || die "could not add the label needs-human-review to PR #$pr: add it by hand before anyone merges"
+    warn "boundary changes: $(printf '%s' "$boundary" | paste -sd' ' -) - PR #$pr labelled needs-human-review"
+  fi
+  if [ -n "$existing" ]; then ok "pushed: $(gh pr view "$pr" --json url --jq .url)"; return 0; fi
   echo ""
   kit_event pr_open "$ID" "Ready for your review: pull request opened for $TITLE"
   echo "  NEXT: review the PR on GitHub (review file first, then the diff)."
