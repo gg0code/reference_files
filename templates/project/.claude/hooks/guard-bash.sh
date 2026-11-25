@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# guard-bash.sh - PreToolUse hook for Bash.   Kit v3.12
+# guard-bash.sh - PreToolUse hook for Bash.   Kit v3.13
 # Blocks the commands the kit's rules forbid when Claude runs them (builder, loop, reviewer):
 # reading .env files, force-push and branch deletes, hard reset and git clean, skipping git hooks,
 # loosening the gate, recursive deletes outside the project, pushes to main, writing code on main
 # through the shell, and shell edits to the kit's own guard and gate files.
 # v3.12: fails closed (no Python = block); catches refspec pushes (HEAD:main), split rm flags,
 #        shell redirects into code on main, and plain 'git push' on main that would carry code.
+# v3.13: Claude never runs scripts/lock_tests.sh (the lock stands for the user's reading), and on a branch with
+#        locked tests no shell write to test files or to the locked plan.
 # These are pattern checks, a safety net. Branch protection on GitHub (scripts/protect.sh) is the wall.
 . "$(dirname "$0")/_lib.sh"
 guard_require_input
@@ -18,7 +20,7 @@ on_main=0; case "$br" in main|master) on_main=1 ;; esac
 has() { printf '%s' "$cmd" | grep -qE -- "$1"; }
 
 CODE_DIRS='(src|tests|migrations|scripts)/'
-KIT_FILES='(\.claude/(hooks/|settings\.json|agents/)|scripts/(gate|integrity|doclint|loop|pr|autopilot|protect)\.sh|\.github/workflows/)'
+KIT_FILES='(\.claude/(hooks/|settings\.json|agents/)|scripts/(gate|integrity|doclint|loop|pr|autopilot|protect|lock_tests)\.sh|\.github/workflows/)'
 EDIT_CMDS='(^|[[:space:];&|(])(tee|sed[[:space:]]+(-[a-zA-Z]*i|--in-place)|perl[[:space:]]+-[a-zA-Z]*i|cp|mv|rm|truncate|install|dd|patch|git[[:space:]]+apply)([[:space:]]|$)'
 # writes_to <path-regex>: a redirect into that path, or an editing command in the same command line that names it
 writes_to() {
@@ -72,6 +74,10 @@ has '(^|[[:space:];&|])(FORCE|YES)=1[^|;&]*scripts/pr\.sh' \
 has '(^|[[:space:];&|])AUTO_MERGE=1' \
   && block "AUTO_MERGE=1 merges without a human. The user starts autopilot level 3 themselves."
 
+# 5b. the test lock is the user's act: Claude never runs lock_tests.sh (reading or grepping it is fine)
+has '(^|[;&|(])[[:space:]]*([A-Za-z_]+=[^[:space:]]*[[:space:]]+)*((ba)?sh[[:space:]]+)?[^[:space:];&|]*lock_tests\.sh' \
+  && block "only the user locks tests: they read docs/tests/<ID>.md, then run bash scripts/lock_tests.sh themselves. Ask them to."
+
 # 6. recursive deletes outside the project (any flag order: rm -rf, rm -r -f, rm --recursive)
 if has '(^|[[:space:];&|(])(sudo[[:space:]]+)?rm[[:space:]]'; then
   verdict="$(CMD="$cmd" PROJ="$dir" "$HOOK_PY" - <<'PY' 2>/dev/null
@@ -112,6 +118,15 @@ fi
 # 7. shell writes to the kit's guard and gate files (any branch): the builder must not edit what judges it
 if [ "${KIT_MAINTAINER:-0}" != 1 ] && writes_to "$KIT_FILES"; then
   block "this command changes the kit's guard, gate or CI files. Those change only by the user's hand (kit update)."
+fi
+
+# 7b. tests locked on this branch (scripts/lock_tests.sh): no shell writes to test paths or plans.
+#     Mirrors integrity.sh's locked test paths (tests/, test_*.py, *_test.*, *.test.*, conftest.py, fixtures/).
+if [ -f "$dir/scripts/integrity.sh" ]; then
+  lock_id="$(cd "$dir" && bash scripts/integrity.sh --lock-state 2>/dev/null | awk '{print $1}')"
+  if [ -n "$lock_id" ] && writes_to '((tests?|__tests__|spec|fixtures?)/|test_[^/[:space:]]*\.py|[^/[:space:]]*_test\.(py|go)|[^/[:space:]]*\.(test|spec)\.[jt]sx?|conftest\.py|docs/plans/)'; then
+    block "tests for $lock_id are locked. If a test is wrong, write it under Disputed; the user unlocks it."
+  fi
 fi
 
 # 8. shell writes to code on main (guard-files.sh covers Edit/Write; this covers sed -i, >, tee, cp, mv ...)
