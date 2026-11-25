@@ -12,7 +12,7 @@ from sqlmodel import SQLModel
 @pytest.fixture
 def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     """A test client for an app on an empty SQLite database in a temporary folder."""
-    monkeypatch.setenv("SECRET_KEY", "test-secret-key-0123456789")
+    monkeypatch.setenv("SECRET_KEY", "t" * 32)  # a dummy value no secret scanner mistakes for a key
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("RATE_LIMIT_PER_MINUTE", "1000")
     from app.config import get_settings
