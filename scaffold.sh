@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v3.14
+# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v3.14.1
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
 #   bash /path/to/vibecode/scaffold.sh <app-name> [node|python|go|rust]
@@ -54,7 +54,7 @@ die()  { echo ""; echo "ERROR : $*" >&2; echo "Aborted. Nothing further was run.
 trap 'err "unexpected failure at line $LINENO (command: $BASH_COMMAND)"; exit 1' ERR
 
 echo "=============================================="
-echo " scaffold.sh v3.14 - project: $APP${STACK:+  (stack: $STACK)}"
+echo " scaffold.sh v3.14.1 - project: $APP${STACK:+  (stack: $STACK)}"
 echo "=============================================="
 
 # ---------- 0. Preflight ----------
@@ -204,8 +204,8 @@ git add -A || die "git add failed"
 if git diff --cached --quiet; then
   warn "nothing new to commit - working tree already matches HEAD"
 else
-  git commit -qm "chore: scaffold from project template v3.14" || die "git commit failed"
-  ok "committed: chore: scaffold from project template v3.14"
+  git commit -qm "chore: scaffold from project template v3.14.1" || die "git commit failed"
+  ok "committed: chore: scaffold from project template v3.14.1"
 fi
 COMMITS="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 [ "$COMMITS" -ge 1 ] || die "no commit exists - a push would fail with 'src refspec main does not match any'"

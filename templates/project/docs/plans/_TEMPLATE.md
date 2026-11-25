@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v3.14. Copy to docs/plans/<ID>.md and set line 1 to "Status: DRAFT". `next` does this for you.
+<!-- Template v3.14.1. Copy to docs/plans/<ID>.md and set line 1 to "Status: DRAFT". `next` does this for you.
      The user approves by changing line 1 to "Status: APPROVED - <date>". loop.sh refuses anything else.
      Keep it to one page: a plan the user cannot read in five minutes is too big; split the REQ. -->
 

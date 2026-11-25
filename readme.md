@@ -1,6 +1,6 @@
 # vibecode - Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v3.14 (2026-11-25).
+Kit version: v3.14.1 (2026-11-25).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -255,6 +255,15 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v3.14.1 (vibecode)
+
+- **`integrity.sh` v2.1:** I5 (suppressions) no longer fails on the kit's own `integrity.sh` and `loop.sh`, whose pattern list and prompt
+  name `# noqa` and `type: ignore` without using them. The exemption matches exactly those two files, at `scripts/` (a project) or the repo root (the kit):
+  `^(scripts/)?(integrity|loop)\.sh$`. `*.md`, `*.txt` and `*.html` stay unchecked as before; every other path is checked as before.
+  `--list` names the exemptions. New `bash scripts/integrity.sh --self-test` runs the I5 check on fixed cases (exit 1 on a wrong result).
+- Existing v3.14 projects: `cp <kit>/integrity.sh <project>/scripts/` on a `chore/kit-v3.14.1` branch,
+  then `bash scripts/integrity.sh --self-test && bash scripts/gate.sh`.
 
 ## Changes in v3.14 (vibecode)
 
