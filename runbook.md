@@ -453,9 +453,12 @@ Lost? `bash scripts/start.sh status` shows the current ID, Issue, plan, review, 
 |---|---|---|---|
 | 1 | **git** | - | `bash scripts/start.sh` - picks the next unticked REQ, finds its Issue, creates the branch, prints what it chose |
 | 2 | **claude** | **`/model opus`** | `next` - drafts `docs/plans/<REQ>.md` for the current branch. Plan only, NO code |
-| 3 | **you** | - | ⬛ **STOP. Read the plan. Approve or fix it.** Then set its line 1 to `Status: APPROVED - <date>` |
+| 3 | **you** | - | ⬛ **STOP. Read the plan and its `Risk:` tier. Approve or fix it.** Then set its line 1 to `Status: APPROVED - <date>` |
 | 4 | **git** | - | `git add docs/plans && git commit -m "docs: approved plan"` |
-| 5 | **git** | **sonnet** | `bash scripts/loop.sh` (Phase 2b), or implement by hand with the **Implement** prompt |
+| 4a | **claude** | **sonnet** | standard and strict only: `/tests` - failing tests from the TC rows, never `src/`, plus the table `docs/tests/<ID>.md`; Claude commits them and stops |
+| 4b | **you** | - | ⬛ **STOP. Read `docs/tests/<ID>.md`** (and the tests if you like). Does each row check what the spec asks? Wrong or missing: tell Claude, it fixes the tests, you read again |
+| 4c | **git** | - | `bash scripts/lock_tests.sh` - writes `Tests locked: <sha>` into the plan and commits it. From now on the tests do not change; the code must meet them |
+| 5 | **git** | **sonnet** | `bash scripts/loop.sh` (Phase 2b), or implement by hand with the **Implement** prompt. On standard and strict it refuses until step 4c is done |
 | 6 | **test** | - | watch it go RED as tests land, then GREEN as code catches up |
 | 7 | **frontend** | - | if there is UI, check it against 03-ui-design.md. Missing docs, lint, complexity, format or type errors already turned the loop red (the loop's exit condition is `bash scripts/gate.sh`) |
 | 8 | **git** | - | `git add -A && git commit -m "feat: <summary>"` (the loop prints the exact message with the ID and Issue) |
@@ -467,9 +470,18 @@ Lost? `bash scripts/start.sh status` shows the current ID, Issue, plan, review, 
 | 13 | **git** | - | `bash scripts/pr.sh merge` - asks you to confirm, waits for CI, merges, runs the after-merge checks (Phase 2c) |
 | 14 | **claude** | opus, then haiku | the traceability audit prompt (Phase 2c), then `wrap up`. Next requirement: back to step 1 |
 
-> **Two hard stops:** step 3 (plan) and step 12 (PR). Loop as much as you like between them, but never cross either without a human "yes."
+> **Risk tiers:** **strict** = auth, payments, deleting data, a public API or routes, `shared/`, migrations, a new dependency. **light** = copy, styling, a refactor with no behaviour change: skip steps 4a to 4c. **standard** = everything else (a plan with no `Risk:` line counts as standard). Bugs use the same tiers.
+> **Three hard stops:** step 3 (plan), step 4b (tests, standard and strict) and step 12 (PR). Loop as much as you like between them, but never cross either without a human "yes."
 > **One agent gate:** `pr.sh` will not open a PR until the reviewer says APPROVE. Two CHANGES REQUESTED rounds in a row means the plan is wrong: re-plan, do not keep fixing.
 > **One hard signal:** step 6 ends only when the **test** pane is green.
+> **The Stop hook:** when Claude stops on a feat/ or fix/ branch with changed code, `.claude/hooks/on-stop.sh` runs the gate; if it is red, Claude keeps working (once per stop).
+
+**When the loop stops on "Disputed" (exit 4).** With locked tests the builder may not touch a test, so it stops instead when it believes a locked test is wrong,
+or when the locked tests pass but `service.py` coverage is below the floor (FAILURES.txt names the file, its coverage and the gap). The decision is yours:
+1. The test or the gap is real: remove the `Tests locked:` line from `docs/plans/<ID>.md` and commit (`git commit -m "docs(<ID>): unlock tests"`), commit or stash the loop's code,
+   type `/tests` again (it adds or fixes the tests), read the table, `bash scripts/lock_tests.sh`, then `bash scripts/loop.sh`.
+2. One extra test file is enough and you agree with it: add its path with a reason under `## Allowed exceptions` in the plan, commit, and re-run the loop.
+3. The builder is wrong: say so in the plan's Risks or the Issue, and re-run the loop.
 
 `start.sh` refuses to start new work while you are on an unfinished branch, so you cannot lose track of a half-done requirement (`FORCE=1` overrides).
 To work on a specific requirement instead of the next one: `bash scripts/start.sh REQ-004`.
@@ -483,9 +495,17 @@ starting from docs/plans/_TEMPLATE.md: goal, TC-IDs covered, approach, files to 
 review focus and the iteration cap. Keep line 1 as "Status: DRAFT". No code yet.
 ```
 
+Tests first - `/model sonnet` (standard and strict; or just type `/tests`):
+```
+/tests
+```
+You should see the new tests failing on assertions or "not implemented", the table docs/tests/<ID>.md, one commit
+"test(<ID>): failing tests from spec (#N)", and a request to read the table and run bash scripts/lock_tests.sh.
+
 Implement by hand - `/model sonnet`:
 ```
-Implement the REQ in the current branch name per its approved plan in docs/plans/. Write the tests
+Implement the REQ in the current branch name per its approved plan in docs/plans/. If the plan's tests are
+locked, never change a test: write the code until the FULL suite is green. On a light plan, write the tests
 first from the TC rows, then the code, until the FULL suite is green. Follow docs/RULES.md
 section 3 for file headers, function doc blocks and directory READMEs.
 ```
@@ -546,6 +566,9 @@ After a CHANGES REQUESTED review, run the same command again: the loop feeds the
 
 **Guardrails built into `loop.sh` (do not remove):**
 - Refuses to run on `main`, without a plan file, or with a plan that is not `Status: APPROVED`.
+- Refuses a standard or strict plan (REQ or BUG; no `Risk:` line = standard) until its tests are locked (`/tests`, you read, `lock_tests.sh`).
+  With the lock, every pass is told the locked test files and may not touch a test (`integrity.sh` I6 fails the gate otherwise);
+  it stops with exit 4 on a "Disputed" entry or locked tests below the coverage floor (Phase 2, "When the loop stops on Disputed").
 - Refuses a REQ that is already merged or whose Issue is closed (override with `FORCE=1` after a revert).
 - The agent may not commit, open PRs, or edit TASKS, MEMORY or approved spec docs.
 - If the plan is unworkable, the agent writes why to `FAILURES.txt` instead of silently changing approach.
@@ -555,8 +578,10 @@ After a CHANGES REQUESTED review, run the same command again: the loop feeds the
 **Full example (git pane):**
 ```bash
 bash scripts/start.sh                 # next REQ, branch created
-# claude pane: next  → approve the plan (line 1), then:
+# claude pane: next  → approve the plan (line 1, and its Risk tier), then:
 git add docs/plans && git commit -m "docs: approved plan"
+# standard / strict: claude pane: /tests  → read docs/tests/<ID>.md, then:
+bash scripts/lock_tests.sh            # → "Tests locked: <sha>" committed in the plan
 bash scripts/loop.sh                  # → "OK : SUITE GREEN on iteration k"
 git add -A && git commit -m "feat(REQ-00X): <summary> (#N)"   # the loop prints this line filled in
 # claude pane: review  → APPROVE (or loop again, commit, review again)
@@ -705,9 +730,9 @@ You never pick a BUG number: `start.sh bug` takes the next free one, files the I
 |---|---|---|---|
 | 1 | **you** | - | observe the symptom as a real user would (in **frontend** if it is UI) |
 | 2 | **git** | - | `bash scripts/start.sh bug "login fails with an empty password"` - files the Issue, creates the branch; add the steps, expected and actual to the Issue |
-| 3 | **claude** | **`/model sonnet`** | **Reproduce** prompt: reproduce END-TO-END, write a FAILING test, NO fix |
-| 4 | **test** | - | confirm the new test is **RED**. That red is your proof |
-| 5 | **git** | - | commit the failing test alone: `git commit -am "test: failing test for the bug"` |
+| 3 | **claude** | **`/model sonnet`** | `next` - plan with repro steps and a `Risk:` tier; approve and commit it. **Light:** the **Reproduce** prompt: reproduce END-TO-END, write a FAILING test, NO fix. **Standard / strict:** `/tests` - it writes the tests that reproduce the bug and `docs/tests/<BUG>.md` |
+| 4 | **test** | - | confirm the new test is **RED**. That red is your proof. Standard / strict: read `docs/tests/<BUG>.md`, then `bash scripts/lock_tests.sh` |
+| 5 | **git** | - | commit the failing test alone: `git commit -am "test: failing test for the bug"` (`/tests` already did this for you) |
 | 6 | **claude** | **`/model opus`** | **Localise** prompt: call-map + root-cause hypothesis, no patch |
 | 7 | **claude** | **`/model sonnet`** | **Fix** prompt (minimal fix), or `next` for a plan, approve it, then `bash scripts/loop.sh` |
 | 8 | **test** | - | the RED test goes GREEN and the whole suite stays GREEN |
@@ -781,6 +806,7 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 |---|---|
 | `setup` | Lists docs still at TEMPLATE or DRAFT and continues the setup order |
 | `next` | Picks the next TASKS item and drafts its plan file |
+| `/tests [ID]` | Standard and strict plans: failing tests from the spec (never `src/`), the table `docs/tests/<ID>.md`, one commit; then it stops for you to read |
 | `review [ID]` | The read-only reviewer agent checks the branch; report saved to `docs/reviews/<ID>.md` |
 | `status` | REQ ledger + MEMORY + open TASKS in 5 lines |
 | `audit` | Launch checklist, evidence only, no fixes |
@@ -803,9 +829,24 @@ Bug  → BUG-ID → failing test → Issue # → branch → PR → merge
 | `bash scripts/start.sh check` | Is the kit installed and active here, MCP servers included: PASS / WARN / FAIL per item |
 | `bash scripts/gate.sh` | The quality gate: doclint, lint, format, types, full tests, service coverage (`--full` adds dependency audit and secrets) |
 | `bash scripts/doclint.sh` | README per folder, file headers, function doc blocks, file size, layers (`--changed`: this branch only) |
-| `bash scripts/loop.sh` | Bounded implement-and-test loop for the current branch |
-| `bash scripts/pr.sh` | Push and open the PR (needs a reviewer APPROVE) |
+| `bash scripts/lock_tests.sh` | After you read `docs/tests/<ID>.md`: lock the tests (writes `Tests locked: <sha>` in the plan). Only you run it |
+| `bash scripts/loop.sh` | Bounded implement-and-test loop for the current branch (standard and strict: only after the lock) |
+| `bash scripts/integrity.sh` | Did the branch weaken its checks, or change a locked test (I1 to I6)? Runs inside the gate |
+| `bash scripts/pr.sh` | Runs `gate.sh --full`, pushes and opens the PR with the evidence and boundary changes (needs a reviewer APPROVE) |
 | `bash scripts/pr.sh merge` | After your PR review: CI, merge, after-merge checks |
 | `bash scripts/req_status.sh` | Ledger of every REQ |
 | `bash scripts/autopilot.sh` | Optional unattended runs (Phase 2d) |
 | `python3 scripts/dashboard.py [--lan]` | Live dashboard on the computer, or also the phone with a PIN (Phase 2e) |
+
+## Plan keys and switches (v3.13)
+
+| Key | Where | What it does |
+|---|---|---|
+| `Risk: light \| standard \| strict - <reason>` | plan, under `Depends on` | Decides the flow. No line = standard. Standard and strict need `/tests` and the lock |
+| `Tests locked: <sha> - <date>` | plan, written by `lock_tests.sh` | Freezes every test path (integrity I6, hooks). Only you remove it, to unlock |
+| `## Allowed exceptions` | plan | A path listed here may change despite I1 to I6, with your reason |
+| `## Disputed` | `docs/tests/<ID>.md`, or `FAILURES.txt` in a loop | Where the builder says a locked test is wrong or coverage falls short; the loop stops (exit 4) |
+| `## 10. Boundaries` | `docs/RULES.md` | Path patterns that put a PR under "Boundary changes" with the label `needs-human-review` (never auto-merged) |
+| `STOP_GATE_TIMEOUT=80` | environment | Seconds the Stop hook gives the gate before it lets Claude stop anyway |
+| `KIT_LOOP=1` | set by loop.sh and autopilot | The Stop hook leaves the gate to the loop |
+| `PR_NOTE="..."` | environment, for `pr.sh` | An extra line in the PR body (autopilot uses it) |

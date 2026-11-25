@@ -63,7 +63,7 @@ $dirty"
   vl="$( [ -f "$REVIEW" ] && grep -m1 -v '^[[:space:]]*$' "$REVIEW")"
   case "$vl" in
     "Verdict: APPROVE"*) round="$(echo "$vl" | grep -oE 'round [0-9]+')"; ok "review: $vl"
-      grep -q '^## Walkthrough' "$REVIEW" || warn "no walkthrough in $REVIEW yet: in the claude pane type 'explain' (CLAUDE.md section 5 step 6)" ;;
+      grep -q '^## Walkthrough' "$REVIEW" || warn "no walkthrough in $REVIEW yet: in the claude pane type 'explain' (CLAUDE.md section 5 step 8)" ;;
     *)
       if [ "${FORCE:-0}" = 1 ]; then
         warn "no APPROVE review ($REVIEW: ${vl:-missing}) - opening anyway because FORCE=1"

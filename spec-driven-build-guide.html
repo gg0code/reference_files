@@ -994,24 +994,48 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
           <li class="step" data-id="b-plan" data-pane="claude" data-model="Opus">
             <div class="step-body">
               <div class="step-head"><h3>Plan only, no code</h3></div>
-              <p>Claude drafts <code>docs/plans/&lt;REQ&gt;.md</code> for the REQ in the current branch.</p>
+              <p>Claude drafts <code>docs/plans/&lt;REQ&gt;.md</code> for the REQ in the current branch, with a <code>Risk:</code> tier and a one-line reason.
+              <b>strict</b>: auth, payments, deleting data, a public API or routes, <code>shared/</code>, migrations, a new dependency. <b>light</b>: copy, styling, a refactor with no behaviour change. <b>standard</b>: everything else (no line counts as standard).</p>
               <pre data-label="prompt · claude pane · /model opus" class="prompt">/next</pre>
             </div>
           </li>
           <li class="step gate" data-id="b-plan-gate" data-pane="you">
             <div class="step-body">
               <div class="step-head"><h3>Approve the plan</h3></div>
-              <p>Read it. Fix it or ask Claude to revise. When happy, set line 1 to <code>Status: APPROVED - {DATE}</code>. <code>loop.sh</code> refuses a DRAFT plan.</p>
+              <p>Read it, including the tier. Fix it or ask Claude to revise. When happy, set line 1 to <code>Status: APPROVED - {DATE}</code>. <code>loop.sh</code> refuses a DRAFT plan.</p>
               <pre data-label="bash · git pane">git add docs/plans && git commit -m "docs: approved plan"</pre>
+            </div>
+          </li>
+          <li class="step" data-id="b-tests" data-pane="claude" data-model="Sonnet">
+            <div class="step-body">
+              <div class="step-head"><h3>Tests first, from the spec (standard and strict)</h3></div>
+              <p>Claude writes the tests from the REQ's TC rows and edge cases only, never touching <code>src/</code>. Each new test must fail on an assertion or "not implemented", never on an import or syntax error, and together they must reach the coverage floor. It writes the table <code>docs/tests/&lt;REQ&gt;.md</code> (TC-ID, test name, what it checks, fails now), commits the tests alone, and stops. Light plans skip this step and the next two.</p>
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">/tests</pre>
+              <p class="expect">You should see: the new tests failing, one commit <b>test(REQ-00X): failing tests from spec (#N)</b>, and a request to read the table.</p>
+            </div>
+          </li>
+          <li class="step gate" data-id="b-tests-gate" data-pane="you">
+            <div class="step-body">
+              <div class="step-head"><h3>Read the test table</h3></div>
+              <p>Open <code>docs/tests/&lt;REQ&gt;.md</code>. Does every row check what the PRD and test plan ask, in words you understand? Something wrong or missing: tell Claude, it fixes the tests, you read again. This is the moment you decide what "done" means.</p>
+            </div>
+          </li>
+          <li class="step" data-id="b-lock" data-pane="git">
+            <div class="step-body">
+              <div class="step-head"><h3>Lock the tests</h3></div>
+              <p>Writes <code>Tests locked: &lt;sha&gt;</code> into the plan and commits it. From now on no test file may change: the hooks block Claude, and <code>integrity.sh</code> rule I6 fails the gate in the loop, <code>pr.sh</code> and CI. Only you unlock, by removing that line. Claude cannot run this script.</p>
+              <pre data-label="bash · git pane">bash scripts/lock_tests.sh</pre>
+              <p class="expect">You should see: <b>locked: docs/plans/REQ-00X.md now says 'Tests locked: …'</b>.</p>
             </div>
           </li>
           <li class="step" data-id="b-loop" data-pane="git" data-model="Sonnet">
             <div class="step-body">
               <div class="step-head"><h3>Implement: run the loop</h3></div>
-              <p>Fresh Claude context each pass, tests first, until the quality gate (<code>bash scripts/gate.sh</code>: docs, lint, complexity, format, types, full tests) is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running; the <span class="chip pane files">files</span> pane shows each file as the loop touches it.</p>
+              <p>Fresh Claude context each pass, against the locked tests (light plans: tests first), until the quality gate (<code>bash scripts/gate.sh</code>: docs, lint, complexity, format, types, full tests) is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running; the <span class="chip pane files">files</span> pane shows each file as the loop touches it.</p>
               <pre data-label="bash · test pane">{WATCH}</pre>
               <pre data-label="bash · git pane">bash scripts/loop.sh</pre>
-              <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run.</p>
+              <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run. On standard and strict it refuses to start until the tests are locked.</p>
+              <p><b>Stopped on "Disputed"?</b> The builder thinks a locked test is wrong, or the locked tests pass but miss the coverage floor (<code>FAILURES.txt</code> names the file, its coverage and the gap). You decide: remove the lock line from the plan and commit, run <code>/tests</code> again, read, lock again; or list one new test file under <code>## Allowed exceptions</code> in the plan.</p>
             </div>
           </li>
           <li class="step" data-id="b-eyeball" data-pane="frontend">
@@ -1402,6 +1426,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           <tbody>
             <tr><td><code>/setup</code></td><td>Lists docs still at TEMPLATE or DRAFT and continues the setup order.</td></tr>
             <tr><td><code>/next</code></td><td>Drafts the plan for the REQ in the current branch (runs <code>start.sh</code> first if you are on main).</td></tr>
+            <tr><td><code>/tests</code></td><td>Standard and strict plans: writes the failing tests from the spec (never <code>src/</code>) and the table <code>docs/tests/&lt;ID&gt;.md</code>, commits them, then stops for you to read.</td></tr>
             <tr><td><code>/review</code></td><td>Runs the read-only reviewer agent on the current branch; saves its report to <code>docs/reviews/</code> and shows the verdict.</td></tr>
             <tr><td><code>/status</code></td><td>Runs the REQ ledger and summarises it with MEMORY and open TASKS in 5 lines.</td></tr>
             <tr><td><code>/audit</code></td><td>Goes through the launch checklist with evidence. Fixes nothing.</td></tr>
@@ -1428,10 +1453,25 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>bash scripts/doclint.sh</code></td><td>Folder READMEs, file headers with <code>REQ-IDs:</code>, function doc blocks with <code>Calls:</code> (<code>Called by:</code> optional), files under 300 lines, <code>service.py</code> free of web and database imports. Add <code>--changed</code> for this branch only.</td></tr>
             <tr><td><code>bash scripts/start.sh bug "symptom"</code></td><td>Next free BUG number: files the Issue, creates <code>fix/BUG-00X</code>.</td></tr>
             <tr><td><code>bash scripts/start.sh REQ-004</code></td><td>Start or resume a specific requirement instead of the next one.</td></tr>
-            <tr><td><code>bash scripts/loop.sh</code></td><td>Bounded implement-and-test loop for the current branch.</td></tr>
-            <tr><td><code>bash scripts/pr.sh</code></td><td>Push and open the PR (needs a reviewer APPROVE).</td></tr>
+            <tr><td><code>bash scripts/lock_tests.sh</code></td><td>After you read <code>docs/tests/&lt;ID&gt;.md</code>: locks the tests (writes <code>Tests locked: &lt;sha&gt;</code> in the plan). Only you run it.</td></tr>
+            <tr><td><code>bash scripts/loop.sh</code></td><td>Bounded implement-and-test loop for the current branch. Standard and strict: only after the lock.</td></tr>
+            <tr><td><code>bash scripts/integrity.sh</code></td><td>Did the branch weaken its checks or change a locked test (rules I1 to I6)? Runs inside the gate.</td></tr>
+            <tr><td><code>bash scripts/pr.sh</code></td><td>Runs <code>gate.sh --full</code>, pushes and opens the PR with the evidence, lock sha and boundary changes (needs a reviewer APPROVE). Boundary files add the label <code>needs-human-review</code>.</td></tr>
             <tr><td><code>bash scripts/pr.sh merge</code></td><td>After your PR review: CI, merge, after-merge checks on main.</td></tr>
             <tr><td><code>bash scripts/req_status.sh</code></td><td>Ledger of every requirement: plan, review, merged, Issue, PR, tests.</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3 class="sub">Plan keys and switches</h3>
+        <div class="tablewrap"><table class="ref">
+          <thead><tr><th>Key</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>Risk: light | standard | strict</code></td><td>In the plan. Decides the flow; no line counts as standard. Standard and strict need <code>/tests</code> and the lock.</td></tr>
+            <tr><td><code>Tests locked: &lt;sha&gt;</code></td><td>In the plan, written by <code>lock_tests.sh</code>. Freezes every test file. Remove it yourself to unlock.</td></tr>
+            <tr><td><code>## Allowed exceptions</code></td><td>In the plan. A listed path may change despite the integrity rules, with your reason.</td></tr>
+            <tr><td><code>Disputed</code></td><td>In <code>FAILURES.txt</code> or <code>docs/tests/&lt;ID&gt;.md</code>: the builder says a locked test is wrong or coverage falls short. The loop stops for you.</td></tr>
+            <tr><td><code>## 10. Boundaries</code></td><td>In <code>docs/RULES.md</code>. Paths that put a PR under "Boundary changes" with the label <code>needs-human-review</code>; autopilot never merges it.</td></tr>
+            <tr><td><code>STOP_GATE_TIMEOUT</code></td><td>Seconds (default 80) the Stop hook gives the gate before it lets Claude stop anyway.</td></tr>
           </tbody>
         </table></div>
 
@@ -1471,6 +1511,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/TASKS.md</code></td><td>Build order and Issue numbers</td><td>Claude, at wrap up</td></tr>
             <tr><td><code>docs/MEMORY.md</code></td><td>Status, decisions, gotchas, session log</td><td>Claude, at wrap up</td></tr>
             <tr><td><code>docs/plans/REQ-00X.md</code></td><td>Approved plan the loop enforces, with a review focus</td><td>Claude drafts, you approve</td></tr>
+            <tr><td><code>docs/tests/REQ-00X.md</code></td><td>The test table: TC-ID, test name, what it checks, fails now</td><td>Written by <code>/tests</code>; you read it before <code>lock_tests.sh</code></td></tr>
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
             <tr><td><code>.claude/settings.json</code></td><td>Pre-approved read-only commands for the reviewer; blocks force-push and reading <code>.env</code>; registers the hooks</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/commands/</code></td><td>The kit's slash commands (<code>/next</code>, <code>/review</code>, <code>/scope</code> ...); each points at its row in CLAUDE.md section 9</td><td>Nobody; refresh from the kit</td></tr>
