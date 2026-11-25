@@ -19,6 +19,9 @@ Do the `tests` command in CLAUDE.md section 9 for ID `$ARGUMENTS` (empty = the c
    - Write enough tests to meet the coverage floor (`service.py` at 85% or more, COV_MIN) for the modules the plan
      will create or change. After the lock nobody adds tests, so a gap found later stops the loop.
    - Each test carries a doc block naming its TC-ID and REQ-ID (RULES.md section 3). No skip, xfail or only markers.
+   - Give each test file a name no other test file has (`tests/features/<area>/test_<area>_service.py`, not a second
+     `test_service.py`): the test folders have no `__init__.py`, so pytest stops on two files with the same name.
+     After the lock a wrong name can only be fixed by the user unlocking, so get it right now.
 4. Run the new tests (Python: `uv run pytest <files> -q -rfE`). Every new test must FAIL, and fail on an assertion or
    "not implemented", never on a syntax, import, collection or fixture error. If one errors, fix the test, not `src/`.
    Also run `bash scripts/doclint.sh tests` and the linter on the new files; both must be clean.
