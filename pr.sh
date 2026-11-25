@@ -134,18 +134,25 @@ Checklist:
 - [ ] Architecture row and test plan still match the code
 - [ ] Hygiene fixes in their own chore(hygiene) commits"
 
-  local label=()
-  if [ -n "$boundary" ]; then
-    gh label create needs-human-review --color B60205 --description "Changes boundary files (RULES.md section 10): a human reviews and merges" >/dev/null 2>&1 || true
-    label=(--label needs-human-review)
-    warn "boundary changes: $(printf '%s' "$boundary" | paste -sd' ' -) - label needs-human-review"
-  fi
+  # REST calls, not 'gh pr edit': gh 2.4x's GraphQL edit fails on repos since Projects (classic) was retired.
+  local existing=""
   pr="$(existing_pr)"
   if [ -n "$pr" ]; then
-    gh pr edit "$pr" --body "$body" ${label[@]+"${label[@]/--label/--add-label}"} >/dev/null || warn "could not refresh the body of PR #$pr"
-    ok "pushed; PR #$pr already open (body and label refreshed): $(gh pr view "$pr" --json url --jq .url)"; return 0
+    existing=1
+    gh api -X PATCH "repos/{owner}/{repo}/pulls/$pr" -f body="$body" >/dev/null \
+      || die "pushed, but could not refresh the body of PR #$pr (gh api PATCH failed)"
+    ok "PR #$pr already open: body refreshed"
+  else
+    gh pr create --base "$BASE" --head "$BRANCH" --title "${KIND}(${ID}): ${TITLE}" --body "$body" || die "gh pr create failed"
+    pr="$(existing_pr)"
   fi
-  gh pr create --base "$BASE" --head "$BRANCH" --title "${KIND}(${ID}): ${TITLE}" --body "$body" ${label[@]+"${label[@]}"} || die "gh pr create failed"
+  if [ -n "$boundary" ]; then
+    gh label create needs-human-review --color B60205 --description "Changes boundary files (RULES.md section 10): a human reviews and merges" >/dev/null 2>&1 || true
+    gh api "repos/{owner}/{repo}/issues/$pr/labels" -f "labels[]=needs-human-review" >/dev/null \
+      || die "could not add the label needs-human-review to PR #$pr: add it by hand before anyone merges"
+    warn "boundary changes: $(printf '%s' "$boundary" | paste -sd' ' -) - PR #$pr labelled needs-human-review"
+  fi
+  if [ -n "$existing" ]; then ok "pushed: $(gh pr view "$pr" --json url --jq .url)"; return 0; fi
   echo ""
   kit_event pr_open "$ID" "Ready for your review: pull request opened for $TITLE"
   echo "  NEXT: review the PR on GitHub (review file first, then the diff)."
