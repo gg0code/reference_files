@@ -973,7 +973,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
       <section class="phase" id="build" data-phase="build">
         <div class="phase-head"><h2>4 · Build a requirement</h2><span class="when">Repeat for each REQ in TASKS.md. Nothing to type in: the scripts find the next REQ and its Issue.</span>
           <span class="confirm" data-reset="build"><button class="btn small warn" type="button">Start next REQ</button></span></div>
-        <div class="callout gatey">Three human stops: the plan (step 3), reading the diff before you commit (step 6), and the PR (step 12). Claude in the claude pane builds but never commits: you read <kbd>Ctrl-a F</kbd> and <kbd>G</kbd>, check the tests, optionally get a second opinion with <kbd>Ctrl-a V</kbd>, then commit in the git pane. One agent gate: <code>pr.sh</code> will not open a PR until the reviewer says APPROVE. One hard signal: the test pane must be green. Lost at any point? <code>bash scripts/start.sh status</code> tells you where you are and what to do next.</div>
+        <div class="callout gatey">Four human stops: the plan and its tier (step 3), the test table before you lock it (step 5, standard and strict), reading the diff before you commit (step 9), and the PR (step 15). Claude in the claude pane builds but never commits: you read <kbd>Ctrl-a F</kbd> and <kbd>G</kbd>, check the tests, optionally get a second opinion with <kbd>Ctrl-a V</kbd>, then commit in the git pane. One agent gate: <code>pr.sh</code> will not open a PR until the reviewer says APPROVE. One hard signal: the test pane must be green, and on a feat/ or fix/ branch the Stop hook runs the gate each time Claude stops and sends it back to work while the gate is red. Lost at any point? <code>bash scripts/start.sh status</code> tells you where you are and what to do next.</div>
         <div class="osnote"><b>Build scope: what to build now.</b> Every requirement belongs to a release phase (P1, P2, ...; <code>docs/01-prd.md</code> section 4a). The <code>Build scope:</code> line at the top of <code>docs/TASKS.md</code> says which phases and single REQs to build now. <code>start.sh</code>, autopilot and the dashboard only pick requirements inside it, in TASKS order.
           <div class="tablewrap"><table class="ref">
             <thead><tr><th>You want</th><th>Inside Claude</th><th>or in the git pane (on main)</th></tr></thead>
@@ -995,6 +995,9 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
               <p>Picks the first unticked REQ in <code>docs/TASKS.md</code>, finds its Issue number, and creates the branch (for example <code>feat/REQ-003-profile</code>). The branch name now carries the ID for every later step.</p>
               <pre data-label="bash · git pane">bash scripts/start.sh</pre>
               <p class="expect">You should see: <b>Working on REQ-00X Issue #N title</b> and the next action. It refuses if you are still on an unfinished REQ, so nothing gets lost.</p>
+              <p><b>"local main is N commit(s) ahead of origin/main"?</b> <code>start.sh</code> lists those commits and asks before it branches, because the new branch would carry them and <code>integrity.sh</code> (which compares with origin/main) would blame them on it: a false I1 FAIL. Answer <b>N</b>, then fix main:</p>
+              <pre data-label="bash · git pane">git push origin main      # the usual fix: setup or doc commits that were never pushed</pre>
+              <p>Main is protected, so the push is refused? Put the commits on a branch and open a PR: <code>git switch -c chore/main-catchup &amp;&amp; git push -u origin HEAD &amp;&amp; gh pr create --fill</code>, merge it, then <code>git switch main &amp;&amp; git fetch origin &amp;&amp; git reset --keep origin/main</code>. Only when the commits should <b>not</b> be on main at all: <code>git switch main &amp;&amp; git reset --keep origin/main</code> (this drops them from main; save them on a branch first if you still need them). Then run <code>bash scripts/start.sh</code> again.</p>
             </div>
           </li>
           <li class="step" data-id="b-plan" data-pane="claude" data-model="Opus">
@@ -1040,7 +1043,8 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
               <p>Fresh Claude context each pass, against the locked tests (light plans: tests first), until the quality gate (<code>bash scripts/gate.sh</code>: docs, lint, complexity, format, types, full tests) is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running; the <span class="chip pane files">files</span> pane shows each file as the loop touches it.</p>
               <pre data-label="bash · test pane">{WATCH}</pre>
               <pre data-label="bash · git pane">bash scripts/loop.sh</pre>
-              <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run. On standard and strict it refuses to start until the tests are locked.</p>
+              <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run. On standard and strict it refuses to start until the tests are locked (REQs and BUGs).</p>
+              <p><b>Working in the chat instead (path A)?</b> When Claude stops with changed code on this branch, the Stop hook runs <code>bash scripts/gate.sh</code>. Red: Claude sees "Blocked by the kit … the quality gate is RED" with the first failures and keeps working. It never blocks twice on the same state, and skips main, <code>chore/kit-*</code>, docs-only changes and the <code>/tests</code> stage (tests are meant to be red until the lock).</p>
               <p><b>Stopped on "Disputed"?</b> The builder thinks a locked test is wrong, or the locked tests pass but miss the coverage floor (<code>FAILURES.txt</code> names the file, its coverage and the gap). You decide: remove the lock line from the plan and commit, run <code>/tests</code> again, read, lock again; or list one new test file under <code>## Allowed exceptions</code> in the plan.</p>
             </div>
           </li>
@@ -1059,7 +1063,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
                 <li><kbd>Ctrl-a G</kbd>: read the full diff (<kbd>Ctrl-a z</kbd> first if the pane is small). The <span class="chip pane test">test</span> pane must be green.</li>
                 <li>Optional, <kbd>Ctrl-a V</kbd>: a second, read-only Claude in its own <b>review</b> window. Ask it to review the uncommitted diff against <code>docs/plans/&lt;REQ&gt;.md</code> (the border reminds you of the review command, <code>/review-req REQ-NN</code>). It cannot edit files; <kbd>Ctrl-a Tab</kbd> takes you back. For the next REQ start it fresh: <code>/exit</code>, <kbd>Ctrl-a &amp;</kbd> to close the window, then <kbd>Ctrl-a V</kbd> again.</li>
               </ul>
-              <p class="expect">This quick read does not replace step 8: <code>pr.sh</code> only opens a PR after the reviewer agent's <code>/review</code> has saved APPROVE.</p>
+              <p class="expect">This quick read does not replace step 11: <code>pr.sh</code> only opens a PR after the reviewer agent's <code>/review</code> has saved APPROVE.</p>
             </div>
           </li>
           <li class="step" data-id="b-commit" data-pane="git">
@@ -1097,8 +1101,10 @@ git add -A && git commit -m "fix: address review findings"</pre>
           <li class="step" data-id="b-pr" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Open the PR</h3></div>
-              <p>Pushes and opens the PR with the right title, <code>Closes #N</code> and a link to the review. Refuses until the review says APPROVE.</p>
+              <p>Runs <code>bash scripts/gate.sh --full</code> first (adds the dependency audit and secrets scan, so it needs the network) and refuses while it is red. Then pushes and opens the PR with the right title, <code>Closes #N</code> and a link to the review. Refuses until the review says APPROVE.</p>
+              <p>The PR body carries an <b>Evidence</b> section (the tier, the lock sha, a link to <code>docs/tests/&lt;ID&gt;.md</code>, the gate command and its last 40 lines) and <b>Boundary changes</b>: files matching <code>docs/RULES.md</code> section 10 (routes, <code>api/</code>, auth and permissions, <code>shared/</code>, migrations, dependency and lock files). Any boundary file adds the label <code>needs-human-review</code>, on every tier. Re-running <code>pr.sh</code> on an open PR refreshes its body and label.</p>
               <pre data-label="bash · git pane">bash scripts/pr.sh</pre>
+              <p class="expect">You should see: the gate rows, then <b>OK</b> with the PR address. A boundary change adds <b>WARN : boundary changes: … labelled needs-human-review</b>.</p>
             </div>
           </li>
           <li class="step gate" data-id="b-pr-gate" data-pane="you">
@@ -1107,12 +1113,15 @@ git add -A && git commit -m "fix: address review findings"</pre>
               <p>Read the review report first, then the diff: on GitHub, or locally with <kbd>Ctrl-a B</kbd> (the whole branch against main). You can overrule a finding, but write why in the PR.</p>
               <ul>
                 <li>Full suite green locally and in CI</li>
+                <li>Evidence: the tier is right, and on standard and strict the lock sha is there and the test table is the one you read</li>
+                <li>Boundary changes: labelled <code>needs-human-review</code>? Read those files line by line</li>
                 <li>Reviewer verdict APPROVE</li>
                 <li>File headers, function doc blocks and READMEs present</li>
                 <li>Architecture row and test plan still match the code</li>
               </ul>
               <p>Then merge. It asks you to confirm, waits for CI, merges, and runs the after-merge checks on main (full suite, CI status, traceability).</p>
               <pre data-label="bash · git pane">bash scripts/pr.sh merge</pre>
+              <p>It refuses without branch protection on main. On a free-plan private repo (no protection possible) merge on GitHub yourself after this review, or knowingly run <code>ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge</code>: your choice, never Claude's.</p>
             </div>
           </li>
           <li class="step" data-id="b-after" data-pane="claude" data-model="Opus">
