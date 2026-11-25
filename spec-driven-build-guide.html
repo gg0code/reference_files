@@ -317,29 +317,29 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
             <span class="tag">Recommended · default</span>
             <h3>B · Assisted, one REQ at a time</h3>
             <p class="who">For: your first project, and any REQ that touches money, security or data.</p>
-            <p><code>start.sh</code> → <code>next</code> (plan) → you approve → <code>loop.sh</code> builds until the gate is green → <code>review</code> → <code>explain</code> → <code>pr.sh</code> → you review the PR → <code>pr.sh merge</code>. (<code>next</code>, <code>review</code> and <code>explain</code> are typed inside Claude; the <code>.sh</code> scripts in the git pane.)</p>
-            <ul><li>You approve: plan, PR, merge</li><li>You read: the walkthrough, which teaches you the code</li><li>Guide: Phase 4</li></ul>
+            <p><code>start.sh</code> → <code>next</code> (plan with a <code>Risk:</code> tier) → you approve → standard and strict: <code>/tests</code> → you read <code>docs/tests/&lt;ID&gt;.md</code> → you run <code>lock_tests.sh</code> → <code>loop.sh</code> builds until the gate is green → <code>review</code> → <code>explain</code> → <code>pr.sh</code> → you review the PR → <code>pr.sh merge</code>. (<code>next</code>, <code>review</code> and <code>explain</code> are typed inside Claude; the <code>.sh</code> scripts in the git pane.)</p>
+            <ul><li>You approve: plan, tests (standard, strict), PR, merge</li><li>You read: the walkthrough, which teaches you the code</li><li>Guide: Phase 4</li></ul>
           </div>
           <div class="path">
             <span class="tag">Semi-attended</span>
             <h3>C · Autopilot level 1</h3>
             <p class="who">For: a batch of well-understood REQs after you have done 3 or 4 by hand.</p>
-            <p>You approve the plans first. <code>bash scripts/autopilot.sh</code> then runs branch, loop, commit, reviewer, fix rounds and PR for each, while you are away.</p>
+            <p>You approve the plans first, and for standard and strict plans you read and lock the tests too. <code>bash scripts/autopilot.sh</code> then runs branch, loop, commit, reviewer, fix rounds and PR (through <code>pr.sh</code>) for each, while you are away. An unlocked standard or strict REQ is skipped and listed under "Needs you".</p>
             <ul><li>You approve: plans, then every PR and merge</li><li>Afterwards: type <code>explain</code> inside Claude on each branch before merging</li><li>Guide: Phase 4b</li></ul>
           </div>
           <div class="path">
             <span class="tag">Unattended build</span>
             <h3>D · Autopilot level 2</h3>
             <p class="who">For: simple, low-risk REQs (screens, CRUD, reports) on a mature project.</p>
-            <p><code>AUTOPILOT=plan,build</code>: autopilot also drafts the plans and the reviewer agent approves them (marked "by reviewer agent"). You only review and merge the PRs.</p>
+            <p><code>AUTOPILOT=plan,build</code>: autopilot also drafts the plans and the reviewer agent approves them (marked "by reviewer agent"). You only review and merge the PRs. It still cannot lock tests: a standard or strict plan it drafts stops under "Needs you" until you run <code>/tests</code> and lock, so level 2 builds light REQs end to end.</p>
             <ul><li>You approve: PRs and merges</li><li>Read those plans when you return</li><li>Guide: Phase 4b</li></ul>
           </div>
           <div class="path">
             <span class="tag">Fully unattended</span>
             <h3>E · Autopilot level 3</h3>
             <p class="who">For: experienced use only, with branch protection on and a strong test suite.</p>
-            <p>Adds <code>AUTO_MERGE=1</code>: waits for green CI, merges, runs the after-merge checks and continues. Stops on anything it cannot decide and lists it under "Needs you".</p>
-            <ul><li>You approve: the release</li><li>Refuses to run without branch protection on main</li><li>Guide: Phase 4b</li></ul>
+            <p>Adds <code>AUTO_MERGE=1</code> to plans you approved: waits for green CI, merges, runs the after-merge checks and continues. Stops on anything it cannot decide and lists it under "Needs you". A PR that touches a boundary file (<code>docs/RULES.md</code> section 10) carries the label <code>needs-human-review</code> and is never auto-merged.</p>
+            <ul><li>You approve: plans, locked tests, boundary PRs, the release</li><li>Guide: Phase 4b</li></ul>
           </div>
           <div class="path">
             <span class="tag">Any time</span>
@@ -353,14 +353,16 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
           <thead><tr><th>Who decides</th><th>A Guided</th><th>B Assisted</th><th>C Level 1</th><th>D Level 2</th><th>E Level 3</th></tr></thead>
           <tbody>
             <tr><td>Spec docs (idea to test plan)</td><td>you</td><td>you</td><td>you</td><td>you</td><td>you</td></tr>
-            <tr><td>Plan per REQ</td><td>you</td><td>you</td><td>you</td><td>reviewer agent</td><td>reviewer agent</td></tr>
+            <tr><td>Plan per REQ</td><td>you</td><td>you</td><td>you</td><td>reviewer agent</td><td>you</td></tr>
+            <tr><td>Tests (standard, strict)</td><td>you read and lock</td><td>you read and lock</td><td>you read and lock</td><td>you read and lock</td><td>you read and lock</td></tr>
             <tr><td>Code is done</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td></tr>
             <tr><td>Code review</td><td>reviewer + you</td><td>reviewer + you</td><td>reviewer, then you</td><td>reviewer, then you</td><td>reviewer</td></tr>
-            <tr><td>Merge</td><td>you</td><td>you</td><td>you</td><td>you</td><td>CI + autopilot</td></tr>
+            <tr><td>Merge</td><td>you</td><td>you</td><td>you</td><td>you</td><td>CI + autopilot (you: <code>needs-human-review</code>)</td></tr>
             <tr><td>Release</td><td>you</td><td>you</td><td>you</td><td>you</td><td>you</td></tr>
           </tbody>
         </table></div>
         <p class="expect">A good progression: path B for the walking skeleton and the first 3 or 4 REQs, reading every walkthrough; then path C for batches of similar REQs; level 2 or 3 only once you trust the test suite. Always try <code>DRY_RUN=1 bash scripts/autopilot.sh</code> first.</p>
+        <div class="osnote"><b>Autopilot needs branch protection on main, at every level</b> (<code>bash scripts/protect.sh</code>, step "Close setup"). A <b>private repo on GitHub's free plan cannot have it</b> (it needs Pro, Team or Enterprise, or a public repo), so there autopilot cannot run at any level and <code>pr.sh merge</code> refuses: use path A or B and merge each PR yourself after review. <code>ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge</code> is your own, knowing override, never Claude's.</div>
       </section>
 
       <!-- ================= PHASE 0 ================= -->
@@ -961,7 +963,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
               <pre data-label="prompt · claude pane" class="prompt">/setup</pre>
               <p class="expect">You should see: nothing left at TEMPLATE or DRAFT.</p>
               <pre data-label="bash · git pane · after CI has run once">bash scripts/protect.sh</pre>
-              <p class="expect">You should see: OK branch protection is on. It requires the CI check <code>gate</code>, applies to admins too, and blocks force-push. <code>pr.sh merge</code> and autopilot refuse to run without it. Private repos need GitHub Pro, Team or Enterprise.</p>
+              <p class="expect">You should see: OK branch protection is on. It requires the CI check <code>gate</code>, applies to admins too, and blocks force-push. <code>pr.sh merge</code> and autopilot refuse to run without it. <b>Free plan + private repo:</b> GitHub offers no branch protection there (it needs Pro, Team or Enterprise, or a public repo), so autopilot cannot run at any level and <code>pr.sh merge</code> refuses. Review and merge each PR yourself; <code>ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge</code> is your own, knowing choice, never Claude's.</p>
             </div>
           </li>
         </ol>
