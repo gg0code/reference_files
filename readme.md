@@ -1,6 +1,6 @@
 # vibecode - Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v3.12 (2026-11-19).
+Kit version: v3.13 (2026-11-25).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
