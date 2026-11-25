@@ -1195,7 +1195,7 @@ gh pr list</pre>
       <section class="phase" id="bug" data-phase="bug">
         <div class="phase-head"><h2>5 · Fix a bug</h2><span class="when">Repeat per bug. The BUG number is picked for you.</span>
           <span class="confirm" data-reset="bug"><button class="btn small warn" type="button">Start next bug</button></span></div>
-        <div class="callout gatey">A bug with no failing test is hidden, not fixed. The failing test is committed on its own, before the fix.</div>
+        <div class="callout gatey">A bug with no failing test is hidden, not fixed. The failing test is committed on its own, before the fix. The plan's <code>Risk:</code> tier decides how: <b>light</b> bugs write the failing test in the chat (step 3); <b>standard</b> and <b>strict</b> bugs get it from <code>/tests</code>, you read it and lock it (step 4), and <code>loop.sh</code> refuses to fix them before the lock.</div>
         <ol class="steps">
           <li class="step" data-id="g-issue" data-pane="git">
             <div class="step-body">
@@ -1204,14 +1204,31 @@ gh pr list</pre>
               <pre data-label="bash · git pane">bash scripts/start.sh bug "login fails with an empty password"</pre>
             </div>
           </li>
+          <li class="step gate" data-id="g-plan" data-pane="claude" data-model="Sonnet">
+            <div class="step-body">
+              <div class="step-head"><h3>Plan with repro steps and a risk tier</h3></div>
+              <p>Claude drafts <code>docs/plans/BUG-00X.md</code> with the repro steps and a <code>Risk:</code> tier (same rules as a REQ; no line counts as standard). Read it, set line 1 to <code>Status: APPROVED - {DATE}</code>, and commit.</p>
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">/next</pre>
+              <pre data-label="bash · git pane">git add docs/plans && git commit -m "docs: approved bug plan"</pre>
+            </div>
+          </li>
           <li class="step" data-id="g-repro" data-pane="claude" data-model="Sonnet">
             <div class="step-body">
-              <div class="step-head"><h3>Reproduce end to end, write a failing test</h3></div>
+              <div class="step-head"><h3>Light: reproduce end to end, write a failing test</h3></div>
+              <p>Standard and strict bugs skip this step and use the next one.</p>
               <pre data-label="prompt · claude pane · /model sonnet" class="prompt">The bug in the current branch name: reproduce it end-to-end as a user would, using the steps in its
 GitHub Issue, then write a FAILING test that captures exactly this bug. Do NOT fix anything yet;
 show me the test go red.</pre>
               <p>Check the <span class="chip pane test">test</span> pane is RED, then commit the test alone:</p>
               <pre data-label="bash · git pane">git add -A && git commit -m "test: failing test for the bug"</pre>
+            </div>
+          </li>
+          <li class="step gate" data-id="g-tests" data-pane="claude" data-model="Sonnet">
+            <div class="step-body">
+              <div class="step-head"><h3>Standard and strict: failing tests from <code>/tests</code>, read, lock</h3></div>
+              <p><code>/tests</code> writes the tests that reproduce the bug (never <code>src/</code>) and the table <code>docs/tests/BUG-00X.md</code>, and commits the tests alone. Check the <span class="chip pane test">test</span> pane is RED, read the table, then lock: from here on no test file may change (hooks, <code>integrity.sh</code> I6).</p>
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">/tests</pre>
+              <pre data-label="bash · git pane · after you read docs/tests/BUG-00X.md">bash scripts/lock_tests.sh</pre>
             </div>
           </li>
           <li class="step" data-id="g-local" data-pane="claude" data-model="Opus">
@@ -1226,7 +1243,7 @@ single best hypothesis for the root cause. Don't patch yet.</pre>
               <div class="step-head"><h3>Minimal fix</h3></div>
               <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Apply the minimal fix for the bug in the current branch name. The failing test must go green and
 the full suite must stay green. Do not weaken or skip any test.</pre>
-              <p>Read the fix with <kbd>Ctrl-a G</kbd> before committing: a minimal fix is a small diff, and any change to a test file other than the new one is a red flag.</p>
+              <p>Standard and strict: run <code>bash scripts/loop.sh</code> instead (it works against the locked tests and stops on "Disputed"). Read the fix with <kbd>Ctrl-a G</kbd> before committing: a minimal fix is a small diff, and any change to a test file other than the new one is a red flag.</p>
               <pre data-label="bash · git pane">git add -A && git commit -m "fix: the cause in a few words"</pre>
             </div>
           </li>
