@@ -280,16 +280,18 @@ merged_on_base() { git log -E --oneline --grep="(feat|fix)\($1\)" "$(base_ref)" 
 if [ "$DRY_RUN" = 1 ]; then
   step "DRY RUN - nothing will change"
   for r in "${QUEUE[@]}"; do
-    p="docs/plans/$r.md"; ps="missing"
-    [ -f "$p" ] && { head -1 "$p" | grep -q '^Status: APPROVED' && ps="approved" || ps="draft"; }
-    rk="$(sed -nE 's/^Risk:[[:space:]]*([A-Za-z]+).*/\1/p' "$p" 2>/dev/null | head -1 | tr '[:upper:]' '[:lower:]')"; rk="${rk:-standard}"
-    br="$(git branch --format='%(refname:short)' --list "feat/${r}-*" | head -1)"
-    lk="$( [ -n "$br" ] && git show "$br:$p" 2>/dev/null | sed -nE 's/^Tests locked:[[:space:]]*([0-9a-f]{7}).*/\1/p' | head -1)"
-    act="build -> review -> PR"
+    # the plan and its lock live on the REQ's branch (the one process_req checks out), else on this checkout
+    p="docs/plans/$r.md"; br="feat/${r}-$(slug "${TITLE_OF[$r]:-$r}")"; ps="missing"; src="$br"
+    pt="$(git show "$br:$p" 2>/dev/null)" || { src="$(git branch --show-current)"; pt="$(cat "$p" 2>/dev/null)"; }
+    [ -n "$pt" ] && { printf '%s\n' "$pt" | head -1 | grep -q '^Status: APPROVED' && ps="approved" || ps="draft"; }
+    rk="$(printf '%s\n' "$pt" | sed -nE 's/^Risk:[[:space:]]*([A-Za-z]+).*/\1/p' | head -1 | tr '[:upper:]' '[:lower:]')"; rk="${rk:-standard}"
+    lk="$(printf '%s\n' "$pt" | sed -nE 's/^Tests locked:[[:space:]]*([0-9a-f]{7}).*/\1/p' | head -1)"
+    act="build -> review -> PR (pr.sh)"
     [ "$ps" = approved ] && [ "$rk" != light ] && [ -z "$lk" ] && act="SKIP (Risk: $rk, tests not locked: /tests + lock_tests.sh)"
     [ "$ps" != approved ] && { [ "$PLAN_LEVEL" = 1 ] && act="draft plan -> plan review -> $act" || act="SKIP (needs your approved plan)"; }
-    if [ "$AUTO_MERGE" = 1 ] && { [ "$ps" = approved ] || [ "$PLAN_LEVEL" = 1 ]; }; then act="$act -> wait CI -> merge -> after-merge checks"; fi
-    echo "    $r (#${ISSUE_OF[$r]}) plan: $ps, risk: $rk, lock: ${lk:-none}  =>  $act"
+    case "$act" in SKIP*) ;; *) [ "$AUTO_MERGE" = 1 ] && act="$act -> wait CI -> merge unless labelled needs-human-review -> after-merge checks" ;; esac
+    [ -n "$pt" ] || src="-"
+    echo "    $r (#${ISSUE_OF[$r]}) plan: $ps (on $src), risk: $rk, lock: ${lk:-none}  =>  $act"
   done
   STOPPED="dry run"
   exit 0
