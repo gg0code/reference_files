@@ -172,7 +172,7 @@ fi
 export WINHOME
 alias desktop='cd "$WINHOME/Desktop"'
 alias downloads='cd "$WINHOME/Downloads"'
-alias kit='cd "${KIT_DIR:-$HOME/kits/reference_files}"'
+alias kit='cd "${KIT_DIR:-$HOME/kits/vibecode}"'
 
 mkcd() {
     mkdir -p -- "$1" && cd -- "$1"

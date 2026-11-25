@@ -6,7 +6,7 @@ A copy-paste runbook for the full traceability loop:
 > **Idea → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → merge**
 > **Bug → BUG-ID → failing test → Issue # → branch → PR → merge**
 
-**Placeholders:** `<your app>` = your project's name, `REQ-00X` = a requirement ID, `#N` = the GitHub Issue that holds it, `<short-name>` = a short slug for the work, `<kit>` = the path to `reference_files`.
+**Placeholders:** `<your app>` = your project's name, `REQ-00X` = a requirement ID, `#N` = the GitHub Issue that holds it, `<short-name>` = a short slug for the work, `<kit>` = the path to `vibecode`.
 Substitute your own values wherever these appear.
 Pick a small first app (5 to 6 requirements) so a full run fits in one session.
 
@@ -61,8 +61,8 @@ Each prompt below names the model to switch to.
 Open your terminal in the folder that will **hold** the project, not inside it (the project folder does not exist yet), for example `~/Projects`.
 
 ### 0-prereq. Get the kit and set up the machine (once)
-1. Get the kit: clone its GitHub repo inside WSL, e.g. `git clone https://github.com/<owner>/reference_files.git ~/kits/reference_files` (details: `readme.md` > "Getting the kit").
-   Every command below that says `reference_files/` means that folder.
+1. Get the kit: clone its GitHub repo inside WSL, e.g. `git clone https://github.com/<owner>/vibecode.git ~/kits/vibecode` (details: `readme.md` > "Getting the kit").
+   Every command below that says `vibecode/` means that folder.
 2. Machine setup: `readme.md` > "One-time machine setup".
 Skipping the git identity is the number one cause of `src refspec main does not match any`: with no identity the first commit fails, so no `main` branch exists to push.
 Verify: `git config --global --list | grep -E 'user|default'`
@@ -100,7 +100,7 @@ The summary ends with `Result: SUCCESS` or `Result: COMPLETED WITH n WARNING(S)`
 | Message | Meaning | Fix |
 |---|---|---|
 | `missing git identity` | **aborted** before touching anything | do 0-prereq, re-run |
-| `project template not found` | scaffold.sh was moved out of the kit | run it from inside `reference_files/` by path |
+| `project template not found` | scaffold.sh was moved out of the kit | run it from inside `vibecode/` by path |
 | `unknown stack` | typo in the stack argument | use node, python, go or rust |
 | `gh CLI not found` | local repo is fine, nothing pushed | `git remote add origin <url>` then `git push -u origin main` |
 | `gh is installed but not authenticated` | local repo fine, nothing pushed | `gh auth login`, then `gh repo create <your app> --private --source=. --remote=origin --push` |
@@ -626,7 +626,9 @@ bash scripts/protect.sh          # shows what it will set, asks for "yes"; --sho
 It requires the CI check `gate` (the job name in `ci.yml`) to pass and be up to date, applies to admins too
 (an agent pushes with your token, so an admin exemption would exempt the agent), and blocks force-push and deletion of main.
 `pr.sh merge` and `autopilot.sh` refuse to run without it; `start.sh check` reports FAIL once setup is approved.
-Private repos need GitHub Pro, Team or Enterprise for branch protection.
+Private repos need GitHub Pro, Team or Enterprise for branch protection. On a free-plan private repo `protect.sh` cannot turn it on,
+so `pr.sh merge` refuses and autopilot cannot run: merge each PR yourself after review (`ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge`
+is your own, knowing override, never Claude's).
 This is also the moment Phase 1's "commit straight to main" ends for good: later scope changes go through a small PR (`start.sh scope` prints the commands).
 
 ---
@@ -644,6 +646,7 @@ It runs Phase 2 steps 1 to 11 for each REQ in `docs/TASKS.md` and stops at your 
 | 2+3 | `AUTOPILOT=plan,build AUTO_MERGE=1 I_ACCEPT_UNREVIEWED_PLANS=1 bash scripts/autopilot.sh` | nothing: no human sees plan or merge | read the report, `wrap up` |
 
 Every level needs branch protection on main (`bash scripts/protect.sh`, Phase 2c).
+A private repo on GitHub's free plan cannot have it, so autopilot does not run there: use Phase 2 by hand.
 
 Always start with a dry run, and keep the caps:
 ```bash
