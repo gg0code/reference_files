@@ -224,7 +224,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">vibecode kit v3.14 · new project walkthrough</div>
+      <div class="eyebrow">vibecode kit v3.14.1 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Start with <b>Your setup</b>: choose Windows, Mac or Linux (on Windows also your shell: Ubuntu bash is recommended, Git Bash, PowerShell 7 and CMD are supported), check the folders, and press Save; every command is then rewritten for your shell and values, and only the steps for your computer are shown. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -1622,6 +1622,12 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
 
         <h3 class="sub" id="kit-update">Updating the kit</h3>
         <p>Get the new kit with <code>git pull</code> in the kit folder (Phase 0, "Get the kit"); new projects use it straight away. An existing project is upgraded by hand on a branch named <code>chore/kit-&lt;version&gt;</code>: there <code>integrity.sh</code> lists the changed kit files as ALLOWED instead of failing, and you review them in the PR. Run the commands yourself in the git pane (the hooks block Claude from editing the kit's checks). <code>pr.sh</code> only handles REQ and BUG branches, so open and merge the kit PR with <code>gh</code>. Upgrade one version at a time, from the project root.</p>
+        <p><b>v3.14 to v3.14.1</b> (<code>integrity.sh</code> v2.1: I5 no longer flags the kit's own scripts; <code>--self-test</code>):</p>
+        <pre data-label="bash · git pane">git switch main && git pull --ff-only && git switch -c chore/kit-v3.14.1
+cp {KIT}/integrity.sh scripts/
+bash scripts/integrity.sh --self-test && bash scripts/gate.sh
+git add -A && git commit -m "chore(kit): integrity.sh v2.1 (kit v3.14.1)"
+git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, then: gh pr merge --squash --delete-branch</pre>
         <p><b>v3.13 to v3.14</b> (<code>start.sh</code> v6: the ahead-of-origin check):</p>
         <pre data-label="bash · git pane">git switch main && git pull --ff-only && git switch -c chore/kit-v3.14
 cp {KIT}/start.sh scripts/
@@ -1644,7 +1650,12 @@ git add -A && git commit -m "chore(kit): protected verification loop (kit v3.13)
 git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, then: gh pr merge --squash --delete-branch</pre>
         <p>A REQ already in progress has no <code>Risk:</code> line, so it counts as standard and <code>loop.sh</code> asks for the lock. Write <code>Risk: light - &lt;reason&gt;</code> in its plan only if that is true; otherwise run <code>/tests</code>, read <code>docs/tests/&lt;ID&gt;.md</code>, then <code>bash scripts/lock_tests.sh</code>. Older upgrades (v2.x to v3.12): <code>readme.md</code>, "Updating the kit".</p>
 
-        <h3 class="sub" id="kit-changes">Changes in v3.14</h3>
+        <h3 class="sub" id="kit-changes">Changes in v3.14.1</h3>
+        <ul>
+          <li><b><code>integrity.sh</code> v2.1:</b> I5 (suppressions) no longer fails on the kit's own <code>integrity.sh</code> and <code>loop.sh</code>, whose pattern list and prompt name <code>noqa</code> and <code>type: ignore</code> without using them. The exemption matches exactly those two files, in <code>scripts/</code> or at the repo root; <code>.md</code>, <code>.txt</code> and <code>.html</code> files stay unchecked, and every other path is checked as before. <code>--list</code> names the exemptions; <code>--self-test</code> runs the I5 check on fixed cases.</li>
+          <li>Existing v3.14 projects: copy the kit's <code>integrity.sh</code> into <code>scripts/</code> on a <code>chore/kit-v3.14.1</code> branch (commands above).</li>
+        </ul>
+        <h3 class="sub">Changes in v3.14</h3>
         <ul>
           <li><b>Kit renamed:</b> the folder, clone URL, scaffold usage and this guide now all say <code>vibecode</code>; the kit lives at <code>~/kits/vibecode</code>. An existing clone under the old name: <code>mv ~/kits/&lt;old-name&gt; ~/kits/vibecode</code>, or set <code>KIT_DIR</code> in <code>~/.bashrc</code>.</li>
           <li><b><code>start.sh</code> v6:</b> before creating a new branch it warns, lists the commits and asks when local main is ahead of origin/main. Such a branch carries them and <code>integrity.sh</code> (which compares with origin/main) blames them on it: a false I1 FAIL. No terminal: stops unless <code>ALLOW_AHEAD=1</code>.</li>
@@ -1665,7 +1676,7 @@ git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, th
           </tbody>
         </table></div>
 
-        <div class="foot">Built from vibecode kit v3.14: readme.md, runbook.md, scaffold.sh, start.sh, loop.sh, gate.sh, integrity.sh, lock_tests.sh, pr.sh, autopilot.sh, protect.sh, req_status.sh, templates/project, the reviewer agent and .tmux.conf (five-pane work window, review window, diff popups). Progress and your project values are stored only in this browser.
+        <div class="foot">Built from vibecode kit v3.14.1: readme.md, runbook.md, scaffold.sh, start.sh, loop.sh, gate.sh, integrity.sh, lock_tests.sh, pr.sh, autopilot.sh, protect.sh, req_status.sh, templates/project, the reviewer agent and .tmux.conf (five-pane work window, review window, diff popups). Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>

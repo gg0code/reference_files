@@ -1,7 +1,7 @@
 # CLAUDE.md - project constitution
 
 <!--
-Template v3.14 - 2026-11-25
+Template v3.14.1 - 2026-11-25
 Reusable constitution for spec-driven, fully traceable development.
 Sections marked FIXED are the same in every project. Do not edit them per project.
 Sections marked FILL IN are tailored per project, then approved by the user.
