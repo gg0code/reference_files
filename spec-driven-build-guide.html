@@ -224,7 +224,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.14 · new project walkthrough</div>
+      <div class="eyebrow">vibecode kit v3.14 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Start with <b>Your setup</b>: choose Windows, Mac or Linux (on Windows also your shell: Ubuntu bash is recommended, Git Bash, PowerShell 7 and CMD are supported), check the folders, and press Save; every command is then rewritten for your shell and values, and only the steps for your computer are shown. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -1580,7 +1580,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.14: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project, the reviewer agent and .tmux.conf (five-pane work window, review window, diff popups). Progress and your project values are stored only in this browser.
+        <div class="foot">Built from vibecode kit v3.14: readme.md, runbook.md, scaffold.sh, start.sh, loop.sh, gate.sh, integrity.sh, lock_tests.sh, pr.sh, autopilot.sh, protect.sh, req_status.sh, templates/project, the reviewer agent and .tmux.conf (five-pane work window, review window, diff popups). Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>
