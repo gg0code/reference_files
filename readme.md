@@ -158,6 +158,9 @@ Every level needs branch protection on main (`bash scripts/protect.sh`); level 2
 Try `DRY_RUN=1` first: it shows what each REQ would go through and changes nothing.
 Each run writes `.autopilot/<run-id>.md` with a "Needs you" list, plus a full log.
 Needs jq and an authenticated gh; level 3 refuses to run without branch protection on main.
+**Free plan + private repo:** GitHub offers no branch protection there (it needs Pro, Team or Enterprise, or a public repo),
+so `autopilot.sh` cannot run at any level and `pr.sh merge` refuses. Review and merge each PR yourself;
+`ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge` is your own, knowing override, never Claude's.
 
 ## How the pieces fit together
 

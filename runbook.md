@@ -626,7 +626,9 @@ bash scripts/protect.sh          # shows what it will set, asks for "yes"; --sho
 It requires the CI check `gate` (the job name in `ci.yml`) to pass and be up to date, applies to admins too
 (an agent pushes with your token, so an admin exemption would exempt the agent), and blocks force-push and deletion of main.
 `pr.sh merge` and `autopilot.sh` refuse to run without it; `start.sh check` reports FAIL once setup is approved.
-Private repos need GitHub Pro, Team or Enterprise for branch protection.
+Private repos need GitHub Pro, Team or Enterprise for branch protection. On a free-plan private repo `protect.sh` cannot turn it on,
+so `pr.sh merge` refuses and autopilot cannot run: merge each PR yourself after review (`ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge`
+is your own, knowing override, never Claude's).
 This is also the moment Phase 1's "commit straight to main" ends for good: later scope changes go through a small PR (`start.sh scope` prints the commands).
 
 ---
@@ -644,6 +646,7 @@ It runs Phase 2 steps 1 to 11 for each REQ in `docs/TASKS.md` and stops at your 
 | 2+3 | `AUTOPILOT=plan,build AUTO_MERGE=1 I_ACCEPT_UNREVIEWED_PLANS=1 bash scripts/autopilot.sh` | nothing: no human sees plan or merge | read the report, `wrap up` |
 
 Every level needs branch protection on main (`bash scripts/protect.sh`, Phase 2c).
+A private repo on GitHub's free plan cannot have it, so autopilot does not run there: use Phase 2 by hand.
 
 Always start with a dry run, and keep the caps:
 ```bash
