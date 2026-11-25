@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# gate.sh - the one quality gate every change must pass.   VERSION: v1
+# gate.sh - the one quality gate every change must pass.   VERSION: v2 (kit v3.12)
+# v2: integrity step (scripts/integrity.sh) on every run; it cannot be skipped with GATE_SKIP;
+#     in CI (CI=true) GATE_SKIP and COV_MIN overrides are refused.
 #
 #   bash scripts/gate.sh           fast gate: docs, lint, format, types, tests (+ service coverage for Python)
 #   bash scripts/gate.sh --full    also dependency audit and secrets scan (pr.sh merge, CI, release)
@@ -18,10 +20,13 @@ set -uo pipefail
 
 case "${1:-}" in -h|--help) sed -n '2,19p' "$0"; exit 0 ;; esac
 FULL=0; [ "${1:-}" = "--full" ] && FULL=1
-case "${TEST_CMD:-}" in *gate.sh*) TEST_CMD="" ;; esac   # never call ourselves (loop/autopilot export TEST_CMD)
 [ -n "${GATE_TEST_CMD:-}" ] && TEST_CMD="$GATE_TEST_CMD"   # set by loop.sh / autopilot.sh from a user TEST_CMD
+case "${TEST_CMD:-}" in *gate.sh*) TEST_CMD="" ;; esac   # never call ourselves (loop/autopilot export TEST_CMD)
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT" || exit 2
+if [ -n "${CI:-}" ] && { [ -n "${GATE_SKIP:-}" ] || [ -n "${COV_MIN:-}" ]; }; then
+  echo "gate.sh: GATE_SKIP / COV_MIN are not allowed in CI - the CI gate is the one nobody can loosen."; exit 1
+fi
 
 FAILS=0; WARNS=0; SUMMARY=""
 OUT="$(mktemp)"; trap 'rm -f "$OUT"' EXIT
@@ -59,7 +64,7 @@ elif [ -f package.json ]; then STACK=node
 elif [ -f go.mod ];       then STACK=go
 elif [ -f Cargo.toml ];   then STACK=rust
 fi
-echo "gate.sh v1 - stack: ${STACK:-unknown} - mode: $([ $FULL = 1 ] && echo full || echo fast)"
+echo "gate.sh v2 - stack: ${STACK:-unknown} - mode: $([ $FULL = 1 ] && echo full || echo fast)"
 
 # ---------- 1. documentation conventions (all stacks) ----------
 if [ -f scripts/doclint.sh ]; then run_step doclint "README per folder, headers, doc blocks, file size, layers" bash scripts/doclint.sh
@@ -137,6 +142,13 @@ case "$STACK" in
     else note tests "no pyproject.toml, package.json, go.mod or Cargo.toml: set TEST_CMD"; fi
     ;;
 esac
+
+# ---------- 2b. integrity: the branch did not weaken the checks (all stacks; never skippable) ----------
+if [ -f scripts/integrity.sh ]; then
+  echo "==> integrity: no weakened tests, gate config or suppressions without a plan exception"
+  if bash scripts/integrity.sh >"$OUT" 2>&1; then row PASS integrity "checks not weakened (scripts/integrity.sh)"
+  else sed 's/^/    | /' "$OUT"; row FAIL integrity "checks weakened without a plan exception (scripts/integrity.sh)"; FAILS=$((FAILS+1)); fi
+else note integrity "scripts/integrity.sh missing - copy it from the kit"; fi
 
 # ---------- 3. secrets (full mode, all stacks) ----------
 if [ $FULL = 1 ]; then

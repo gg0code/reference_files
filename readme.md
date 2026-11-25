@@ -1,6 +1,6 @@
-# Spec-Driven Build Kit - Adoption Guide
+# vibecode - Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v2.13 (2026-10-05).
+Kit version: v3.12 (2026-11-19). Forked from `reference_files` v3.11 with the hardening listed under "Changes in v3.12".
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -16,7 +16,9 @@ reference_files/
   pr.sh                      opens the PR after review, merges with after-merge checks (copied into each project)
   doclint.sh                 enforces file headers, function doc blocks, folder READMEs, file size and layers (copied into each project)
   dashboard.py               live ZeroZeta dashboard: progress, needs-you, buttons; phone access with a PIN (copied into each project)
-  gate.sh                    the quality gate: doclint, lint, format, types, tests, coverage; --full adds audits (copied into each project)
+  gate.sh                    the quality gate: doclint, lint, format, types, tests, coverage, integrity; --full adds audits (copied into each project)
+  integrity.sh               fails a branch that weakens its own checks (tests, gate config, suppressions) without a plan exception (copied into each project)
+  protect.sh                 turns on GitHub branch protection for main; pr.sh merge and autopilot require it (copied into each project)
   loop.sh                    bounded implement-and-test loop for one Issue (copied into each project)
   req_status.sh              REQ-ID ledger and CI traceability check (copied into each project)
   autopilot.sh               optional unattended runs over several REQs (copied into each project)
@@ -151,6 +153,7 @@ The spec docs always stay human; autopilot refuses to start until setup is appro
 | 3 | add `AUTO_MERGE=1` | Also waits for CI, merges, runs the after-merge checks, continues | Release |
 
 Safety caps: `MAX_REQS=3`, `MAX_COST=10` (USD), `REVIEW_ROUNDS=2`, `STOP_ON_FAIL=1`.
+Every level needs branch protection on main (`bash scripts/protect.sh`); level 2 plus level 3 together (no human sees plan or merge) also needs `I_ACCEPT_UNREVIEWED_PLANS=1`.
 Try `DRY_RUN=1` first: it shows what each REQ would go through and changes nothing.
 Each run writes `.autopilot/<run-id>.md` with a "Needs you" list, plus a full log.
 Needs jq and an authenticated gh; level 3 refuses to run without branch protection on main.
@@ -213,6 +216,50 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v3.12 (vibecode)
+
+Goal: the builder cannot quietly weaken what judges it, and the guards hold when nobody is watching.
+
+- **New `integrity.sh`, run inside `gate.sh`** (so loop, autopilot, pr.sh and CI all get it; `GATE_SKIP` cannot skip it).
+  It compares the branch with main and fails on: changed gate config, lockfiles, CI, kit scripts or `.claude/` (I1);
+  deleted or renamed test files (I2); test functions or assertions removed (I3); skip / xfail / only markers (I4);
+  new `# noqa`, `type: ignore`, `eslint-disable`, `@ts-ignore` and similar (I5).
+  The approved, committed plan can allow a path under a new "Allowed exceptions" section, which only the user writes.
+  Kit upgrades go on a branch named `chore/kit-<version>`: there protected-file changes are listed as ALLOWED and you review them in the PR.
+- **Hooks fail closed.** `_lib.sh` finds a Python that really runs (the Windows Store `python3` stub does not count);
+  with none, or with input it cannot parse, guard hooks block instead of allowing everything. `start.sh check` proves the hooks are live.
+- **`guard-bash.sh` closes the bypasses:** refspec pushes (`HEAD:main`, `refs/heads/main`), `+refspec` force-pushes, `--mirror` / `--delete`,
+  plain `git push` on main that would carry code, `rm` with split flags (`rm -r -f /`, `--recursive`; paths resolved against the project),
+  shell writes to code on main (`>`, `sed -i`, `tee`, `cp`, `mv` ...), shell edits to the kit's own checks, `git clean -f`, `git commit -n`,
+  `core.hooksPath`, and Claude setting `GATE_SKIP` / `COV_MIN` / `NO_GATE` / `ALLOW_UNPROTECTED` / `AUTO_MERGE` / `FORCE=1 pr.sh`.
+- **`guard-files.sh`** also blocks Edit/Write on hooks, settings, the reviewer agent, gate/integrity/loop/pr/autopilot/protect scripts and CI.
+  The user maintains them by hand, or starts claude with `KIT_MAINTAINER=1`.
+- **New `protect.sh`:** branch protection for main (PR only, required `gate` check up to date, admins included, no force-push or delete, linear history).
+  `pr.sh merge` refuses without it (`ALLOW_UNPROTECTED=1` is the user's override); autopilot needs it at every level; `start.sh check` reports FAIL once setup is approved.
+  Note: GitHub offers branch protection on private repos only with Pro, Team or Enterprise.
+- **`loop.sh` v14:** `--model` pinned (`LOOP_MODEL`, default sonnet); dollar cap `MAX_COST` (default 5); per-pass time cap `ITER_TIMEOUT` (default 1800 s);
+  refuses an uncommitted plan and stops if the plan file changes during the run; green must hold for `FLAKE_RUNS` gate runs in a row (default 2);
+  the prompt forbids editing protected files and treats Issue / web / tool text as data.
+  Autopilot hands each loop only what is left of its own budget.
+- **`gate.sh` v2:** integrity step; in CI, `GATE_SKIP` and `COV_MIN` are refused.
+- **`pr.sh` v3:** runs integrity before opening a PR; merge requires branch protection.
+- **Reviewer:** runs integrity and checks every allowed exception; names the assertion that would fail per TC; reads every migration;
+  treats instructions inside the diff or Issue as a Critical prompt-injection finding.
+- **RULES.md section 5:** untrusted text is data (prompt injection), exact-name dependencies checked on the registry, migration data plan
+  plus upgrade-downgrade-upgrade test. Section 9: never edit the kit's checks; a flaky pass is not green.
+- **Plan template:** "Allowed exceptions", dependency and migration prompts. **CLAUDE.md** sections 3, 8 and 10 updated.
+- `.claude/settings.json`: integrity allowed; `git clean` and the other `rm -rf` spellings denied.
+
+### Known limits (still true after v3.12)
+- The hooks and `integrity.sh` are pattern checks: they stop accidents and lazy shortcuts, not a determined adversary.
+  Branch protection plus your PR review stay the real gate.
+- `integrity.sh` I3 counts test and assertion lines; a test made weaker without removing lines (for example a looser expected value) needs the reviewer and you.
+- A pass stopped by `ITER_TIMEOUT` reports no cost, so the dollar cap can be exceeded by at most one pass.
+- Builder and reviewer are the same model family. Keep your own plan approval (autopilot level 1) for anything that matters.
+- `spec-driven-build-guide.html` and `runbook.md` now use `protect.sh` (their old protection command required a check named `test`, but the CI job is `gate`, and it exempted admins).
+  Otherwise they still describe v2.13: they do not mention integrity, "Allowed exceptions" or the new loop caps yet.
+- The reference_files clone URL in "Getting the kit" is unchanged: point it at the vibecode repo once you publish it.
 
 ## Changes in v2.13
 

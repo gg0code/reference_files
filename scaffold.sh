@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v2.13
+# scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v3.12
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
 #   bash /path/to/reference_files/scaffold.sh <app-name> [node|python|go|rust]
@@ -53,7 +53,7 @@ die()  { echo ""; echo "ERROR : $*" >&2; echo "Aborted. Nothing further was run.
 trap 'err "unexpected failure at line $LINENO (command: $BASH_COMMAND)"; exit 1' ERR
 
 echo "=============================================="
-echo " scaffold.sh v2.13 - project: $APP${STACK:+  (stack: $STACK)}"
+echo " scaffold.sh v3.12 - project: $APP${STACK:+  (stack: $STACK)}"
 echo "=============================================="
 
 # ---------- 0. Preflight ----------
@@ -74,7 +74,7 @@ ok "git identity: $GIT_NAME <$GIT_MAIL>"
 
 [ -d "$TPL" ]    || die "project template not found at $TPL (keep scaffold.sh inside the kit folder)"
 [ -f "$CI_TPL" ] || die "CI template not found at $CI_TPL"
-for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh dashboard.py; do
+for s in start.sh loop.sh pr.sh doclint.sh gate.sh integrity.sh protect.sh req_status.sh autopilot.sh dashboard.py; do
   [ -f "$KIT_DIR/$s" ] || die "kit script missing: $KIT_DIR/$s"
 done
 ok "kit found: $KIT_DIR"
@@ -145,7 +145,7 @@ grep -q '@docs/MCP.md' CLAUDE.md 2>/dev/null || warn "CLAUDE.md does not load do
 # ---------- 3. Tooling scripts + CI ----------
 step "Step 3/6  Tooling scripts and CI"
 mkdir -p scripts || die "could not create scripts/"
-for s in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh dashboard.py; do
+for s in start.sh loop.sh pr.sh doclint.sh gate.sh integrity.sh protect.sh req_status.sh autopilot.sh dashboard.py; do
   if [ -f "scripts/$s" ]; then
     if cmp -s "$KIT_DIR/$s" "scripts/$s"; then
       ok "scripts/$s is current"
@@ -203,8 +203,8 @@ git add -A || die "git add failed"
 if git diff --cached --quiet; then
   warn "nothing new to commit - working tree already matches HEAD"
 else
-  git commit -qm "chore: scaffold from project template v2.13" || die "git commit failed"
-  ok "committed: chore: scaffold from project template v2.13"
+  git commit -qm "chore: scaffold from project template v3.12" || die "git commit failed"
+  ok "committed: chore: scaffold from project template v3.12"
 fi
 COMMITS="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 [ "$COMMITS" -ge 1 ] || die "no commit exists - a push would fail with 'src refspec main does not match any'"
@@ -291,7 +291,7 @@ cat <<NEXT
     2. git pane:    bash scripts/start.sh check   # verifies the kit is installed and active
     3. claude pane: claude                        # accept the trust dialog and approve the project MCP servers once, then type: setup
                                                   # Claude lists any missing MCP prerequisite with its install command (docs/MCP.md)
-    4. After CI has run once, turn on branch protection (runbook.md Phase 2c).
+    4. After setup is approved and CI has run once: bash scripts/protect.sh   (branch protection: required; pr.sh merge and autopilot refuse without it)
     5. Then, for each requirement: bash scripts/start.sh   (start.sh status shows where you are)
     6. Watch it all, on the computer or phone: python3 scripts/dashboard.py [--lan]   (runbook.md Phase 2e)
     Python stack - run the starter app once now:

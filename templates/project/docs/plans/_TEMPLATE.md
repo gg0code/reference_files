@@ -1,5 +1,5 @@
 Status: TEMPLATE
-<!-- Template v2.8. Copy to docs/plans/<ID>.md and set line 1 to "Status: DRAFT". `next` does this for you.
+<!-- Template v3.12. Copy to docs/plans/<ID>.md and set line 1 to "Status: DRAFT". `next` does this for you.
      The user approves by changing line 1 to "Status: APPROVED - <date>". loop.sh refuses anything else.
      Keep it to one page: a plan the user cannot read in five minutes is too big; split the REQ. -->
 
@@ -27,11 +27,25 @@ Maximum loop iterations: 6
 | `tests/features/<area>/test_service.py` | unit tests | |
 
 ## Data and migrations
-<!-- New tables or columns and the Alembic migration, or "none". -->
+<!-- New tables or columns and the Alembic migration, or "none".
+     For each migration: does it drop, rename or narrow a column? If yes, say how existing data survives,
+     and plan a test that runs upgrade -> downgrade -> upgrade on a database holding sample rows (RULES.md section 5). -->
 None.
 
 ## New dependencies
-<!-- Each one must already be approved in 02-architecture.md section 6, or this plan asks for approval here. -->
+<!-- Each one must already be approved in 02-architecture.md section 6, or this plan asks for approval here.
+     Give the exact package name, its home page and why the standard library or an existing dependency is not enough.
+     Check the name yourself on the registry: agents can invent package names, and typosquats exist.
+     A new dependency changes pyproject.toml / package.json and the lockfile: list both under Allowed exceptions. -->
+None.
+
+## Allowed exceptions
+<!-- scripts/integrity.sh (inside the gate) fails if this branch changes protected files (gate config, lockfiles,
+     CI, scripts, .claude/), deletes or thins existing tests, adds skip markers, or adds # noqa / type: ignore.
+     List here ONLY the paths the user approves, one per line with the reason, e.g.
+     - pyproject.toml: add httpx (approved dependency)
+     - uv.lock: lockfile for httpx
+     The builder never edits this section; the loop refuses a plan that changed during a run. -->
 None.
 
 ## Risks

@@ -113,10 +113,15 @@ if [ -f scripts/gate.sh ] && [ "${NO_GATE:-0}" != 1 ]; then
   TEST_CMD="bash scripts/gate.sh"                              # docs, lint, format, types, tests (RULES.md section 2)
 elif [ -z "${TEST_CMD_SET:-}" ] && [ -f scripts/doclint.sh ] && [ "${NO_DOCLINT:-0}" != 1 ]; then TEST_CMD="bash scripts/doclint.sh && $TEST_CMD"; fi
 
-if [ "$AUTO_MERGE" = 1 ]; then
-  if ! gh api "repos/{owner}/{repo}/branches/${BASE_BRANCH}/protection" >/dev/null 2>&1; then
-    die "AUTO_MERGE=1 needs branch protection on ${BASE_BRANCH} (runbook.md Phase 2c). Not found."
-  fi
+# Unattended runs need GitHub's branch protection (kit v3.12: every level, not only level 3):
+# the hooks are a local safety net, protection is what stops a bad push when nobody is watching.
+if [ "${DRY_RUN:-0}" != 1 ] && ! gh api "repos/{owner}/{repo}/branches/${BASE_BRANCH}/protection" >/dev/null 2>&1; then
+  die "autopilot needs branch protection on ${BASE_BRANCH}. Turn it on with: bash scripts/protect.sh"
+fi
+if [ "$AUTO_MERGE" = 1 ] && [ "$PLAN_LEVEL" = 1 ] && [ "${I_ACCEPT_UNREVIEWED_PLANS:-0}" != 1 ]; then
+  die "AUTO_MERGE=1 with AUTOPILOT=plan,build means no human sees the plan or the merge: builder and reviewer
+       are the same model family and can agree on a wrong plan. Approve the plans yourself (level 1 + AUTO_MERGE=1),
+       or, knowingly, add I_ACCEPT_UNREVIEWED_PLANS=1."
 fi
 ok "repo $ROOT, base $BASE_BRANCH, tests '$TEST_CMD'"
 ok "level: AUTOPILOT=$AUTOPILOT AUTO_MERGE=$AUTO_MERGE | caps: MAX_REQS=$MAX_REQS MAX_COST=\$$MAX_COST REVIEW_ROUNDS=$REVIEW_ROUNDS"
@@ -189,7 +194,7 @@ reviewer_sysprompt() {   # reviewer.md without its YAML front matter
   awk 'NR==1&&/^---$/{fm=1;next} fm&&/^---$/{fm=0;next} !fm' .claude/agents/reviewer.md > .autopilot/reviewer.sys.md
   echo .autopilot/reviewer.sys.md
 }
-RO_TOOLS="Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git merge-base:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(gh issue view:*),Bash(${TEST_BIN}:*),Bash(bash scripts/doclint.sh:*),Bash(bash scripts/gate.sh:*),Bash(bash scripts/req_status.sh:*),Bash(bash scripts/start.sh status)"
+RO_TOOLS="Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git merge-base:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(gh issue view:*),Bash(${TEST_BIN}:*),Bash(bash scripts/doclint.sh:*),Bash(bash scripts/integrity.sh:*),Bash(bash scripts/gate.sh:*),Bash(bash scripts/req_status.sh:*),Bash(bash scripts/start.sh status)"
 RO_DENY="Edit,Write,NotebookEdit,Bash(git commit:*),Bash(git push:*),Bash(git checkout:*),Bash(git reset:*),Bash(rm:*)"
 
 record() {  # record <req> <issue> <plan-by> <rounds> <verdict> <pr> <outcome> <reason>
@@ -368,7 +373,9 @@ then a findings table (# | Severity | Section | Finding). Return only the report
     fi
     loop_out=".autopilot/${RUN_ID}-${req}-loop${r}.txt"
     info "loop round $r"
-    bash scripts/loop.sh "$issue" "$req" ${LOOP_ITERS:+"$LOOP_ITERS"} > "$loop_out" 2>&1
+    # the loop may spend only what is left of the autopilot budget (loop.sh v14 MAX_COST)
+    MAX_COST="$(awk -v a="$TOTAL_COST" -v m="$MAX_COST" 'BEGIN{r=m-a; if(r<0.01) r=0.01; printf "%.2f", r}')" \
+      bash scripts/loop.sh "$issue" "$req" ${LOOP_ITERS:+"$LOOP_ITERS"} > "$loop_out" 2>&1
     local lc=$?
     add_cost "$(grep -oE 'total cost : \$[0-9.]+' "$loop_out" | tail -1 | grep -oE '[0-9.]+$')"
     cat "$loop_out" >> "$LOG"

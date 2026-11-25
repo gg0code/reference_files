@@ -175,10 +175,20 @@ kit_check() {
   if [ -f .claude/settings.json ] && python3 -m json.tool .claude/settings.json >/dev/null 2>&1; then pass ".claude/settings.json (pre-approved read-only commands for the reviewer)"
   else wrn ".claude/settings.json missing or invalid JSON: the reviewer will ask permission for every command"; fi
   n=0
-  for f in start.sh loop.sh pr.sh doclint.sh gate.sh req_status.sh autopilot.sh dashboard.py; do
+  for f in start.sh loop.sh pr.sh doclint.sh gate.sh integrity.sh protect.sh req_status.sh autopilot.sh dashboard.py; do
     [ -f "scripts/$f" ] || { n=$((n+1)); if [ "$f" = autopilot.sh ] || [ "$f" = dashboard.py ]; then wrn "scripts/$f missing (optional)"; else bad "scripts/$f missing: copy it from the kit"; fi; }
   done
-  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, gate, req_status, autopilot, dashboard"
+  [ "$n" -eq 0 ] && pass "scripts/: start, loop, pr, doclint, gate, integrity, protect, req_status, autopilot, dashboard"
+  # the guard hooks fail closed: without a working Python every guarded tool call is blocked
+  if [ -f .claude/hooks/guard-bash.sh ]; then
+    if printf '{"tool_name":"Bash","tool_input":{"command":"git push --force"}}' | CLAUDE_PROJECT_DIR="$ROOT" bash .claude/hooks/guard-bash.sh >/dev/null 2>&1; then
+      bad "guard-bash.sh did NOT block 'git push --force': the hooks are not protecting this project (old kit version?)"
+    elif printf '{"tool_name":"Bash","tool_input":{"command":"git status"}}' | CLAUDE_PROJECT_DIR="$ROOT" bash .claude/hooks/guard-bash.sh >/dev/null 2>&1; then
+      pass "hooks live: guard-bash.sh blocks a force-push and allows git status"
+    else
+      bad "guard-bash.sh blocks even 'git status': no working python3/python for the hooks (they fail closed). Install Python 3."
+    fi
+  fi
   if grep -l $'\r' scripts/*.sh >/dev/null 2>&1; then bad "scripts/*.sh have Windows line endings (CRLF). Fix: sed -i 's/\r\$//' scripts/*.sh"; fi
   for t in PROMPT.md FAILURES.txt .autopilot/ CLAUDE.local.md .kit/; do
     grep -qxF "$t" .gitignore 2>/dev/null || wrn ".gitignore does not list $t"
@@ -192,7 +202,10 @@ kit_check() {
   command -v jq >/dev/null 2>&1 && pass "jq" || wrn "jq not found: no cost numbers in loop.sh; autopilot will not run"
   git remote get-url origin >/dev/null 2>&1 && pass "git remote origin: $(git remote get-url origin)" || wrn "no git remote 'origin'"
   if [ "$HAVE_GH" = 1 ]; then
-    gh api "repos/{owner}/{repo}/branches/${BASE}/protection" >/dev/null 2>&1 && pass "branch protection on ${BASE}" || wrn "no branch protection on ${BASE} yet (turn it on after CI has run once: runbook Phase 2c)"
+    if gh api "repos/{owner}/{repo}/branches/${BASE}/protection" >/dev/null 2>&1; then pass "branch protection on ${BASE}"
+    elif grep -qE '^Status: APPROVED' docs/TASKS.md 2>/dev/null; then
+      bad "no branch protection on ${BASE}, and setup is done. The hooks are only a safety net; protection is the wall. Run: bash scripts/protect.sh"
+    else wrn "no branch protection on ${BASE} yet: run 'bash scripts/protect.sh' once setup is approved (spec docs go straight to ${BASE} until then)"; fi
   fi
 
   echo ""
@@ -355,7 +368,12 @@ set_scope() {
   else sed -i -E "0,/^# Tasks/s//# Tasks\n\nBuild scope: ${new//,/, }/" docs/TASKS.md; fi
   sed -i -E 's/^Build scope: (.*)$/Build scope: \1/; s/,[[:space:]]*,/,/g; s/  +/ /g' docs/TASKS.md
   git add docs/TASKS.md && git commit -q -m "docs(scope): build scope $(scope_line)" && ok "build scope is now: $(scope_line)"
-  git push -q 2>/dev/null || warn "not pushed (offline?) - run git push later"
+  if ! git push -q 2>/dev/null; then
+    warn "not pushed. Offline? Run 'git push' later."
+    echo "            If main is protected (scripts/protect.sh), the scope change goes through a PR instead:"
+    echo "              git switch -c docs/scope-\$(date +%Y%m%d) && git push -u origin HEAD && gh pr create --fill"
+    echo "              git switch $BASE && git reset --keep origin/$BASE    # main follows GitHub again; the PR brings the change"
+  fi
   kit_event scope "" "Build scope changed to: $(scope_line)"
   show_scope
 }

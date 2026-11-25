@@ -956,12 +956,8 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
               <p>Approve <code>docs/MEMORY.md</code> with a first session-log line, then run <code>setup</code> once more. Once CI has run on GitHub at least once, turn on branch protection. From here on every change goes through a branch and a PR.</p>
               <pre data-label="prompt · claude pane" class="prompt">/setup</pre>
               <p class="expect">You should see: nothing left at TEMPLATE or DRAFT.</p>
-              <pre data-label="bash · git pane · after CI has run once">gh api -X PUT repos/{GHUSER}/{APP}/branches/main/protection \
-  -F required_status_checks[strict]=true \
-  -f "required_status_checks[contexts][]=test" \
-  -F enforce_admins=false \
-  -F required_pull_request_reviews=null \
-  -F restrictions=null</pre>
+              <pre data-label="bash · git pane · after CI has run once">bash scripts/protect.sh</pre>
+              <p class="expect">You should see: OK branch protection is on. It requires the CI check <code>gate</code>, applies to admins too, and blocks force-push. <code>pr.sh merge</code> and autopilot refuse to run without it. Private repos need GitHub Pro, Team or Enterprise.</p>
             </div>
           </li>
         </ol>

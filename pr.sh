@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# pr.sh - open the PR for the current branch, or merge it and run the after-merge checks.   VERSION: v2
+# pr.sh - open the PR for the current branch, or merge it and run the after-merge checks.   VERSION: v3 (kit v3.12)
+# v3: runs scripts/integrity.sh before opening a PR; merge refuses while main has no branch protection
+#     (scripts/protect.sh) unless you set ALLOW_UNPROTECTED=1 yourself.
 #
 #   bash scripts/pr.sh           push and open the PR (refuses until docs/reviews/<ID>.md says APPROVE)
 #   bash scripts/pr.sh merge     after YOUR review of the PR (asks you to confirm; YES=1 skips the question):
@@ -60,6 +62,9 @@ $dirty"
         die "no reviewer APPROVE yet ($REVIEW: ${vl:-missing}). In the claude pane type: review"
       fi ;;
   esac
+  if [ -f scripts/integrity.sh ]; then
+    bash scripts/integrity.sh || die "integrity check failed: this branch weakens tests or the gate without a plan exception (see above)"
+  fi
   local pr; pr="$(existing_pr)"
   git push -q -u origin "$BRANCH" || die "git push failed"
   if [ -n "$pr" ]; then ok "pushed; PR #$pr already open: $(gh pr view "$pr" --json url --jq .url)"; return 0; fi
@@ -97,6 +102,14 @@ detect_test_cmd() {
 merge_pr() {
   local pr ans tc
   pr="$(existing_pr)"; [ -n "$pr" ] || die "no open PR for $BRANCH. Open one with: bash scripts/pr.sh"
+  if ! gh api "repos/{owner}/{repo}/branches/${BASE}/protection" >/dev/null 2>&1; then
+    if [ "${ALLOW_UNPROTECTED:-0}" = 1 ]; then
+      warn "$BASE has no branch protection - merging anyway because ALLOW_UNPROTECTED=1"
+    else
+      die "$BASE has no branch protection on GitHub, so nothing but this script stands between an agent and main.
+            Turn it on: bash scripts/protect.sh   (or, knowingly: ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge)"
+    fi
+  fi
   if [ "${YES:-0}" != 1 ]; then
     [ -t 0 ] || die "merging needs your confirmation: run it in a terminal, or YES=1 bash scripts/pr.sh merge"
     read -r -p "    Have YOU reviewed PR #$pr (review file and diff)? Type yes to merge: " ans
