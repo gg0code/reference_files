@@ -509,7 +509,7 @@ git config --global --list | grep -E 'user|default'</pre>
               <pre data-label="bash · terminal">mkdir -p {ROOT} {KITPARENT}       # creates both folders if they do not exist yet
 git clone {KITREPO} {KIT}          # private repo: gh auth login (previous step) makes this work
 ls {KIT}/scaffold.sh               # check: the file is there</pre>
-              <p>Received the kit as a zip instead? Unzip it so that <code>{KIT}/scaffold.sh</code> exists. Later, to get kit updates: <code>git -C {KIT} pull</code>. New projects use the new kit; existing ones are upgraded by hand (readme, "Updating the kit").</p>
+              <p>Received the kit as a zip instead? Unzip it so that <code>{KIT}/scaffold.sh</code> exists. Later, to get kit updates: <code>git -C {KIT} pull</code>. New projects use the new kit; existing ones are upgraded by hand (<a href="#kit-update">Updating the kit</a>).</p>
               <p class="expect">You should see: <code>{KIT}/scaffold.sh</code> listed. If <code>git clone</code> asks for a password, run <code>gh auth login</code> again (previous step).</p>
             </div>
           </li>
@@ -1619,6 +1619,41 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td>The review window's Claude cannot save or edit anything</td><td>By design: <kbd>Ctrl-a V</kbd> starts it in plan mode. The review <code>pr.sh</code> checks is <code>/review</code> in the claude pane.</td></tr>
           </tbody>
         </table></div>
+
+        <h3 class="sub" id="kit-update">Updating the kit</h3>
+        <p>Get the new kit with <code>git -C {KIT} pull</code>; new projects use it straight away. An existing project is upgraded by hand on a branch named <code>chore/kit-&lt;version&gt;</code>: there <code>integrity.sh</code> lists the changed kit files as ALLOWED instead of failing, and you review them in the PR. Run the commands yourself in the git pane (the hooks block Claude from editing the kit's checks). <code>pr.sh</code> only handles REQ and BUG branches, so open and merge the kit PR with <code>gh</code>. Upgrade one version at a time, from the project root.</p>
+        <p><b>v3.13 to v3.14</b> (<code>start.sh</code> v6: the ahead-of-origin check):</p>
+        <pre data-label="bash · git pane">git switch main && git pull --ff-only && git switch -c chore/kit-v3.14
+cp {KIT}/start.sh scripts/
+bash scripts/start.sh check && bash scripts/gate.sh
+git add -A && git commit -m "chore(kit): start.sh v6 (kit v3.14)"
+git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, then: gh pr merge --squash --delete-branch</pre>
+        <p><b>v3.12 to v3.13</b> (risk tiers, <code>/tests</code>, test lock, blocking Stop hook, PR evidence):</p>
+        <pre data-label="bash · git pane">git switch main && git pull --ff-only && git switch -c chore/kit-v3.13
+cp {KIT}/integrity.sh {KIT}/lock_tests.sh {KIT}/loop.sh {KIT}/pr.sh {KIT}/autopilot.sh {KIT}/start.sh scripts/
+cp {KIT}/templates/project/.claude/hooks/guard-files.sh {KIT}/templates/project/.claude/hooks/guard-bash.sh {KIT}/templates/project/.claude/hooks/on-stop.sh .claude/hooks/
+cp {KIT}/templates/project/.claude/commands/tests.md {KIT}/templates/project/.claude/commands/next.md .claude/commands/
+cp {KIT}/templates/project/.claude/agents/reviewer.md .claude/agents/
+cp {KIT}/templates/project/docs/plans/_TEMPLATE.md docs/plans/
+mkdir -p docs/tests && cp {KIT}/templates/project/docs/tests/README.md docs/tests/
+sed -i '/on-stop\.sh/{n;s/"timeout": 30/"timeout": 90/}' .claude/settings.json    # the Stop hook now runs the gate
+# CLAUDE.md: copy sections 3, 5, 8, the `tests` row of 9, and 10 from the kit's templates/project/CLAUDE.md (your FILL IN sections stay)
+# docs/RULES.md: copy sections 9, 10 (Boundaries: tailor the paths) and 11 from the kit's templates/project/docs/RULES.md
+bash scripts/start.sh check && bash scripts/gate.sh
+git add -A && git commit -m "chore(kit): protected verification loop (kit v3.13)"
+git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, then: gh pr merge --squash --delete-branch</pre>
+        <p>A REQ already in progress has no <code>Risk:</code> line, so it counts as standard and <code>loop.sh</code> asks for the lock. Write <code>Risk: light - &lt;reason&gt;</code> in its plan only if that is true; otherwise run <code>/tests</code>, read <code>docs/tests/&lt;ID&gt;.md</code>, then <code>bash scripts/lock_tests.sh</code>. Older upgrades (v2.x to v3.12): <code>readme.md</code>, "Updating the kit".</p>
+
+        <h3 class="sub" id="kit-changes">Changes in v3.14</h3>
+        <ul>
+          <li><b>Kit renamed:</b> the folder, clone URL, scaffold usage and this guide now all say <code>vibecode</code>; the kit lives at <code>~/kits/vibecode</code>. An existing clone under the old name: <code>mv ~/kits/&lt;old-name&gt; ~/kits/vibecode</code>, or set <code>KIT_DIR</code> in <code>~/.bashrc</code>.</li>
+          <li><b><code>start.sh</code> v6:</b> before creating a new branch it warns, lists the commits and asks when local main is ahead of origin/main. Such a branch carries them and <code>integrity.sh</code> (which compares with origin/main) blames them on it: a false I1 FAIL. No terminal: stops unless <code>ALLOW_AHEAD=1</code>.</li>
+          <li><b>Docs:</b> a free-plan private repo cannot have branch protection, so autopilot cannot run and <code>pr.sh merge</code> refuses; merge by hand after review.</li>
+          <li>Stale v3.12 stamps fixed (reviewer agent header).</li>
+          <li>Existing v3.13 projects: <code>cp {KIT}/start.sh scripts/</code> on a <code>chore/kit-v3.14</code> branch (above).</li>
+        </ul>
+        <h3 class="sub">Changes in v3.13</h3>
+        <p>The protected verification loop: tests are written from the spec before the code, read by you, then locked, so the code must meet the tests. A <code>Risk:</code> tier in every plan; <code>/tests</code> and <code>lock_tests.sh</code>; <code>integrity.sh</code> rule I6; hooks that block locked tests and plans; a Stop hook that runs the gate; <code>loop.sh</code> and autopilot refuse unlocked standard and strict plans and stop on "Disputed"; <code>pr.sh</code> runs <code>gate.sh --full</code> and adds Evidence, Boundary changes and the <code>needs-human-review</code> label. Details: <code>readme.md</code>, "Changes in v3.13".</p>
 
         <h3 class="sub">IDs</h3>
         <div class="tablewrap"><table class="ref">
