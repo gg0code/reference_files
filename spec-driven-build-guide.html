@@ -1148,25 +1148,26 @@ Output a markdown table.</pre>
           <div class="vgrid">
             <label>Level
               <select id="v-level" data-var="LEVEL">
-                <option value="1">1 - build plans I approved, stop at PR</option><option value="2">2 - also write and approve plans</option><option value="3">3 - also merge after green CI</option>
+                <option value="1">1 - build plans I approved, stop at PR</option><option value="2">2 - also write and approve plans</option><option value="3">3 - build plans I approved, merge after green CI</option>
               </select>
             </label>
             <label>Cost cap (USD)<input id="v-cost" data-var="COST" value="10" spellcheck="false"></label>
           </div>
         </form>
-        <div class="callout gatey">Level 1 builds only plans you approved and stops at the PR. Level 2 lets the reviewer agent approve plans. Level 3 also merges after green CI. The spec docs always stay yours, and anything autopilot cannot decide lands under "Needs you" in its report.</div>
+        <div class="callout gatey">Level 1 builds only plans you approved and stops at the PR. Level 2 lets the reviewer agent approve plans. Level 3 builds plans you approved and also merges after green CI. The spec docs always stay yours, and so do the tests: a standard or strict REQ whose tests you have not locked is skipped, a loop that stops on "Disputed" is handed back, and a PR labelled <code>needs-human-review</code> is never merged. All of them land under "Needs you" in its report. Every level needs branch protection on main, so autopilot cannot run on a free-plan private repo.</div>
         <ol class="steps">
           <li class="step" data-id="a-dry" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Dry run first</h3></div>
-              <p>Shows each REQ it would take from TASKS.md and what it would do. Changes nothing.</p>
+              <p>Shows each REQ it would take from TASKS.md, its plan (read from the REQ's branch), <code>risk</code> and <code>lock</code>, and what it would do. Changes nothing, and runs without branch protection.</p>
               <pre data-label="bash · git pane">{APCMD} DRY_RUN=1 bash scripts/autopilot.sh</pre>
+              <p class="expect">You should see one line per REQ, e.g. <code>REQ-003 (#3) plan: approved (on feat/REQ-003-…), risk: strict, lock: 0c145f4  =&gt;  build -&gt; review -&gt; PR (pr.sh)</code>. <b>SKIP (Risk: standard, tests not locked …)</b> means: check out that branch, run <code>/tests</code>, read the table and run <code>bash scripts/lock_tests.sh</code> first.</p>
             </div>
           </li>
           <li class="step" data-id="a-run" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Start the run and walk away</h3></div>
-              <p>Caps keep it safe: at most 3 REQs, {COST} USD, 2 review rounds each, and it stops at the first REQ that needs you. Level 3 refuses to start without branch protection on main.</p>
+              <p>Caps keep it safe: at most 3 REQs, {COST} USD, 2 review rounds each, and it stops at the first REQ that needs you. Every level refuses to start without branch protection on main (<b>ERROR : autopilot needs branch protection on main</b>); on a free-plan private repo use Phase 4 by hand.</p>
               <pre data-label="bash · git pane">git checkout main && git pull
 {APCMD} MAX_COST={COST} MAX_REQS=3 NOTIFY_CMD="notify-send Autopilot" bash scripts/autopilot.sh</pre>
             </div>
@@ -1179,7 +1180,10 @@ gh pr list</pre>
               <ul>
                 <li>"Needs you": each line says what stopped and what to do next.</li>
                 <li>Plans marked <code>by reviewer agent</code>: read them, you did not approve them.</li>
-                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge with <code>bash scripts/pr.sh merge</code> on that branch, then Phase 4 step 13.</li>
+                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge with <code>bash scripts/pr.sh merge</code> on that branch, then Phase 4 step 16.</li>
+                <li>Skipped for unlocked tests: on that REQ's branch run <code>/tests</code>, read <code>docs/tests/&lt;ID&gt;.md</code>, run <code>bash scripts/lock_tests.sh</code>, then run autopilot again.</li>
+                <li>"Disputed": the loop says a locked test is wrong or coverage falls short. You decide, as in Phase 4 step 7.</li>
+                <li>A PR labelled <code>needs-human-review</code>: it touches boundary files. Read them, then merge it yourself.</li>
               </ul>
               <pre data-label="prompt · claude pane" class="prompt">/wrap-up</pre>
             </div>
@@ -1763,7 +1767,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     v.KIT = v.KITPARENT + '/vibecode';
     var s = STACK[v.STACK] || STACK.python;
     v.TEST = s.TEST; v.WATCH = s.WATCH;
-    v.APCMD = {'1':'AUTOPILOT=build', '2':'AUTOPILOT=plan,build', '3':'AUTOPILOT=plan,build AUTO_MERGE=1'}[v.LEVEL] || 'AUTOPILOT=build';
+    v.APCMD = {'1':'AUTOPILOT=build', '2':'AUTOPILOT=plan,build', '3':'AUTOPILOT=build AUTO_MERGE=1'}[v.LEVEL] || 'AUTOPILOT=build';
     return v;
   }
 
