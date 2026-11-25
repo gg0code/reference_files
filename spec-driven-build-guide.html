@@ -224,7 +224,7 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Reference kit v2.14 · new project walkthrough</div>
+      <div class="eyebrow">vibecode kit v3.14 · new project walkthrough</div>
       <h1>Spec-Driven Build Guide</h1>
       <p class="lede">Every step from an empty folder to a tagged release. Setup and the specification (Phases 0 to 3) are always done with you. After that, each requirement can be built along one of five paths, from most hands-on to fully unattended: <b>guided</b> (Claude writes code in chat, you check each step), <b>assisted</b> (the default: you approve the plan, <code>loop.sh</code> builds, the reviewer agent checks, you read the walkthrough and merge), <b>autopilot level 1</b> (you approve plans, autopilot builds and opens PRs while you are away), <b>level 2</b> (the reviewer agent also approves plans, you only merge) and <b>level 3</b> (it also merges after green CI, you only release). Bugs always take the bug path. <a href="#paths">Compare the paths</a> before Phase 4. On every path you can follow progress, and approve, build and merge, from a <a href="#dashboard">live dashboard</a> on your computer or phone. Two agents do the work on every path: a <b>builder</b> (your Claude session plus <code>loop.sh</code>) and a read-only <b>reviewer</b>; the quality gate <code>gate.sh</code> decides when code is done. Start with <b>Your setup</b>: choose Windows, Mac or Linux (on Windows also your shell: Ubuntu bash is recommended, Git Bash, PowerShell 7 and CMD are supported), check the folders, and press Save; every command is then rewritten for your shell and values, and only the steps for your computer are shown. Tick steps as you go; progress is kept per project name in this browser.</p>
       <div class="spine"><b>Idea</b> → REQ-ID → Architecture row → Wireframe tag → TC-ID → Issue # → branch → PR → <b>merge</b></div>
@@ -317,29 +317,29 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
             <span class="tag">Recommended · default</span>
             <h3>B · Assisted, one REQ at a time</h3>
             <p class="who">For: your first project, and any REQ that touches money, security or data.</p>
-            <p><code>start.sh</code> → <code>next</code> (plan) → you approve → <code>loop.sh</code> builds until the gate is green → <code>review</code> → <code>explain</code> → <code>pr.sh</code> → you review the PR → <code>pr.sh merge</code>. (<code>next</code>, <code>review</code> and <code>explain</code> are typed inside Claude; the <code>.sh</code> scripts in the git pane.)</p>
-            <ul><li>You approve: plan, PR, merge</li><li>You read: the walkthrough, which teaches you the code</li><li>Guide: Phase 4</li></ul>
+            <p><code>start.sh</code> → <code>next</code> (plan with a <code>Risk:</code> tier) → you approve → standard and strict: <code>/tests</code> → you read <code>docs/tests/&lt;ID&gt;.md</code> → you run <code>lock_tests.sh</code> → <code>loop.sh</code> builds until the gate is green → <code>review</code> → <code>explain</code> → <code>pr.sh</code> → you review the PR → <code>pr.sh merge</code>. (<code>next</code>, <code>review</code> and <code>explain</code> are typed inside Claude; the <code>.sh</code> scripts in the git pane.)</p>
+            <ul><li>You approve: plan, tests (standard, strict), PR, merge</li><li>You read: the walkthrough, which teaches you the code</li><li>Guide: Phase 4</li></ul>
           </div>
           <div class="path">
             <span class="tag">Semi-attended</span>
             <h3>C · Autopilot level 1</h3>
             <p class="who">For: a batch of well-understood REQs after you have done 3 or 4 by hand.</p>
-            <p>You approve the plans first. <code>bash scripts/autopilot.sh</code> then runs branch, loop, commit, reviewer, fix rounds and PR for each, while you are away.</p>
+            <p>You approve the plans first, and for standard and strict plans you read and lock the tests too. <code>bash scripts/autopilot.sh</code> then runs branch, loop, commit, reviewer, fix rounds and PR (through <code>pr.sh</code>) for each, while you are away. An unlocked standard or strict REQ is skipped and listed under "Needs you".</p>
             <ul><li>You approve: plans, then every PR and merge</li><li>Afterwards: type <code>explain</code> inside Claude on each branch before merging</li><li>Guide: Phase 4b</li></ul>
           </div>
           <div class="path">
             <span class="tag">Unattended build</span>
             <h3>D · Autopilot level 2</h3>
             <p class="who">For: simple, low-risk REQs (screens, CRUD, reports) on a mature project.</p>
-            <p><code>AUTOPILOT=plan,build</code>: autopilot also drafts the plans and the reviewer agent approves them (marked "by reviewer agent"). You only review and merge the PRs.</p>
+            <p><code>AUTOPILOT=plan,build</code>: autopilot also drafts the plans and the reviewer agent approves them (marked "by reviewer agent"). You only review and merge the PRs. It still cannot lock tests: a standard or strict plan it drafts stops under "Needs you" until you run <code>/tests</code> and lock, so level 2 builds light REQs end to end.</p>
             <ul><li>You approve: PRs and merges</li><li>Read those plans when you return</li><li>Guide: Phase 4b</li></ul>
           </div>
           <div class="path">
             <span class="tag">Fully unattended</span>
             <h3>E · Autopilot level 3</h3>
             <p class="who">For: experienced use only, with branch protection on and a strong test suite.</p>
-            <p>Adds <code>AUTO_MERGE=1</code>: waits for green CI, merges, runs the after-merge checks and continues. Stops on anything it cannot decide and lists it under "Needs you".</p>
-            <ul><li>You approve: the release</li><li>Refuses to run without branch protection on main</li><li>Guide: Phase 4b</li></ul>
+            <p>Adds <code>AUTO_MERGE=1</code> to plans you approved: waits for green CI, merges, runs the after-merge checks and continues. Stops on anything it cannot decide and lists it under "Needs you". A PR that touches a boundary file (<code>docs/RULES.md</code> section 10) carries the label <code>needs-human-review</code> and is never auto-merged.</p>
+            <ul><li>You approve: plans, locked tests, boundary PRs, the release</li><li>Guide: Phase 4b</li></ul>
           </div>
           <div class="path">
             <span class="tag">Any time</span>
@@ -353,14 +353,16 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
           <thead><tr><th>Who decides</th><th>A Guided</th><th>B Assisted</th><th>C Level 1</th><th>D Level 2</th><th>E Level 3</th></tr></thead>
           <tbody>
             <tr><td>Spec docs (idea to test plan)</td><td>you</td><td>you</td><td>you</td><td>you</td><td>you</td></tr>
-            <tr><td>Plan per REQ</td><td>you</td><td>you</td><td>you</td><td>reviewer agent</td><td>reviewer agent</td></tr>
+            <tr><td>Plan per REQ</td><td>you</td><td>you</td><td>you</td><td>reviewer agent</td><td>you</td></tr>
+            <tr><td>Tests (standard, strict)</td><td>you read and lock</td><td>you read and lock</td><td>you read and lock</td><td>you read and lock</td><td>you read and lock</td></tr>
             <tr><td>Code is done</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td><td>gate.sh</td></tr>
             <tr><td>Code review</td><td>reviewer + you</td><td>reviewer + you</td><td>reviewer, then you</td><td>reviewer, then you</td><td>reviewer</td></tr>
-            <tr><td>Merge</td><td>you</td><td>you</td><td>you</td><td>you</td><td>CI + autopilot</td></tr>
+            <tr><td>Merge</td><td>you</td><td>you</td><td>you</td><td>you</td><td>CI + autopilot (you: <code>needs-human-review</code>)</td></tr>
             <tr><td>Release</td><td>you</td><td>you</td><td>you</td><td>you</td><td>you</td></tr>
           </tbody>
         </table></div>
         <p class="expect">A good progression: path B for the walking skeleton and the first 3 or 4 REQs, reading every walkthrough; then path C for batches of similar REQs; level 2 or 3 only once you trust the test suite. Always try <code>DRY_RUN=1 bash scripts/autopilot.sh</code> first.</p>
+        <div class="osnote"><b>Autopilot needs branch protection on main, at every level</b> (<code>bash scripts/protect.sh</code>, step "Close setup"). A <b>private repo on GitHub's free plan cannot have it</b> (it needs Pro, Team or Enterprise, or a public repo), so there autopilot cannot run at any level and <code>pr.sh merge</code> refuses: use path A or B and merge each PR yourself after review. <code>ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge</code> is your own, knowing override, never Claude's.</div>
       </section>
 
       <!-- ================= PHASE 0 ================= -->
@@ -503,11 +505,11 @@ git config --global --list | grep -E 'user|default'</pre>
           <li class="step" data-id="m-kit" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Get the kit</h3></div>
-              <p>Every later step reads the kit from your machine: <code>scaffold.sh</code> copies its templates and scripts into each new project. Put its address in <b>Kit address on GitHub</b> above and save; for a private kit, the owner adds you as a collaborator first.<span data-os="windows" data-shell="wsl"> Clone it in the Ubuntu window, not with Windows Git or GitHub Desktop, so the scripts keep their Linux line endings.</span><span data-os="windows" data-shell="gitbash powershell cmd"> The <code>core.autocrlf input</code> setting from step 1 keeps the scripts' Linux line endings; do not clone with GitHub Desktop.</span></p>
+              <p>Every later step reads the kit from your machine: <code>scaffold.sh</code> copies its templates and scripts into each new project. The kit is the GitHub repo <code>gg0code/vibecode</code>, and its folder is always called <code>vibecode</code> (<code>{KIT}</code>). Put its address in <b>Kit address on GitHub</b> above and save; for a private kit, the owner adds you as a collaborator first.<span data-os="windows" data-shell="wsl"> Clone it in the Ubuntu window, not with Windows Git or GitHub Desktop, so the scripts keep their Linux line endings.</span><span data-os="windows" data-shell="gitbash powershell cmd"> The <code>core.autocrlf input</code> setting from step 1 keeps the scripts' Linux line endings; do not clone with GitHub Desktop.</span></p>
               <pre data-label="bash · terminal">mkdir -p {ROOT} {KITPARENT}       # creates both folders if they do not exist yet
 git clone {KITREPO} {KIT}          # private repo: gh auth login (previous step) makes this work
 ls {KIT}/scaffold.sh               # check: the file is there</pre>
-              <p>Received the kit as a zip instead? Unzip it so that <code>{KIT}/scaffold.sh</code> exists. Later, to get kit updates: <code>git -C {KIT} pull</code>. New projects use the new kit; existing ones are upgraded by hand (readme, "Updating the kit").</p>
+              <p>Received the kit as a zip instead? Unzip it so that <code>{KIT}/scaffold.sh</code> exists. Later, to get kit updates: <code>git -C {KIT} pull</code>. New projects use the new kit; existing ones are upgraded by hand (<a href="#kit-update">Updating the kit</a>).</p>
               <p class="expect">You should see: <code>{KIT}/scaffold.sh</code> listed. If <code>git clone</code> asks for a password, run <code>gh auth login</code> again (previous step).</p>
             </div>
           </li>
@@ -544,9 +546,11 @@ command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V
 command -v watch &gt;/dev/null &amp;&amp; echo "watch already installed" || brew install watch    # the files pane uses it</pre>
               <pre data-label="bash · terminal" data-os="linux">command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || sudo apt install -y tmux
 command -v wezterm &gt;/dev/null &amp;&amp; echo "WezTerm already installed" || echo "Install WezTerm from https://wezterm.org/install/linux.html"</pre>
-              <p><b>b. Use the kit's settings.</b> Your current files are kept as <code>*.before-kit</code>; linking means <code>git -C {KIT} pull</code> also updates them.<span data-os="windows"> The WezTerm settings make it open Ubuntu with tmux running.</span></p>
-              <pre data-label="bash · Ubuntu window" data-os="windows">for f in .bashrc .tmux.conf; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
-ln -sf {KIT}/.bashrc     ~/.bashrc
+              <p><b>b. Use the kit's settings.</b> Your current files are kept as <code>*.before-kit</code>. <code>~/.bashrc</code> stays <b>your own file</b>: it only sets <code>KIT_DIR</code> to the kit folder and loads the kit's <code>.bashrc</code> (aliases such as <code>kit</code> and <code>tdev</code>) from there. Never link <code>~/.bashrc</code> to the kit: the link breaks when the kit folder moves. The tmux and WezTerm settings are links, so <code>git -C {KIT} pull</code> also updates them.<span data-os="windows"> The WezTerm settings make it open Ubuntu with tmux running.</span></p>
+              <pre data-label="bash · Ubuntu window" data-os="windows">[ -L ~/.bashrc ] &amp;&amp; rm ~/.bashrc       # an old link to the kit: ~/.bashrc becomes your own file again
+[ -e ~/.bashrc ] &amp;&amp; [ ! -e ~/.bashrc.before-kit ] &amp;&amp; cp ~/.bashrc ~/.bashrc.before-kit
+grep -q 'KIT_DIR' ~/.bashrc 2&gt;/dev/null || printf '%s\n' 'export KIT_DIR={KIT}' '[ -f "$KIT_DIR/.bashrc" ] &amp;&amp; . "$KIT_DIR/.bashrc"' &gt;&gt; ~/.bashrc
+[ -e ~/.tmux.conf ] &amp;&amp; [ ! -L ~/.tmux.conf ] &amp;&amp; cp ~/.tmux.conf ~/.tmux.conf.before-kit
 ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
 WINHOME="$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')")"
 [ -e "$WINHOME/.wezterm.lua" ] &amp;&amp; cp "$WINHOME/.wezterm.lua" "$WINHOME/.wezterm.lua.before-kit"
@@ -556,14 +560,16 @@ source ~/.bashrc</pre>
 ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
 [ -e ~/.wezterm.lua ] &amp;&amp; cp ~/.wezterm.lua ~/.wezterm.lua.before-kit
 ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua</pre>
-              <pre data-label="bash · terminal" data-os="linux">for f in .bashrc .tmux.conf .wezterm.lua; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
-ln -sf {KIT}/.bashrc      ~/.bashrc
+              <pre data-label="bash · terminal" data-os="linux">[ -L ~/.bashrc ] &amp;&amp; rm ~/.bashrc       # an old link to the kit: ~/.bashrc becomes your own file again
+[ -e ~/.bashrc ] &amp;&amp; [ ! -e ~/.bashrc.before-kit ] &amp;&amp; cp ~/.bashrc ~/.bashrc.before-kit
+grep -q 'KIT_DIR' ~/.bashrc 2&gt;/dev/null || printf '%s\n' 'export KIT_DIR={KIT}' '[ -f "$KIT_DIR/.bashrc" ] &amp;&amp; . "$KIT_DIR/.bashrc"' &gt;&gt; ~/.bashrc
+for f in .tmux.conf .wezterm.lua; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
 ln -sf {KIT}/.tmux.conf   ~/.tmux.conf
 ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua
 source ~/.bashrc</pre>
               <p data-os="mac">The Mac's shell is zsh, so the kit's <code>.bashrc</code> (aliases only) is not used; nothing in the kit needs it.</p>
-              <p data-os="windows linux">Already have a <code>.bashrc</code> you like? Skip its link and add one line to yours instead: <code>source {KIT}/.bashrc</code>.</p>
-              <p>Keep <code>~/.tmux.conf</code> a <b>link</b>, not a copy: the status bar finds <code>tmux-status.sh</code> next to the real file in the kit.</p>
+              <p data-os="windows linux">Afterwards <code>~/.bashrc</code> ends with two lines: <code>export KIT_DIR={KIT}</code> and the line that loads <code>$KIT_DIR/.bashrc</code>. Everything else in it is yours.</p>
+              <p>Keep <code>~/.tmux.conf</code> a <b>link</b>, not a copy: the status bar finds <code>tmux-status.sh</code> next to the real file in the kit. <b>Moved the kit folder?</b> <span data-os="windows linux">Change the <code>KIT_DIR</code> line in <code>~/.bashrc</code>, then </span>re-run the <code>ln -sf</code> lines above.</p>
               <p><b>c. tmux version and session saving.</b> The diff popups and pane borders need tmux <b>3.2 or newer</b> (the right-click menu colours need 3.4; Ubuntu 22.04 has 3.2, 24.04 has 3.4). The config also loads <b>tmux-resurrect</b>, which saves and restores your panes across a reboot; install it once:</p>
               <pre data-label="bash · terminal">tmux -V                                   # 3.2 or newer
 [ -d ~/.tmux/plugins/tmux-resurrect ] &amp;&amp; echo "tmux-resurrect already installed" || git clone https://github.com/tmux-plugins/tmux-resurrect ~/.tmux/plugins/tmux-resurrect
@@ -957,7 +963,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
               <pre data-label="prompt · claude pane" class="prompt">/setup</pre>
               <p class="expect">You should see: nothing left at TEMPLATE or DRAFT.</p>
               <pre data-label="bash · git pane · after CI has run once">bash scripts/protect.sh</pre>
-              <p class="expect">You should see: OK branch protection is on. It requires the CI check <code>gate</code>, applies to admins too, and blocks force-push. <code>pr.sh merge</code> and autopilot refuse to run without it. Private repos need GitHub Pro, Team or Enterprise.</p>
+              <p class="expect">You should see: OK branch protection is on. It requires the CI check <code>gate</code>, applies to admins too, and blocks force-push. <code>pr.sh merge</code> and autopilot refuse to run without it. <b>Free plan + private repo:</b> GitHub offers no branch protection there (it needs Pro, Team or Enterprise, or a public repo), so autopilot cannot run at any level and <code>pr.sh merge</code> refuses. Review and merge each PR yourself; <code>ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge</code> is your own, knowing choice, never Claude's.</p>
             </div>
           </li>
         </ol>
@@ -967,7 +973,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
       <section class="phase" id="build" data-phase="build">
         <div class="phase-head"><h2>4 · Build a requirement</h2><span class="when">Repeat for each REQ in TASKS.md. Nothing to type in: the scripts find the next REQ and its Issue.</span>
           <span class="confirm" data-reset="build"><button class="btn small warn" type="button">Start next REQ</button></span></div>
-        <div class="callout gatey">Three human stops: the plan (step 3), reading the diff before you commit (step 6), and the PR (step 12). Claude in the claude pane builds but never commits: you read <kbd>Ctrl-a F</kbd> and <kbd>G</kbd>, check the tests, optionally get a second opinion with <kbd>Ctrl-a V</kbd>, then commit in the git pane. One agent gate: <code>pr.sh</code> will not open a PR until the reviewer says APPROVE. One hard signal: the test pane must be green. Lost at any point? <code>bash scripts/start.sh status</code> tells you where you are and what to do next.</div>
+        <div class="callout gatey">Four human stops: the plan and its tier (step 3), the test table before you lock it (step 5, standard and strict), reading the diff before you commit (step 9), and the PR (step 15). Claude in the claude pane builds but never commits: you read <kbd>Ctrl-a F</kbd> and <kbd>G</kbd>, check the tests, optionally get a second opinion with <kbd>Ctrl-a V</kbd>, then commit in the git pane. One agent gate: <code>pr.sh</code> will not open a PR until the reviewer says APPROVE. One hard signal: the test pane must be green, and on a feat/ or fix/ branch the Stop hook runs the gate each time Claude stops and sends it back to work while the gate is red. Lost at any point? <code>bash scripts/start.sh status</code> tells you where you are and what to do next.</div>
         <div class="osnote"><b>Build scope: what to build now.</b> Every requirement belongs to a release phase (P1, P2, ...; <code>docs/01-prd.md</code> section 4a). The <code>Build scope:</code> line at the top of <code>docs/TASKS.md</code> says which phases and single REQs to build now. <code>start.sh</code>, autopilot and the dashboard only pick requirements inside it, in TASKS order.
           <div class="tablewrap"><table class="ref">
             <thead><tr><th>You want</th><th>Inside Claude</th><th>or in the git pane (on main)</th></tr></thead>
@@ -989,6 +995,9 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
               <p>Picks the first unticked REQ in <code>docs/TASKS.md</code>, finds its Issue number, and creates the branch (for example <code>feat/REQ-003-profile</code>). The branch name now carries the ID for every later step.</p>
               <pre data-label="bash · git pane">bash scripts/start.sh</pre>
               <p class="expect">You should see: <b>Working on REQ-00X Issue #N title</b> and the next action. It refuses if you are still on an unfinished REQ, so nothing gets lost.</p>
+              <p><b>"local main is N commit(s) ahead of origin/main"?</b> <code>start.sh</code> lists those commits and asks before it branches, because the new branch would carry them and <code>integrity.sh</code> (which compares with origin/main) would blame them on it: a false I1 FAIL. Answer <b>N</b>, then fix main:</p>
+              <pre data-label="bash · git pane">git push origin main      # the usual fix: setup or doc commits that were never pushed</pre>
+              <p>Main is protected, so the push is refused? Put the commits on a branch and open a PR: <code>git switch -c chore/main-catchup &amp;&amp; git push -u origin HEAD &amp;&amp; gh pr create --fill</code>, merge it, then <code>git switch main &amp;&amp; git fetch origin &amp;&amp; git reset --keep origin/main</code>. Only when the commits should <b>not</b> be on main at all: <code>git switch main &amp;&amp; git reset --keep origin/main</code> (this drops them from main; save them on a branch first if you still need them). Then run <code>bash scripts/start.sh</code> again.</p>
             </div>
           </li>
           <li class="step" data-id="b-plan" data-pane="claude" data-model="Opus">
@@ -1034,7 +1043,8 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
               <p>Fresh Claude context each pass, against the locked tests (light plans: tests first), until the quality gate (<code>bash scripts/gate.sh</code>: docs, lint, complexity, format, types, full tests) is green or the plan's iteration cap is hit. Start the watcher in the <span class="chip pane test">test</span> pane and leave it running; the <span class="chip pane files">files</span> pane shows each file as the loop touches it.</p>
               <pre data-label="bash · test pane">{WATCH}</pre>
               <pre data-label="bash · git pane">bash scripts/loop.sh</pre>
-              <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run. On standard and strict it refuses to start until the tests are locked.</p>
+              <p class="expect">You should see: <b>LOOP COMPLETE - suite green</b>, the touched files, and the exact commit line to use. Hitting the cap means the plan was wrong: read <code>git diff</code> and <code>FAILURES.txt</code>, re-plan, re-approve, re-run. On standard and strict it refuses to start until the tests are locked (REQs and BUGs).</p>
+              <p><b>Working in the chat instead (path A)?</b> When Claude stops with changed code on this branch, the Stop hook runs <code>bash scripts/gate.sh</code>. Red: Claude sees "Blocked by the kit … the quality gate is RED" with the first failures and keeps working. It never blocks twice on the same state, and skips main, <code>chore/kit-*</code>, docs-only changes and the <code>/tests</code> stage (tests are meant to be red until the lock).</p>
               <p><b>Stopped on "Disputed"?</b> The builder thinks a locked test is wrong, or the locked tests pass but miss the coverage floor (<code>FAILURES.txt</code> names the file, its coverage and the gap). You decide: remove the lock line from the plan and commit, run <code>/tests</code> again, read, lock again; or list one new test file under <code>## Allowed exceptions</code> in the plan.</p>
             </div>
           </li>
@@ -1053,7 +1063,7 @@ git add docs/TASKS.md && git commit -m "docs: TASKS with Issue numbers (approved
                 <li><kbd>Ctrl-a G</kbd>: read the full diff (<kbd>Ctrl-a z</kbd> first if the pane is small). The <span class="chip pane test">test</span> pane must be green.</li>
                 <li>Optional, <kbd>Ctrl-a V</kbd>: a second, read-only Claude in its own <b>review</b> window. Ask it to review the uncommitted diff against <code>docs/plans/&lt;REQ&gt;.md</code> (the border reminds you of the review command, <code>/review-req REQ-NN</code>). It cannot edit files; <kbd>Ctrl-a Tab</kbd> takes you back. For the next REQ start it fresh: <code>/exit</code>, <kbd>Ctrl-a &amp;</kbd> to close the window, then <kbd>Ctrl-a V</kbd> again.</li>
               </ul>
-              <p class="expect">This quick read does not replace step 8: <code>pr.sh</code> only opens a PR after the reviewer agent's <code>/review</code> has saved APPROVE.</p>
+              <p class="expect">This quick read does not replace step 11: <code>pr.sh</code> only opens a PR after the reviewer agent's <code>/review</code> has saved APPROVE.</p>
             </div>
           </li>
           <li class="step" data-id="b-commit" data-pane="git">
@@ -1091,8 +1101,10 @@ git add -A && git commit -m "fix: address review findings"</pre>
           <li class="step" data-id="b-pr" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Open the PR</h3></div>
-              <p>Pushes and opens the PR with the right title, <code>Closes #N</code> and a link to the review. Refuses until the review says APPROVE.</p>
+              <p>Runs <code>bash scripts/gate.sh --full</code> first (adds the dependency audit and secrets scan, so it needs the network) and refuses while it is red. Then pushes and opens the PR with the right title, <code>Closes #N</code> and a link to the review. Refuses until the review says APPROVE.</p>
+              <p>The PR body carries an <b>Evidence</b> section (the tier, the lock sha, a link to <code>docs/tests/&lt;ID&gt;.md</code>, the gate command and its last 40 lines) and <b>Boundary changes</b>: files matching <code>docs/RULES.md</code> section 10 (routes, <code>api/</code>, auth and permissions, <code>shared/</code>, migrations, dependency and lock files). Any boundary file adds the label <code>needs-human-review</code>, on every tier. Re-running <code>pr.sh</code> on an open PR refreshes its body and label.</p>
               <pre data-label="bash · git pane">bash scripts/pr.sh</pre>
+              <p class="expect">You should see: the gate rows, then <b>OK</b> with the PR address. A boundary change adds <b>WARN : boundary changes: … labelled needs-human-review</b>.</p>
             </div>
           </li>
           <li class="step gate" data-id="b-pr-gate" data-pane="you">
@@ -1101,12 +1113,15 @@ git add -A && git commit -m "fix: address review findings"</pre>
               <p>Read the review report first, then the diff: on GitHub, or locally with <kbd>Ctrl-a B</kbd> (the whole branch against main). You can overrule a finding, but write why in the PR.</p>
               <ul>
                 <li>Full suite green locally and in CI</li>
+                <li>Evidence: the tier is right, and on standard and strict the lock sha is there and the test table is the one you read</li>
+                <li>Boundary changes: labelled <code>needs-human-review</code>? Read those files line by line</li>
                 <li>Reviewer verdict APPROVE</li>
                 <li>File headers, function doc blocks and READMEs present</li>
                 <li>Architecture row and test plan still match the code</li>
               </ul>
               <p>Then merge. It asks you to confirm, waits for CI, merges, and runs the after-merge checks on main (full suite, CI status, traceability).</p>
               <pre data-label="bash · git pane">bash scripts/pr.sh merge</pre>
+              <p>It refuses without branch protection on main. On a free-plan private repo (no protection possible) merge on GitHub yourself after this review, or knowingly run <code>ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge</code>: your choice, never Claude's.</p>
             </div>
           </li>
           <li class="step" data-id="b-after" data-pane="claude" data-model="Opus">
@@ -1133,25 +1148,26 @@ Output a markdown table.</pre>
           <div class="vgrid">
             <label>Level
               <select id="v-level" data-var="LEVEL">
-                <option value="1">1 - build plans I approved, stop at PR</option><option value="2">2 - also write and approve plans</option><option value="3">3 - also merge after green CI</option>
+                <option value="1">1 - build plans I approved, stop at PR</option><option value="2">2 - also write and approve plans</option><option value="3">3 - build plans I approved, merge after green CI</option>
               </select>
             </label>
             <label>Cost cap (USD)<input id="v-cost" data-var="COST" value="10" spellcheck="false"></label>
           </div>
         </form>
-        <div class="callout gatey">Level 1 builds only plans you approved and stops at the PR. Level 2 lets the reviewer agent approve plans. Level 3 also merges after green CI. The spec docs always stay yours, and anything autopilot cannot decide lands under "Needs you" in its report.</div>
+        <div class="callout gatey">Level 1 builds only plans you approved and stops at the PR. Level 2 lets the reviewer agent approve plans. Level 3 builds plans you approved and also merges after green CI. The spec docs always stay yours, and so do the tests: a standard or strict REQ whose tests you have not locked is skipped, a loop that stops on "Disputed" is handed back, and a PR labelled <code>needs-human-review</code> is never merged. All of them land under "Needs you" in its report. Every level needs branch protection on main, so autopilot cannot run on a free-plan private repo.</div>
         <ol class="steps">
           <li class="step" data-id="a-dry" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Dry run first</h3></div>
-              <p>Shows each REQ it would take from TASKS.md and what it would do. Changes nothing.</p>
+              <p>Shows each REQ it would take from TASKS.md, its plan (read from the REQ's branch), <code>risk</code> and <code>lock</code>, and what it would do. Changes nothing, and runs without branch protection.</p>
               <pre data-label="bash · git pane">{APCMD} DRY_RUN=1 bash scripts/autopilot.sh</pre>
+              <p class="expect">You should see one line per REQ, e.g. <code>REQ-003 (#3) plan: approved (on feat/REQ-003-…), risk: strict, lock: 0c145f4  =&gt;  build -&gt; review -&gt; PR (pr.sh)</code>. <b>SKIP (Risk: standard, tests not locked …)</b> means: check out that branch, run <code>/tests</code>, read the table and run <code>bash scripts/lock_tests.sh</code> first.</p>
             </div>
           </li>
           <li class="step" data-id="a-run" data-pane="git">
             <div class="step-body">
               <div class="step-head"><h3>Start the run and walk away</h3></div>
-              <p>Caps keep it safe: at most 3 REQs, {COST} USD, 2 review rounds each, and it stops at the first REQ that needs you. Level 3 refuses to start without branch protection on main.</p>
+              <p>Caps keep it safe: at most 3 REQs, {COST} USD, 2 review rounds each, and it stops at the first REQ that needs you. Every level refuses to start without branch protection on main (<b>ERROR : autopilot needs branch protection on main</b>); on a free-plan private repo use Phase 4 by hand.</p>
               <pre data-label="bash · git pane">git checkout main && git pull
 {APCMD} MAX_COST={COST} MAX_REQS=3 NOTIFY_CMD="notify-send Autopilot" bash scripts/autopilot.sh</pre>
             </div>
@@ -1164,7 +1180,10 @@ gh pr list</pre>
               <ul>
                 <li>"Needs you": each line says what stopped and what to do next.</li>
                 <li>Plans marked <code>by reviewer agent</code>: read them, you did not approve them.</li>
-                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge with <code>bash scripts/pr.sh merge</code> on that branch, then Phase 4 step 13.</li>
+                <li>Open PRs: read <code>docs/reviews/REQ-00X.md</code> first, then the diff; merge with <code>bash scripts/pr.sh merge</code> on that branch, then Phase 4 step 16.</li>
+                <li>Skipped for unlocked tests: on that REQ's branch run <code>/tests</code>, read <code>docs/tests/&lt;ID&gt;.md</code>, run <code>bash scripts/lock_tests.sh</code>, then run autopilot again.</li>
+                <li>"Disputed": the loop says a locked test is wrong or coverage falls short. You decide, as in Phase 4 step 7.</li>
+                <li>A PR labelled <code>needs-human-review</code>: it touches boundary files. Read them, then merge it yourself.</li>
               </ul>
               <pre data-label="prompt · claude pane" class="prompt">/wrap-up</pre>
             </div>
@@ -1176,7 +1195,7 @@ gh pr list</pre>
       <section class="phase" id="bug" data-phase="bug">
         <div class="phase-head"><h2>5 · Fix a bug</h2><span class="when">Repeat per bug. The BUG number is picked for you.</span>
           <span class="confirm" data-reset="bug"><button class="btn small warn" type="button">Start next bug</button></span></div>
-        <div class="callout gatey">A bug with no failing test is hidden, not fixed. The failing test is committed on its own, before the fix.</div>
+        <div class="callout gatey">A bug with no failing test is hidden, not fixed. The failing test is committed on its own, before the fix. The plan's <code>Risk:</code> tier decides how: <b>light</b> bugs write the failing test in the chat (step 3); <b>standard</b> and <b>strict</b> bugs get it from <code>/tests</code>, you read it and lock it (step 4), and <code>loop.sh</code> refuses to fix them before the lock.</div>
         <ol class="steps">
           <li class="step" data-id="g-issue" data-pane="git">
             <div class="step-body">
@@ -1185,14 +1204,31 @@ gh pr list</pre>
               <pre data-label="bash · git pane">bash scripts/start.sh bug "login fails with an empty password"</pre>
             </div>
           </li>
+          <li class="step gate" data-id="g-plan" data-pane="claude" data-model="Sonnet">
+            <div class="step-body">
+              <div class="step-head"><h3>Plan with repro steps and a risk tier</h3></div>
+              <p>Claude drafts <code>docs/plans/BUG-00X.md</code> with the repro steps and a <code>Risk:</code> tier (same rules as a REQ; no line counts as standard). Read it, set line 1 to <code>Status: APPROVED - {DATE}</code>, and commit.</p>
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">/next</pre>
+              <pre data-label="bash · git pane">git add docs/plans && git commit -m "docs: approved bug plan"</pre>
+            </div>
+          </li>
           <li class="step" data-id="g-repro" data-pane="claude" data-model="Sonnet">
             <div class="step-body">
-              <div class="step-head"><h3>Reproduce end to end, write a failing test</h3></div>
+              <div class="step-head"><h3>Light: reproduce end to end, write a failing test</h3></div>
+              <p>Standard and strict bugs skip this step and use the next one.</p>
               <pre data-label="prompt · claude pane · /model sonnet" class="prompt">The bug in the current branch name: reproduce it end-to-end as a user would, using the steps in its
 GitHub Issue, then write a FAILING test that captures exactly this bug. Do NOT fix anything yet;
 show me the test go red.</pre>
               <p>Check the <span class="chip pane test">test</span> pane is RED, then commit the test alone:</p>
               <pre data-label="bash · git pane">git add -A && git commit -m "test: failing test for the bug"</pre>
+            </div>
+          </li>
+          <li class="step gate" data-id="g-tests" data-pane="claude" data-model="Sonnet">
+            <div class="step-body">
+              <div class="step-head"><h3>Standard and strict: failing tests from <code>/tests</code>, read, lock</h3></div>
+              <p><code>/tests</code> writes the tests that reproduce the bug (never <code>src/</code>) and the table <code>docs/tests/BUG-00X.md</code>, and commits the tests alone. Check the <span class="chip pane test">test</span> pane is RED, read the table, then lock: from here on no test file may change (hooks, <code>integrity.sh</code> I6).</p>
+              <pre data-label="prompt · claude pane · /model sonnet" class="prompt">/tests</pre>
+              <pre data-label="bash · git pane · after you read docs/tests/BUG-00X.md">bash scripts/lock_tests.sh</pre>
             </div>
           </li>
           <li class="step" data-id="g-local" data-pane="claude" data-model="Opus">
@@ -1207,7 +1243,7 @@ single best hypothesis for the root cause. Don't patch yet.</pre>
               <div class="step-head"><h3>Minimal fix</h3></div>
               <pre data-label="prompt · claude pane · /model sonnet" class="prompt">Apply the minimal fix for the bug in the current branch name. The failing test must go green and
 the full suite must stay green. Do not weaken or skip any test.</pre>
-              <p>Read the fix with <kbd>Ctrl-a G</kbd> before committing: a minimal fix is a small diff, and any change to a test file other than the new one is a red flag.</p>
+              <p>Standard and strict: run <code>bash scripts/loop.sh</code> instead (it works against the locked tests and stops on "Disputed"). Read the fix with <kbd>Ctrl-a G</kbd> before committing: a minimal fix is a small diff, and any change to a test file other than the new one is a red flag.</p>
               <pre data-label="bash · git pane">git add -A && git commit -m "fix: the cause in a few words"</pre>
             </div>
           </li>
@@ -1445,8 +1481,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
         <div class="tablewrap"><table class="ref">
           <thead><tr><th>Run</th><th>What happens</th></tr></thead>
           <tbody>
-            <tr><td><code>bash scripts/start.sh</code></td><td>Next unticked REQ from TASKS.md: finds its Issue, creates the branch.</td></tr>
-            <tr><td><code>bash scripts/start.sh status</code></td><td>Where am I: ID, Issue, plan, review, PR, and the next action.</td></tr>
+            <tr><td><code>bash scripts/start.sh</code></td><td>Next unticked REQ from TASKS.md: finds its Issue, creates the branch. Asks first when local main is ahead of origin/main (<code>git push origin main</code> fixes it).</td></tr>
+            <tr><td><code>bash scripts/start.sh status</code></td><td>Where am I: ID, Issue, plan, tier, test lock, review, PR, and the next action.</td></tr>
             <tr><td><code>bash scripts/start.sh check</code></td><td>Is the kit installed and active in this project: PASS / WARN / FAIL per item.</td></tr>
             <tr><td><code>python3 scripts/dashboard.py</code></td><td>Live dashboard at http://localhost:8765. <code>--lan</code> adds phone access with a PIN; <code>--read-only</code> hides the buttons.</td></tr>
             <tr><td><code>bash scripts/gate.sh</code></td><td>The quality gate: doclint, lint and complexity, format, strict types, full tests, 85% coverage of <code>service.py</code>. <code>--full</code> adds the dependency audit and secrets scan.</td></tr>
@@ -1457,7 +1493,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>bash scripts/loop.sh</code></td><td>Bounded implement-and-test loop for the current branch. Standard and strict: only after the lock.</td></tr>
             <tr><td><code>bash scripts/integrity.sh</code></td><td>Did the branch weaken its checks or change a locked test (rules I1 to I6)? Runs inside the gate.</td></tr>
             <tr><td><code>bash scripts/pr.sh</code></td><td>Runs <code>gate.sh --full</code>, pushes and opens the PR with the evidence, lock sha and boundary changes (needs a reviewer APPROVE). Boundary files add the label <code>needs-human-review</code>.</td></tr>
-            <tr><td><code>bash scripts/pr.sh merge</code></td><td>After your PR review: CI, merge, after-merge checks on main.</td></tr>
+            <tr><td><code>bash scripts/pr.sh merge</code></td><td>After your PR review: CI, merge, after-merge checks on main. Refuses without branch protection (free-plan private repo: merge yourself; <code>ALLOW_UNPROTECTED=1</code> is your choice only).</td></tr>
+            <tr><td><code>bash scripts/protect.sh</code></td><td>Turns on branch protection for main (CI check <code>gate</code>, admins included, no force-push). Needs a public repo or a paid plan.</td></tr>
             <tr><td><code>bash scripts/req_status.sh</code></td><td>Ledger of every requirement: plan, review, merged, Issue, PR, tests.</td></tr>
           </tbody>
         </table></div>
@@ -1472,6 +1509,10 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>Disputed</code></td><td>In <code>FAILURES.txt</code> or <code>docs/tests/&lt;ID&gt;.md</code>: the builder says a locked test is wrong or coverage falls short. The loop stops for you.</td></tr>
             <tr><td><code>## 10. Boundaries</code></td><td>In <code>docs/RULES.md</code>. Paths that put a PR under "Boundary changes" with the label <code>needs-human-review</code>; autopilot never merges it.</td></tr>
             <tr><td><code>STOP_GATE_TIMEOUT</code></td><td>Seconds (default 80) the Stop hook gives the gate before it lets Claude stop anyway.</td></tr>
+            <tr><td><code>KIT_LOOP=1</code></td><td>Set by <code>loop.sh</code> and autopilot: the Stop hook leaves the gate to the loop.</td></tr>
+            <tr><td><code>PR_NOTE="..."</code></td><td>An extra line in the PR body from <code>pr.sh</code> (autopilot uses it).</td></tr>
+            <tr><td><code>ALLOW_AHEAD=1</code></td><td><code>start.sh</code> branches from a local main that is ahead of origin/main without asking. Better: push main first.</td></tr>
+            <tr><td><code>ALLOW_UNPROTECTED=1</code></td><td><code>pr.sh merge</code> without branch protection. Your own, knowing choice; never Claude's.</td></tr>
           </tbody>
         </table></div>
 
@@ -1515,11 +1556,11 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
             <tr><td><code>.claude/settings.json</code></td><td>Pre-approved read-only commands for the reviewer; blocks force-push and reading <code>.env</code>; registers the hooks</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/commands/</code></td><td>The kit's slash commands (<code>/next</code>, <code>/review</code>, <code>/scope</code> ...); each points at its row in CLAUDE.md section 9</td><td>Nobody; refresh from the kit</td></tr>
-            <tr><td><code>.claude/hooks/</code></td><td>Automatic guards (main, <code>.env</code>, force-push, hard reset, <code>--no-verify</code>), auto-format of Python files, the idle and needs-you signals for the dashboard, and the claude pane's tmux title (model and stage, <code>tmux-pane.sh</code>)</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>.claude/hooks/</code></td><td>Automatic guards (main, <code>.env</code>, force-push, hard reset, <code>--no-verify</code>, the kit's own checks, locked tests and a locked plan, running <code>lock_tests.sh</code>), the Stop-hook gate (<code>on-stop.sh</code>), auto-format of Python files, the idle and needs-you signals for the dashboard, and the claude pane's tmux title (model and stage, <code>tmux-pane.sh</code>)</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.mcp.json</code></td><td>MCP servers for Claude: chrome-devtools, playwright, graphify (free, local). No API keys in it, ever</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>docs/MCP.md</code></td><td>The MCP setup check Claude runs at session start, and when to use each server. Loaded by CLAUDE.md section 0</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>
-            <tr><td><code>scripts/*.sh</code></td><td>start, loop, pr, req_status, autopilot</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>scripts/*.sh</code></td><td>start, gate, doclint, integrity, lock_tests, loop, pr, protect, req_status, autopilot</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.autopilot/</code></td><td>Autopilot run reports and logs (gitignored)</td><td>autopilot.sh</td></tr>
           </tbody>
         </table></div>
@@ -1555,6 +1596,15 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td>Claude does not know the reviewer agent</td><td>Check <code>.claude/agents/reviewer.md</code> exists (copy it from the kit's <code>templates/project/</code>), then restart <code>claude</code>.</td></tr>
             <tr><td>Autopilot says "needs jq" or "gh is not authenticated"</td><td><code>sudo apt install jq</code>, <code>gh auth login</code></td></tr>
             <tr><td>Autopilot skipped a REQ: "no approved plan"</td><td>Level 1 only builds plans you approved. Type <code>next</code> inside Claude, approve the plan, or run level 2.</td></tr>
+            <tr><td><code>its tests are not locked yet</code> (loop.sh), or <code>Risk: standard needs locked tests</code> (autopilot "Needs you")</td><td>Run <code>/tests</code>, read <code>docs/tests/&lt;ID&gt;.md</code>, then <code>bash scripts/lock_tests.sh</code>. Only if the change truly is light, write <code>Risk: light - &lt;reason&gt;</code> in the plan.</td></tr>
+            <tr><td>Loop stopped (exit 4) on "Disputed"</td><td>A locked test may be wrong, or coverage misses the floor. You decide: unlock (remove the <code>Tests locked:</code> line, commit), <code>/tests</code>, read, lock again; or list a path under <code>## Allowed exceptions</code>.</td></tr>
+            <tr><td>Gate red with <code>I6</code></td><td>A locked test path changed, was added, renamed or deleted after the lock. Undo that change; if the test really is wrong, see "Disputed".</td></tr>
+            <tr><td>Claude says "tests for REQ-00X are locked"</td><td>A hook stopped it editing a locked test or plan. Working as designed: it should write the problem under Disputed.</td></tr>
+            <tr><td>"Blocked by the kit … the quality gate is RED"</td><td>The Stop hook: Claude stopped while the gate was red, so it keeps working. Nothing to do unless it repeats; <code>bash scripts/gate.sh</code> shows the same rows.</td></tr>
+            <tr><td><code>the gate is red (bash scripts/gate.sh --full)</code> from pr.sh</td><td>Run <code>bash scripts/gate.sh --full</code>, fix what it shows, commit, run <code>pr.sh</code> again. Nothing was pushed.</td></tr>
+            <tr><td><code>local main is N commit(s) ahead of origin/main</code></td><td>Answer N, then <code>git push origin main</code>. Protected main: put the commits on a branch and open a PR. Only for commits that do not belong on main: <code>git reset --keep origin/main</code>.</td></tr>
+            <tr><td>Gate red with <code>I1</code> on files you never touched</td><td>The branch was made from a main that was ahead of origin/main. Push main (row above), then rebase or recreate the branch.</td></tr>
+            <tr><td><code>autopilot needs branch protection on main</code> / <code>pr.sh merge</code> refuses</td><td><code>bash scripts/protect.sh</code>. A free-plan private repo cannot have protection: build by hand and merge each PR yourself after review.</td></tr>
             <tr><td>Loop red with <code>D1</code>, <code>D2</code> or <code>D3</code> lines</td><td>doclint: add the folder README, the <code>REQ-IDs:</code> header line, or the function doc block (formats in <code>docs/RULES.md</code> section 3). Generated files go in <code>.doclintignore</code>.</td></tr>
             <tr><td>Loop red with <code>D4</code> or <code>D5</code></td><td>D4: split the file by responsibility. D5: move web, template or database code out of <code>service.py</code> into <code>routes.py</code> or <code>repository.py</code>.</td></tr>
             <tr><td>Gate red on lint, format or types</td><td>Auto-fix style first: <code>uv run ruff check --fix . &amp;&amp; uv run ruff format .</code>. Complexity or type errors need a real fix; never add <code>noqa</code> or <code>type: ignore</code> without a reason.</td></tr>
@@ -1570,6 +1620,41 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
+        <h3 class="sub" id="kit-update">Updating the kit</h3>
+        <p>Get the new kit with <code>git pull</code> in the kit folder (Phase 0, "Get the kit"); new projects use it straight away. An existing project is upgraded by hand on a branch named <code>chore/kit-&lt;version&gt;</code>: there <code>integrity.sh</code> lists the changed kit files as ALLOWED instead of failing, and you review them in the PR. Run the commands yourself in the git pane (the hooks block Claude from editing the kit's checks). <code>pr.sh</code> only handles REQ and BUG branches, so open and merge the kit PR with <code>gh</code>. Upgrade one version at a time, from the project root.</p>
+        <p><b>v3.13 to v3.14</b> (<code>start.sh</code> v6: the ahead-of-origin check):</p>
+        <pre data-label="bash · git pane">git switch main && git pull --ff-only && git switch -c chore/kit-v3.14
+cp {KIT}/start.sh scripts/
+bash scripts/start.sh check && bash scripts/gate.sh
+git add -A && git commit -m "chore(kit): start.sh v6 (kit v3.14)"
+git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, then: gh pr merge --squash --delete-branch</pre>
+        <p><b>v3.12 to v3.13</b> (risk tiers, <code>/tests</code>, test lock, blocking Stop hook, PR evidence):</p>
+        <pre data-label="bash · git pane">git switch main && git pull --ff-only && git switch -c chore/kit-v3.13
+cp {KIT}/integrity.sh {KIT}/lock_tests.sh {KIT}/loop.sh {KIT}/pr.sh {KIT}/autopilot.sh {KIT}/start.sh scripts/
+cp {KIT}/templates/project/.claude/hooks/guard-files.sh {KIT}/templates/project/.claude/hooks/guard-bash.sh {KIT}/templates/project/.claude/hooks/on-stop.sh .claude/hooks/
+cp {KIT}/templates/project/.claude/commands/tests.md {KIT}/templates/project/.claude/commands/next.md .claude/commands/
+cp {KIT}/templates/project/.claude/agents/reviewer.md .claude/agents/
+cp {KIT}/templates/project/docs/plans/_TEMPLATE.md docs/plans/
+mkdir -p docs/tests && cp {KIT}/templates/project/docs/tests/README.md docs/tests/
+sed -i '/on-stop\.sh/{n;s/"timeout": 30/"timeout": 90/}' .claude/settings.json    # the Stop hook now runs the gate
+# CLAUDE.md: copy sections 3, 5, 8, the `tests` row of 9, and 10 from the kit's templates/project/CLAUDE.md (your FILL IN sections stay)
+# docs/RULES.md: copy sections 9, 10 (Boundaries: tailor the paths) and 11 from the kit's templates/project/docs/RULES.md
+bash scripts/start.sh check && bash scripts/gate.sh
+git add -A && git commit -m "chore(kit): protected verification loop (kit v3.13)"
+git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, then: gh pr merge --squash --delete-branch</pre>
+        <p>A REQ already in progress has no <code>Risk:</code> line, so it counts as standard and <code>loop.sh</code> asks for the lock. Write <code>Risk: light - &lt;reason&gt;</code> in its plan only if that is true; otherwise run <code>/tests</code>, read <code>docs/tests/&lt;ID&gt;.md</code>, then <code>bash scripts/lock_tests.sh</code>. Older upgrades (v2.x to v3.12): <code>readme.md</code>, "Updating the kit".</p>
+
+        <h3 class="sub" id="kit-changes">Changes in v3.14</h3>
+        <ul>
+          <li><b>Kit renamed:</b> the folder, clone URL, scaffold usage and this guide now all say <code>vibecode</code>; the kit lives at <code>~/kits/vibecode</code>. An existing clone under the old name: <code>mv ~/kits/&lt;old-name&gt; ~/kits/vibecode</code>, or set <code>KIT_DIR</code> in <code>~/.bashrc</code>.</li>
+          <li><b><code>start.sh</code> v6:</b> before creating a new branch it warns, lists the commits and asks when local main is ahead of origin/main. Such a branch carries them and <code>integrity.sh</code> (which compares with origin/main) blames them on it: a false I1 FAIL. No terminal: stops unless <code>ALLOW_AHEAD=1</code>.</li>
+          <li><b>Docs:</b> a free-plan private repo cannot have branch protection, so autopilot cannot run and <code>pr.sh merge</code> refuses; merge by hand after review.</li>
+          <li>Stale v3.12 stamps fixed (reviewer agent header).</li>
+          <li>Existing v3.13 projects: copy the kit's <code>start.sh</code> into <code>scripts/</code> on a <code>chore/kit-v3.14</code> branch (commands above).</li>
+        </ul>
+        <h3 class="sub">Changes in v3.13</h3>
+        <p>The protected verification loop: tests are written from the spec before the code, read by you, then locked, so the code must meet the tests. A <code>Risk:</code> tier in every plan; <code>/tests</code> and <code>lock_tests.sh</code>; <code>integrity.sh</code> rule I6; hooks that block locked tests and plans; a Stop hook that runs the gate; <code>loop.sh</code> and autopilot refuse unlocked standard and strict plans and stop on "Disputed"; <code>pr.sh</code> runs <code>gate.sh --full</code> and adds Evidence, Boundary changes and the <code>needs-human-review</code> label. Details: <code>readme.md</code>, "Changes in v3.13".</p>
+
         <h3 class="sub">IDs</h3>
         <div class="tablewrap"><table class="ref">
           <tbody>
@@ -1580,7 +1665,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
           </tbody>
         </table></div>
 
-        <div class="foot">Built from reference kit v2.14: readme.md, runbook.md, scaffold.sh, loop.sh, req_status.sh, templates/project, the reviewer agent and .tmux.conf (five-pane work window, review window, diff popups). Progress and your project values are stored only in this browser.
+        <div class="foot">Built from vibecode kit v3.14: readme.md, runbook.md, scaffold.sh, start.sh, loop.sh, gate.sh, integrity.sh, lock_tests.sh, pr.sh, autopilot.sh, protect.sh, req_status.sh, templates/project, the reviewer agent and .tmux.conf (five-pane work window, review window, diff popups). Progress and your project values are stored only in this browser.
           <span class="confirm" data-reset="all"><button class="btn small warn" type="button">Reset all progress for this project</button></span></div>
       </section>
     </main>
@@ -1639,7 +1724,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   var kitAuto = !applied.KITREPO || applied.KITREPO === autoRepo(applied.GHUSER) || /your-user/.test(applied.KITREPO);
   function kitHint(){
     $('#kitHint').textContent = kitAuto
-      ? 'Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link (it ends in .git). Got a zip instead? Leave it; the step explains.'
+      ? 'Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link, e.g. https://github.com/gg0code/vibecode.git. Got a zip instead? Leave it; the step explains.'
       : 'Your own address (not taken from the user name). Clear the field to go back to the automatic one.';
   }
   userEl.addEventListener('input', function(){ if (kitAuto) repoEl.value = autoRepo(userEl.value.trim()); kitHint(); });
@@ -1748,7 +1833,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     v.KIT = v.KITPARENT + '/vibecode';
     var s = STACK[v.STACK] || STACK.python;
     v.TEST = s.TEST; v.WATCH = s.WATCH;
-    v.APCMD = {'1':'AUTOPILOT=build', '2':'AUTOPILOT=plan,build', '3':'AUTOPILOT=plan,build AUTO_MERGE=1'}[v.LEVEL] || 'AUTOPILOT=build';
+    v.APCMD = {'1':'AUTOPILOT=build', '2':'AUTOPILOT=plan,build', '3':'AUTOPILOT=build AUTO_MERGE=1'}[v.LEVEL] || 'AUTOPILOT=build';
     return v;
   }
 
