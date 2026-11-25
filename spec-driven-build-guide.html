@@ -503,7 +503,7 @@ git config --global --list | grep -E 'user|default'</pre>
           <li class="step" data-id="m-kit" data-once="1">
             <div class="step-body">
               <div class="step-head"><h3>Get the kit</h3></div>
-              <p>Every later step reads the kit from your machine: <code>scaffold.sh</code> copies its templates and scripts into each new project. Put its address in <b>Kit address on GitHub</b> above and save; for a private kit, the owner adds you as a collaborator first.<span data-os="windows" data-shell="wsl"> Clone it in the Ubuntu window, not with Windows Git or GitHub Desktop, so the scripts keep their Linux line endings.</span><span data-os="windows" data-shell="gitbash powershell cmd"> The <code>core.autocrlf input</code> setting from step 1 keeps the scripts' Linux line endings; do not clone with GitHub Desktop.</span></p>
+              <p>Every later step reads the kit from your machine: <code>scaffold.sh</code> copies its templates and scripts into each new project. The kit is the GitHub repo <code>gg0code/vibecode</code>, and its folder is always called <code>vibecode</code> (<code>{KIT}</code>). Put its address in <b>Kit address on GitHub</b> above and save; for a private kit, the owner adds you as a collaborator first.<span data-os="windows" data-shell="wsl"> Clone it in the Ubuntu window, not with Windows Git or GitHub Desktop, so the scripts keep their Linux line endings.</span><span data-os="windows" data-shell="gitbash powershell cmd"> The <code>core.autocrlf input</code> setting from step 1 keeps the scripts' Linux line endings; do not clone with GitHub Desktop.</span></p>
               <pre data-label="bash · terminal">mkdir -p {ROOT} {KITPARENT}       # creates both folders if they do not exist yet
 git clone {KITREPO} {KIT}          # private repo: gh auth login (previous step) makes this work
 ls {KIT}/scaffold.sh               # check: the file is there</pre>
@@ -544,9 +544,11 @@ command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V
 command -v watch &gt;/dev/null &amp;&amp; echo "watch already installed" || brew install watch    # the files pane uses it</pre>
               <pre data-label="bash · terminal" data-os="linux">command -v tmux &gt;/dev/null &amp;&amp; echo "tmux already installed: $(tmux -V)" || sudo apt install -y tmux
 command -v wezterm &gt;/dev/null &amp;&amp; echo "WezTerm already installed" || echo "Install WezTerm from https://wezterm.org/install/linux.html"</pre>
-              <p><b>b. Use the kit's settings.</b> Your current files are kept as <code>*.before-kit</code>; linking means <code>git -C {KIT} pull</code> also updates them.<span data-os="windows"> The WezTerm settings make it open Ubuntu with tmux running.</span></p>
-              <pre data-label="bash · Ubuntu window" data-os="windows">for f in .bashrc .tmux.conf; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
-ln -sf {KIT}/.bashrc     ~/.bashrc
+              <p><b>b. Use the kit's settings.</b> Your current files are kept as <code>*.before-kit</code>. <code>~/.bashrc</code> stays <b>your own file</b>: it only sets <code>KIT_DIR</code> to the kit folder and loads the kit's <code>.bashrc</code> (aliases such as <code>kit</code> and <code>tdev</code>) from there. Never link <code>~/.bashrc</code> to the kit: the link breaks when the kit folder moves. The tmux and WezTerm settings are links, so <code>git -C {KIT} pull</code> also updates them.<span data-os="windows"> The WezTerm settings make it open Ubuntu with tmux running.</span></p>
+              <pre data-label="bash · Ubuntu window" data-os="windows">[ -L ~/.bashrc ] &amp;&amp; rm ~/.bashrc       # an old link to the kit: ~/.bashrc becomes your own file again
+[ -e ~/.bashrc ] &amp;&amp; [ ! -e ~/.bashrc.before-kit ] &amp;&amp; cp ~/.bashrc ~/.bashrc.before-kit
+grep -q 'KIT_DIR' ~/.bashrc 2&gt;/dev/null || printf '%s\n' 'export KIT_DIR={KIT}' '[ -f "$KIT_DIR/.bashrc" ] &amp;&amp; . "$KIT_DIR/.bashrc"' &gt;&gt; ~/.bashrc
+[ -e ~/.tmux.conf ] &amp;&amp; [ ! -L ~/.tmux.conf ] &amp;&amp; cp ~/.tmux.conf ~/.tmux.conf.before-kit
 ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
 WINHOME="$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')")"
 [ -e "$WINHOME/.wezterm.lua" ] &amp;&amp; cp "$WINHOME/.wezterm.lua" "$WINHOME/.wezterm.lua.before-kit"
@@ -556,14 +558,16 @@ source ~/.bashrc</pre>
 ln -sf {KIT}/.tmux.conf  ~/.tmux.conf
 [ -e ~/.wezterm.lua ] &amp;&amp; cp ~/.wezterm.lua ~/.wezterm.lua.before-kit
 ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua</pre>
-              <pre data-label="bash · terminal" data-os="linux">for f in .bashrc .tmux.conf .wezterm.lua; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
-ln -sf {KIT}/.bashrc      ~/.bashrc
+              <pre data-label="bash · terminal" data-os="linux">[ -L ~/.bashrc ] &amp;&amp; rm ~/.bashrc       # an old link to the kit: ~/.bashrc becomes your own file again
+[ -e ~/.bashrc ] &amp;&amp; [ ! -e ~/.bashrc.before-kit ] &amp;&amp; cp ~/.bashrc ~/.bashrc.before-kit
+grep -q 'KIT_DIR' ~/.bashrc 2&gt;/dev/null || printf '%s\n' 'export KIT_DIR={KIT}' '[ -f "$KIT_DIR/.bashrc" ] &amp;&amp; . "$KIT_DIR/.bashrc"' &gt;&gt; ~/.bashrc
+for f in .tmux.conf .wezterm.lua; do [ -e ~/$f ] &amp;&amp; [ ! -L ~/$f ] &amp;&amp; cp ~/$f ~/$f.before-kit; done
 ln -sf {KIT}/.tmux.conf   ~/.tmux.conf
 ln -sf {KIT}/.wezterm.lua ~/.wezterm.lua
 source ~/.bashrc</pre>
               <p data-os="mac">The Mac's shell is zsh, so the kit's <code>.bashrc</code> (aliases only) is not used; nothing in the kit needs it.</p>
-              <p data-os="windows linux">Already have a <code>.bashrc</code> you like? Skip its link and add one line to yours instead: <code>source {KIT}/.bashrc</code>.</p>
-              <p>Keep <code>~/.tmux.conf</code> a <b>link</b>, not a copy: the status bar finds <code>tmux-status.sh</code> next to the real file in the kit.</p>
+              <p data-os="windows linux">Afterwards <code>~/.bashrc</code> ends with two lines: <code>export KIT_DIR={KIT}</code> and the line that loads <code>$KIT_DIR/.bashrc</code>. Everything else in it is yours.</p>
+              <p>Keep <code>~/.tmux.conf</code> a <b>link</b>, not a copy: the status bar finds <code>tmux-status.sh</code> next to the real file in the kit. <b>Moved the kit folder?</b> <span data-os="windows linux">Change the <code>KIT_DIR</code> line in <code>~/.bashrc</code>, then </span>re-run the <code>ln -sf</code> lines above.</p>
               <p><b>c. tmux version and session saving.</b> The diff popups and pane borders need tmux <b>3.2 or newer</b> (the right-click menu colours need 3.4; Ubuntu 22.04 has 3.2, 24.04 has 3.4). The config also loads <b>tmux-resurrect</b>, which saves and restores your panes across a reboot; install it once:</p>
               <pre data-label="bash · terminal">tmux -V                                   # 3.2 or newer
 [ -d ~/.tmux/plugins/tmux-resurrect ] &amp;&amp; echo "tmux-resurrect already installed" || git clone https://github.com/tmux-plugins/tmux-resurrect ~/.tmux/plugins/tmux-resurrect
@@ -1639,7 +1643,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   var kitAuto = !applied.KITREPO || applied.KITREPO === autoRepo(applied.GHUSER) || /your-user/.test(applied.KITREPO);
   function kitHint(){
     $('#kitHint').textContent = kitAuto
-      ? 'Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link (it ends in .git). Got a zip instead? Leave it; the step explains.'
+      ? 'Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link, e.g. https://github.com/gg0code/vibecode.git. Got a zip instead? Leave it; the step explains.'
       : 'Your own address (not taken from the user name). Clear the field to go back to the automatic one.';
   }
   userEl.addEventListener('input', function(){ if (kitAuto) repoEl.value = autoRepo(userEl.value.trim()); kitHint(); });
