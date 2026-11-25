@@ -1481,8 +1481,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
         <div class="tablewrap"><table class="ref">
           <thead><tr><th>Run</th><th>What happens</th></tr></thead>
           <tbody>
-            <tr><td><code>bash scripts/start.sh</code></td><td>Next unticked REQ from TASKS.md: finds its Issue, creates the branch.</td></tr>
-            <tr><td><code>bash scripts/start.sh status</code></td><td>Where am I: ID, Issue, plan, review, PR, and the next action.</td></tr>
+            <tr><td><code>bash scripts/start.sh</code></td><td>Next unticked REQ from TASKS.md: finds its Issue, creates the branch. Asks first when local main is ahead of origin/main (<code>git push origin main</code> fixes it).</td></tr>
+            <tr><td><code>bash scripts/start.sh status</code></td><td>Where am I: ID, Issue, plan, tier, test lock, review, PR, and the next action.</td></tr>
             <tr><td><code>bash scripts/start.sh check</code></td><td>Is the kit installed and active in this project: PASS / WARN / FAIL per item.</td></tr>
             <tr><td><code>python3 scripts/dashboard.py</code></td><td>Live dashboard at http://localhost:8765. <code>--lan</code> adds phone access with a PIN; <code>--read-only</code> hides the buttons.</td></tr>
             <tr><td><code>bash scripts/gate.sh</code></td><td>The quality gate: doclint, lint and complexity, format, strict types, full tests, 85% coverage of <code>service.py</code>. <code>--full</code> adds the dependency audit and secrets scan.</td></tr>
@@ -1493,7 +1493,8 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>bash scripts/loop.sh</code></td><td>Bounded implement-and-test loop for the current branch. Standard and strict: only after the lock.</td></tr>
             <tr><td><code>bash scripts/integrity.sh</code></td><td>Did the branch weaken its checks or change a locked test (rules I1 to I6)? Runs inside the gate.</td></tr>
             <tr><td><code>bash scripts/pr.sh</code></td><td>Runs <code>gate.sh --full</code>, pushes and opens the PR with the evidence, lock sha and boundary changes (needs a reviewer APPROVE). Boundary files add the label <code>needs-human-review</code>.</td></tr>
-            <tr><td><code>bash scripts/pr.sh merge</code></td><td>After your PR review: CI, merge, after-merge checks on main.</td></tr>
+            <tr><td><code>bash scripts/pr.sh merge</code></td><td>After your PR review: CI, merge, after-merge checks on main. Refuses without branch protection (free-plan private repo: merge yourself; <code>ALLOW_UNPROTECTED=1</code> is your choice only).</td></tr>
+            <tr><td><code>bash scripts/protect.sh</code></td><td>Turns on branch protection for main (CI check <code>gate</code>, admins included, no force-push). Needs a public repo or a paid plan.</td></tr>
             <tr><td><code>bash scripts/req_status.sh</code></td><td>Ledger of every requirement: plan, review, merged, Issue, PR, tests.</td></tr>
           </tbody>
         </table></div>
@@ -1508,6 +1509,10 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>Disputed</code></td><td>In <code>FAILURES.txt</code> or <code>docs/tests/&lt;ID&gt;.md</code>: the builder says a locked test is wrong or coverage falls short. The loop stops for you.</td></tr>
             <tr><td><code>## 10. Boundaries</code></td><td>In <code>docs/RULES.md</code>. Paths that put a PR under "Boundary changes" with the label <code>needs-human-review</code>; autopilot never merges it.</td></tr>
             <tr><td><code>STOP_GATE_TIMEOUT</code></td><td>Seconds (default 80) the Stop hook gives the gate before it lets Claude stop anyway.</td></tr>
+            <tr><td><code>KIT_LOOP=1</code></td><td>Set by <code>loop.sh</code> and autopilot: the Stop hook leaves the gate to the loop.</td></tr>
+            <tr><td><code>PR_NOTE="..."</code></td><td>An extra line in the PR body from <code>pr.sh</code> (autopilot uses it).</td></tr>
+            <tr><td><code>ALLOW_AHEAD=1</code></td><td><code>start.sh</code> branches from a local main that is ahead of origin/main without asking. Better: push main first.</td></tr>
+            <tr><td><code>ALLOW_UNPROTECTED=1</code></td><td><code>pr.sh merge</code> without branch protection. Your own, knowing choice; never Claude's.</td></tr>
           </tbody>
         </table></div>
 
@@ -1551,11 +1556,11 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td><code>docs/reviews/REQ-00X.md</code></td><td>Reviewer report; line 1 is the verdict</td><td>Reviewer agent only, saved verbatim</td></tr>
             <tr><td><code>.claude/settings.json</code></td><td>Pre-approved read-only commands for the reviewer; blocks force-push and reading <code>.env</code>; registers the hooks</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/commands/</code></td><td>The kit's slash commands (<code>/next</code>, <code>/review</code>, <code>/scope</code> ...); each points at its row in CLAUDE.md section 9</td><td>Nobody; refresh from the kit</td></tr>
-            <tr><td><code>.claude/hooks/</code></td><td>Automatic guards (main, <code>.env</code>, force-push, hard reset, <code>--no-verify</code>), auto-format of Python files, the idle and needs-you signals for the dashboard, and the claude pane's tmux title (model and stage, <code>tmux-pane.sh</code>)</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>.claude/hooks/</code></td><td>Automatic guards (main, <code>.env</code>, force-push, hard reset, <code>--no-verify</code>, the kit's own checks, locked tests and a locked plan, running <code>lock_tests.sh</code>), the Stop-hook gate (<code>on-stop.sh</code>), auto-format of Python files, the idle and needs-you signals for the dashboard, and the claude pane's tmux title (model and stage, <code>tmux-pane.sh</code>)</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.mcp.json</code></td><td>MCP servers for Claude: chrome-devtools, playwright, graphify (free, local). No API keys in it, ever</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>docs/MCP.md</code></td><td>The MCP setup check Claude runs at session start, and when to use each server. Loaded by CLAUDE.md section 0</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.claude/agents/reviewer.md</code></td><td>The second agent's instructions and checklist</td><td>Nobody; refresh from the kit</td></tr>
-            <tr><td><code>scripts/*.sh</code></td><td>start, loop, pr, req_status, autopilot</td><td>Nobody; refresh from the kit</td></tr>
+            <tr><td><code>scripts/*.sh</code></td><td>start, gate, doclint, integrity, lock_tests, loop, pr, protect, req_status, autopilot</td><td>Nobody; refresh from the kit</td></tr>
             <tr><td><code>.autopilot/</code></td><td>Autopilot run reports and logs (gitignored)</td><td>autopilot.sh</td></tr>
           </tbody>
         </table></div>
@@ -1591,6 +1596,15 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
             <tr><td>Claude does not know the reviewer agent</td><td>Check <code>.claude/agents/reviewer.md</code> exists (copy it from the kit's <code>templates/project/</code>), then restart <code>claude</code>.</td></tr>
             <tr><td>Autopilot says "needs jq" or "gh is not authenticated"</td><td><code>sudo apt install jq</code>, <code>gh auth login</code></td></tr>
             <tr><td>Autopilot skipped a REQ: "no approved plan"</td><td>Level 1 only builds plans you approved. Type <code>next</code> inside Claude, approve the plan, or run level 2.</td></tr>
+            <tr><td><code>Risk: standard needs locked tests</code> (loop.sh, or autopilot "Needs you")</td><td>Run <code>/tests</code>, read <code>docs/tests/&lt;ID&gt;.md</code>, then <code>bash scripts/lock_tests.sh</code>. Only if the change truly is light, write <code>Risk: light - &lt;reason&gt;</code> in the plan.</td></tr>
+            <tr><td>Loop stopped (exit 4) on "Disputed"</td><td>A locked test may be wrong, or coverage misses the floor. You decide: unlock (remove the <code>Tests locked:</code> line, commit), <code>/tests</code>, read, lock again; or list a path under <code>## Allowed exceptions</code>.</td></tr>
+            <tr><td>Gate red with <code>I6</code></td><td>A locked test path changed, was added, renamed or deleted after the lock. Undo that change; if the test really is wrong, see "Disputed".</td></tr>
+            <tr><td>Claude says "tests for REQ-00X are locked"</td><td>A hook stopped it editing a locked test or plan. Working as designed: it should write the problem under Disputed.</td></tr>
+            <tr><td>"Blocked by the kit … the quality gate is RED"</td><td>The Stop hook: Claude stopped while the gate was red, so it keeps working. Nothing to do unless it repeats; <code>bash scripts/gate.sh</code> shows the same rows.</td></tr>
+            <tr><td><code>the gate is red (bash scripts/gate.sh --full)</code> from pr.sh</td><td>Run <code>bash scripts/gate.sh --full</code>, fix what it shows, commit, run <code>pr.sh</code> again. Nothing was pushed.</td></tr>
+            <tr><td><code>local main is N commit(s) ahead of origin/main</code></td><td>Answer N, then <code>git push origin main</code>. Protected main: put the commits on a branch and open a PR. Only for commits that do not belong on main: <code>git reset --keep origin/main</code>.</td></tr>
+            <tr><td>Gate red with <code>I1</code> on files you never touched</td><td>The branch was made from a main that was ahead of origin/main. Push main (row above), then rebase or recreate the branch.</td></tr>
+            <tr><td><code>autopilot needs branch protection on main</code> / <code>pr.sh merge</code> refuses</td><td><code>bash scripts/protect.sh</code>. A free-plan private repo cannot have protection: build by hand and merge each PR yourself after review.</td></tr>
             <tr><td>Loop red with <code>D1</code>, <code>D2</code> or <code>D3</code> lines</td><td>doclint: add the folder README, the <code>REQ-IDs:</code> header line, or the function doc block (formats in <code>docs/RULES.md</code> section 3). Generated files go in <code>.doclintignore</code>.</td></tr>
             <tr><td>Loop red with <code>D4</code> or <code>D5</code></td><td>D4: split the file by responsibility. D5: move web, template or database code out of <code>service.py</code> into <code>routes.py</code> or <code>repository.py</code>.</td></tr>
             <tr><td>Gate red on lint, format or types</td><td>Auto-fix style first: <code>uv run ruff check --fix . &amp;&amp; uv run ruff format .</code>. Complexity or type errors need a real fix; never add <code>noqa</code> or <code>type: ignore</code> without a reason.</td></tr>
