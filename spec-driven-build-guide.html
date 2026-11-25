@@ -259,10 +259,10 @@ h3.sub{font:600 17px var(--display);margin:22px 0 10px}
           </select><span class="hint">The language your app is written in. Python is the kit's default.</span>
         </label>
         <label class="wide">Folder for your projects<input id="v-root" data-var="ROOT" value="" placeholder="C:\Users\gaura\Desktop\Projects" spellcheck="false"><span class="hint"><span data-os="windows">e.g. <code>C:\Users\gaura\Desktop\Projects</code></span><span data-os="mac">e.g. <code>/Users/gaura/Projects</code></span><span data-os="linux">e.g. <code>/home/gaura/projects</code></span> (your app's folder is created inside it)</span><span class="hint" id="rootPreview"></span><span class="verr" data-err="ROOT"></span></label>
-        <label class="wide">Folder for the kit<input id="v-kitdir" data-var="KITDIR" value="" placeholder="C:\Users\gaura\Desktop\Projects\kits" spellcheck="false"><span class="hint"><span data-os="windows">e.g. <code>C:\Users\gaura\Desktop\Projects\kits</code></span><span data-os="mac">e.g. <code>/Users/gaura/Projects/kits</code></span><span data-os="linux">e.g. <code>/home/gaura/projects/kits</code></span> (the kit's <code>reference_files</code> folder is created inside it)</span><span class="hint" id="kitPreview"></span><span class="verr" data-err="KITDIR"></span></label>
+        <label class="wide">Folder for the kit<input id="v-kitdir" data-var="KITDIR" value="" placeholder="C:\Users\gaura\Desktop\Projects\kits" spellcheck="false"><span class="hint"><span data-os="windows">e.g. <code>C:\Users\gaura\Desktop\Projects\kits</code></span><span data-os="mac">e.g. <code>/Users/gaura/Projects/kits</code></span><span data-os="linux">e.g. <code>/home/gaura/projects/kits</code></span> (the kit's <code>vibecode</code> folder is created inside it)</span><span class="hint" id="kitPreview"></span><span class="verr" data-err="KITDIR"></span></label>
         
         <label class="wide">Your GitHub user name<input id="v-user" data-var="GHUSER" value="your-user" spellcheck="false"><span class="hint">As shown on github.com after you sign in (top-right menu). Used for your project repos and, by default, for the kit address below.</span><span class="vwarn" data-warn="GHUSER"></span></label>
-        <label class="wide">Kit address on GitHub<input id="v-kitrepo" data-var="KITREPO" value="https://github.com/your-user/reference_files.git" spellcheck="false"><span class="hint" id="kitHint">Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link (it ends in .git). Got a zip instead? Leave it; the step explains.</span><span class="vwarn" data-warn="KITREPO"></span></label>
+        <label class="wide">Kit address on GitHub<input id="v-kitrepo" data-var="KITREPO" value="https://github.com/your-user/vibecode.git" spellcheck="false"><span class="hint" id="kitHint">Filled in from your GitHub user name. If someone else shared the kit with you, replace it with their link (it ends in .git). Got a zip instead? Leave it; the step explains.</span><span class="vwarn" data-warn="KITREPO"></span></label>
         <label>Today<input id="v-date" data-var="DATE" value="" spellcheck="false" readonly><span class="hint">Filled in automatically.</span></label>
         <div class="vbar">
           <span class="vstatus" id="vStatus" role="status"></span>
@@ -1620,7 +1620,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   // older versions stored example folders and the full kit path: start those fields empty
   if (saved.ROOT === '~/projects') delete saved.ROOT;
   delete saved.KIT;
-  function autoRepo(user){ return 'https://github.com/' + (user || 'your-user') + '/reference_files.git'; }
+  function autoRepo(user){ return 'https://github.com/' + (user || 'your-user') + '/vibecode.git'; }
   // an old saved address that still has the example user follows the saved user name
   if (saved.KITREPO && /your-user/.test(saved.KITREPO) && saved.GHUSER && saved.GHUSER !== 'your-user') saved.KITREPO = autoRepo(saved.GHUSER);
   var applied = {};
@@ -1710,7 +1710,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
   }
   function idleStatus(){
     if (!everSaved) status('dirty', 'Using example values. Check each field, then press Save.');
-    else status('ok', 'Saved. Commands use: <b>' + esc(applied.APP) + '</b> · ' + esc(applied.STACK) + ' · ' + esc((OSNAME[applied.OS] || applied.OS) + (applied.OS === 'windows' ? ' · ' + SHELLNAME[shellOf(applied.OS, applied.SHELL)] : '')) + ' · app folder <code>' + esc(toLinux(applied.ROOT, applied.OS, applied.SHELL) + '/' + applied.APP) + '</code> · kit <code>' + esc(toLinux(applied.KITDIR, applied.OS, applied.SHELL) + '/reference_files') + '</code>');
+    else status('ok', 'Saved. Commands use: <b>' + esc(applied.APP) + '</b> · ' + esc(applied.STACK) + ' · ' + esc((OSNAME[applied.OS] || applied.OS) + (applied.OS === 'windows' ? ' · ' + SHELLNAME[shellOf(applied.OS, applied.SHELL)] : '')) + ' · app folder <code>' + esc(toLinux(applied.ROOT, applied.OS, applied.SHELL) + '/' + applied.APP) + '</code> · kit <code>' + esc(toLinux(applied.KITDIR, applied.OS, applied.SHELL) + '/vibecode') + '</code>');
   }
   var PH = {windows:['C:\\Users\\gaura\\Desktop\\Projects','C:\\Users\\gaura\\Desktop\\Projects\\kits'],
             mac:['/Users/gaura/Projects','/Users/gaura/Projects/kits'], linux:['/home/gaura/projects','/home/gaura/projects/kits']};
@@ -1718,7 +1718,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     var f = formValues(), os = f.OS || applied.OS;
     var r = toLinux(f.ROOT, os, f.SHELL), k = toLinux(f.KITDIR, os, f.SHELL);
     $('#rootPreview').textContent = r ? 'App folder will be: ' + r + '/' + (f.APP || 'myapp') : '';
-    $('#kitPreview').textContent = k ? 'Kit will be: ' + k + '/reference_files' : '';
+    $('#kitPreview').textContent = k ? 'Kit will be: ' + k + '/vibecode' : '';
     $('#v-root').placeholder = (PH[os] || PH.windows)[0];
     $('#v-kitdir').placeholder = (PH[os] || PH.windows)[1];
   }
@@ -1745,7 +1745,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
     v.SHELL = shellOf(applied.OS, applied.SHELL);
     v.ROOT = toLinux(applied.ROOT, applied.OS, applied.SHELL) || '<projects-folder>';
     v.KITPARENT = toLinux(applied.KITDIR, applied.OS, applied.SHELL) || '<kit-folder>';
-    v.KIT = v.KITPARENT + '/reference_files';
+    v.KIT = v.KITPARENT + '/vibecode';
     var s = STACK[v.STACK] || STACK.python;
     v.TEST = s.TEST; v.WATCH = s.WATCH;
     v.APCMD = {'1':'AUTOPILOT=build', '2':'AUTOPILOT=plan,build', '3':'AUTOPILOT=plan,build AUTO_MERGE=1'}[v.LEVEL] || 'AUTOPILOT=build';

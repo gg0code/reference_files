@@ -2,7 +2,7 @@
 # scaffold.sh - Phase 0 setup for a spec-driven project.          VERSION: v3.13
 # Run from your projects root (e.g. ~/Projects), NOT inside a project folder.
 #
-#   bash /path/to/reference_files/scaffold.sh <app-name> [node|python|go|rust]
+#   bash /path/to/vibecode/scaffold.sh <app-name> [node|python|go|rust]
 #
 # What it does, in this order (the order is the point):
 #   0 preflight -> 1 folder + git init -> 2 copy the project template

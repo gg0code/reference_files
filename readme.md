@@ -1,13 +1,13 @@
 # vibecode - Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v3.12 (2026-11-19). Forked from `reference_files` v3.11 with the hardening listed under "Changes in v3.12".
+Kit version: v3.12 (2026-11-19). Forked from `vibecode` v3.11 with the hardening listed under "Changes in v3.12".
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
 ## What is in the kit
 
 ```
-reference_files/
+vibecode/
   readme.md                  this guide
   runbook.md                 step-by-step playbook: setup, spec chain, build loop, bug loop, release
   spec-driven-build-guide.html  the runbook as an interactive page: open in a browser
@@ -70,27 +70,27 @@ The guide (`spec-driven-build-guide.html`) asks for your computer type first, sh
 
 ```bash
 mkdir -p ~/kits ~/projects
-git clone https://github.com/<owner>/reference_files.git ~/kits/reference_files
-git -C ~/kits/reference_files pull      # later: get kit updates
+git clone https://github.com/<owner>/vibecode.git ~/kits/vibecode
+git -C ~/kits/vibecode pull      # later: get kit updates
 ```
 
 - Private kit: the owner adds you as a collaborator (repo Settings > Collaborators), and `gh auth login` lets `git clone` use your login.
-- Received a zip instead: unzip it to `~/kits/reference_files` so that `~/kits/reference_files/scaffold.sh` exists.
+- Received a zip instead: unzip it to `~/kits/vibecode` so that `~/kits/vibecode/scaffold.sh` exists.
 - Keep projects in `~/projects` (Linux side): tests and builds are much faster there than under `/mnt/c`, and Windows editors still open them through `\\wsl$`.
 - `.gitattributes` forces LF line endings, so even a Windows clone does not break the bash scripts.
 
 ### Publishing the kit (owner, once)
 ```bash
-cd ~/kits/reference_files
+cd ~/kits/vibecode
 git init -b main && git add -A && git commit -m "kit v2.9"
-gh repo create reference_files --private --source=. --remote=origin --push
+gh repo create vibecode --private --source=. --remote=origin --push
 ```
 After each kit change: commit, `git push`, and tell users to `git pull`.
 
 ## New project in five steps
 
 1. Get the kit (above) and do the one-time machine setup (below), once per machine.
-2. From your projects root (`cd ~/projects`): `bash ~/kits/reference_files/scaffold.sh <appname> <node|python|go|rust>`.
+2. From your projects root (`cd ~/projects`): `bash ~/kits/vibecode/scaffold.sh <appname> <node|python|go|rust>`.
    It creates the folder, git repo, template docs, scripts, CI, first commit, and a private GitHub repo.
 3. `cd <appname>`, start `claude`, accept the trust dialog, and type `setup`.
 4. Follow the setup order Claude proposes: idea, PRD, architecture and UI design, test plan and TASKS, then proposed changes to RULES and the launch checklist.
@@ -185,9 +185,9 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
 
 - Improve `templates/project/` when a project's MEMORY.md records a lesson under "Lessons for the template".
 - Bump the version line in CLAUDE.md and the doc headers when you do.
-- Users get a new kit version with `git -C ~/kits/reference_files pull`; new projects then use it.
+- Users get a new kit version with `git -C ~/kits/vibecode pull`; new projects then use it.
 - Existing projects are not updated automatically.
-  To refresh a project's scripts: `cp reference_files/loop.sh reference_files/req_status.sh <project>/scripts/`.
+  To refresh a project's scripts: `cp vibecode/loop.sh vibecode/req_status.sh <project>/scripts/`.
   scaffold.sh warns when a project's scripts differ from the kit.
 - Kit upgrades go on a branch named `chore/kit-<version>`: there `integrity.sh` lists the changed kit files as ALLOWED instead of failing,
   and you review them in the PR. Run the commands below yourself in the git pane (the hooks block Claude from editing the kit's checks).
@@ -321,7 +321,6 @@ Goal: the builder cannot quietly weaken what judges it, and the guards hold when
 - Builder and reviewer are the same model family. Keep your own plan approval (autopilot level 1) for anything that matters.
 - `spec-driven-build-guide.html` and `runbook.md` now use `protect.sh` (their old protection command required a check named `test`, but the CI job is `gate`, and it exempted admins).
   v3.13 adds the `/tests` and lock steps to both.
-- The reference_files clone URL in "Getting the kit" is unchanged: point it at the vibecode repo once you publish it.
 
 ## Changes in v2.13
 
