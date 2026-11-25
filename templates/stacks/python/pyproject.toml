@@ -18,7 +18,7 @@ dependencies = [
   "pydantic-settings>=2.4",
   "sqlmodel>=0.0.22",
   "alembic>=1.13",
-  "sentry-sdk[fastapi]>=2.14",
+  "sentry-sdk[fastapi]>=2.14,<3",
 ]
 
 [dependency-groups]
