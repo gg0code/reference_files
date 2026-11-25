@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# integrity.sh - did this branch weaken the checks that judge it?   VERSION: v2 (kit v3.13)
+# integrity.sh - did this branch weaken the checks that judge it?   VERSION: v2.1 (kit v3.14.1)
 #
 #   bash scripts/integrity.sh                     check the current branch (committed + uncommitted + untracked)
 #   bash scripts/integrity.sh --list              only list the protected paths and patterns
+#   bash scripts/integrity.sh --self-test         run the I5 suppression check on fixed cases (exit 1 on a wrong result)
 #   bash scripts/integrity.sh --lock-state        print "<ID> <sha>" when this branch's tests are locked, else nothing
 #   bash scripts/integrity.sh --lock-files        the test files the lock covers (added or changed by the branch up to the lock)
 #   bash scripts/integrity.sh --is-locked-test P  exit 0 when path P is a test path and this branch's tests are locked
@@ -16,6 +17,8 @@
 #   I3 removes test functions or assertions from an existing test file
 #   I4 adds a skip / xfail / only marker to a test
 #   I5 adds a lint or type suppression (# noqa, type: ignore, pragma: no cover, eslint-disable, @ts-ignore, nolint, #[allow])
+#      (v2.1) Not checked: *.md, *.txt, *.html, and exactly integrity.sh and loop.sh, at scripts/ or the repo root
+#      (SUPPRESS_EXEMPT_RE): this script's pattern list and loop.sh's prompt name the markers without using them.
 #   I6 (v2) changes, deletes, renames or adds ANY test path (TEST_PATH_RE, conftest.py, fixtures/; not *.md) after the
 #      plan's lock line "Tests locked: <sha>" (written by scripts/lock_tests.sh). A path whose content equals the
 #      base branch's version came from main and is ignored. Only the user removes the lock line.
@@ -37,16 +40,62 @@ cd "$ROOT" || exit 2
 PROTECTED_RE='^(pyproject\.toml|setup\.cfg|pytest\.ini|tox\.ini|\.coveragerc|mypy\.ini|ruff\.toml|\.ruff\.toml|conftest\.py|uv\.lock|requirements[^/]*\.txt|package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|tsconfig[^/]*\.json|\.eslintrc[^/]*|eslint\.config\.[a-z]+|jest\.config\.[a-z]+|vitest\.config\.[a-z]+|go\.mod|go\.sum|Cargo\.toml|Cargo\.lock|clippy\.toml|\.golangci\.ya?ml|\.doclintignore|\.gitleaks\.toml|CLAUDE\.md|docs/RULES\.md|scripts/[^/]+\.(sh|py)|\.github/.*|\.claude/.*|\.mcp\.json)$'
 SKIP_RE='(@pytest\.mark\.(skip|xfail)|pytest\.skip\(|unittest\.skip|\.skip\(|\.only\(|\bxit\(|\bxdescribe\(|\bfit\(|\bfdescribe\(|t\.Skip\(|#\[ignore\])'
 SUPPRESS_RE='(#[[:space:]]*noqa|type:[[:space:]]*ignore|pragma:[[:space:]]*no[[:space:]]*cover|eslint-disable|@ts-ignore|@ts-nocheck|@ts-expect-error|//[[:space:]]*nolint|#\[allow\(|#!\[allow\(|NOSONAR)'
+SUPPRESS_EXEMPT_RE='^(scripts/)?(integrity|loop)\.sh$'   # I5: anchored at both ends; nothing else is exempt
 TEST_PATH_RE='(^|/)(tests?|__tests__|spec)/|(^|/)test_[^/]*\.py$|_test\.(py|go)$|\.(test|spec)\.[jt]sx?$'
 TEST_DEF_RE='^-[[:space:]]*(def test_|async def test_|func Test|#\[test\]|(it|test|describe)\(|assert|expect\(|self\.assert)'
 LOCK_RE="${TEST_PATH_RE}|(^|/)conftest\.py\$|(^|/)fixtures?/"   # I6: what the lock freezes (minus *.md)
 is_lock_path() { printf '%s' "$1" | grep -qE "$LOCK_RE" && ! printf '%s' "$1" | grep -qE '\.md$'; }
+suppressions_added() {   # suppressions_added <path> <added lines>: print how many added lines hold a suppression (I5)
+  if printf '%s' "$1" | grep -qE "$SUPPRESS_EXEMPT_RE"; then echo 0; return 0; fi
+  case "$1" in *.md|*.txt|*.html) echo 0; return 0 ;; esac
+  printf '%s\n' "$2" | grep -cE "$SUPPRESS_RE"
+  return 0
+}
 
 if [ "${1:-}" = "--list" ]; then
   echo "Protected files (I1):    $PROTECTED_RE"
   echo "Skip markers (I4):       $SKIP_RE"
   echo "Suppressions (I5):       $SUPPRESS_RE"
+  echo "  not checked for I5:    $SUPPRESS_EXEMPT_RE  and *.md, *.txt, *.html"
   echo "Locked test paths (I6):  $LOCK_RE  (not *.md)"
+  exit 0
+fi
+
+if [ "${1:-}" = "--self-test" ]; then   # fixed cases for suppressions_added; needs no branch or plan
+  ST_FAIL=0; ST_N=0
+  st_case() {   # st_case <flag|pass> <path> <added line>
+    local n; n="$(suppressions_added "$2" "+$3")"; ST_N=$((ST_N+1))
+    if { [ "$1" = flag ] && [ "$n" -gt 0 ]; } || { [ "$1" = pass ] && [ "$n" -eq 0 ]; }; then
+      echo "  ok    $1  $2"
+    else
+      echo "  FAIL  expected $1, got $n  $2: $3"; ST_FAIL=$((ST_FAIL+1))
+    fi
+  }
+  st_exempt() {   # st_exempt <path> <line>: the line holds a marker, so only the exemption keeps it from being flagged
+    if printf '%s\n' "$2" | grep -qE "$SUPPRESS_RE"; then st_case pass "$1" "$2"
+    else ST_N=$((ST_N+1)); ST_FAIL=$((ST_FAIL+1)); echo "  FAIL  fixture holds no marker, so it proves nothing  $1"; fi
+  }
+  PATTERN_LINE="$(cat <<'EOF'
+SUPPRESS_RE='(#[[:space:]]*noqa|type:[[:space:]]*ignore|pragma:[[:space:]]*no[[:space:]]*cover|eslint-disable|@ts-ignore|@ts-nocheck|@ts-expect-error|//[[:space:]]*nolint|#\[allow\(|#!\[allow\(|NOSONAR)'
+EOF
+)"
+  HELP_LINE='   lockfiles, CI, scripts/*.sh, .claude/), or add # noqa, type: ignore or skip markers. scripts/integrity.sh'
+  echo "integrity.sh v2.1 --self-test (I5 suppressions)"
+  st_case flag src/app/plans.py     'width = layout(a, b)  # noqa: E501'
+  st_case flag src/app/plans.py     'plan = load(raw)  # type: ignore[arg-type]'
+  st_case flag tests/test_plans.py  'from app.plans import *  # noqa'
+  st_case flag scripts/gate.sh      'echo ok  # noqa'
+  st_case flag scripts/loop.sh.bak  "$HELP_LINE"
+  st_case flag src/scripts/loop.sh  "$HELP_LINE"
+  st_case flag scripts/integrity.py "$PATTERN_LINE"
+  st_exempt scripts/integrity.sh    "$PATTERN_LINE"
+  st_exempt integrity.sh            "$PATTERN_LINE"
+  st_exempt scripts/loop.sh         "$HELP_LINE"
+  st_exempt loop.sh                 "$HELP_LINE"
+  st_exempt docs/RULES.md           'Never add `# noqa` or `type: ignore` to silence a check.'
+  st_case pass src/app/plans.py     'return total'
+  if [ "$ST_FAIL" -gt 0 ]; then echo "  RESULT: FAIL - $ST_FAIL of $ST_N case(s) wrong"; exit 1; fi
+  echo "  RESULT: PASS - $ST_N case(s)"
   exit 0
 fi
 
@@ -143,10 +192,8 @@ while IFS=$'\t' read -r st p1 p2; do
     n="$(printf '%s\n' "$added" | grep -cE "$SKIP_RE")"
     [ "${n:-0}" -gt 0 ] && flag I4 "$path" "$n skip/xfail/only marker(s) added"
   fi
-  case "$path" in *.md|*.txt|*.html) ;; *)
-    n="$(printf '%s\n' "$added" | grep -cE "$SUPPRESS_RE")"
-    [ "${n:-0}" -gt 0 ] && flag I5 "$path" "$n lint/type suppression(s) added"
-  ;; esac
+  n="$(suppressions_added "$path" "$added")"
+  [ "${n:-0}" -gt 0 ] && flag I5 "$path" "$n lint/type suppression(s) added"
 done <<< "$CHANGES"
 
 # I6 tests locked: no test path may differ from the lock commit (committed, staged, unstaged or untracked)
@@ -174,7 +221,7 @@ $(printf '%s\n' "$UNTRACKED" | sed 's/^/A\t/')"
   fi
 fi
 
-echo "integrity.sh v2 - branch $BRANCH vs $BASE ($(git rev-parse --short "$MB")) - plan: $([ -f "$PLAN" ] && echo "$PLAN" || echo none)${LOCK:+ - tests locked at ${LOCK:0:7}}"
+echo "integrity.sh v2.1 - branch $BRANCH vs $BASE ($(git rev-parse --short "$MB")) - plan: $([ -f "$PLAN" ] && echo "$PLAN" || echo none)${LOCK:+ - tests locked at ${LOCK:0:7}}"
 [ -n "$REPORT" ] && printf '%s' "$REPORT"
 if [ "$FINDINGS" -gt 0 ]; then
   echo "  RESULT: FAIL - $FINDINGS change(s) weaken or alter the checks."
