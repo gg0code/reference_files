@@ -1621,7 +1621,7 @@ Summarise what is done, what is left, and the next step. Do NOT write code until
         </table></div>
 
         <h3 class="sub" id="kit-update">Updating the kit</h3>
-        <p>Get the new kit with <code>git -C {KIT} pull</code>; new projects use it straight away. An existing project is upgraded by hand on a branch named <code>chore/kit-&lt;version&gt;</code>: there <code>integrity.sh</code> lists the changed kit files as ALLOWED instead of failing, and you review them in the PR. Run the commands yourself in the git pane (the hooks block Claude from editing the kit's checks). <code>pr.sh</code> only handles REQ and BUG branches, so open and merge the kit PR with <code>gh</code>. Upgrade one version at a time, from the project root.</p>
+        <p>Get the new kit with <code>git pull</code> in the kit folder (Phase 0, "Get the kit"); new projects use it straight away. An existing project is upgraded by hand on a branch named <code>chore/kit-&lt;version&gt;</code>: there <code>integrity.sh</code> lists the changed kit files as ALLOWED instead of failing, and you review them in the PR. Run the commands yourself in the git pane (the hooks block Claude from editing the kit's checks). <code>pr.sh</code> only handles REQ and BUG branches, so open and merge the kit PR with <code>gh</code>. Upgrade one version at a time, from the project root.</p>
         <p><b>v3.13 to v3.14</b> (<code>start.sh</code> v6: the ahead-of-origin check):</p>
         <pre data-label="bash · git pane">git switch main && git pull --ff-only && git switch -c chore/kit-v3.14
 cp {KIT}/start.sh scripts/
@@ -1650,7 +1650,7 @@ git push -u origin HEAD && gh pr create --fill     # review the PR on GitHub, th
           <li><b><code>start.sh</code> v6:</b> before creating a new branch it warns, lists the commits and asks when local main is ahead of origin/main. Such a branch carries them and <code>integrity.sh</code> (which compares with origin/main) blames them on it: a false I1 FAIL. No terminal: stops unless <code>ALLOW_AHEAD=1</code>.</li>
           <li><b>Docs:</b> a free-plan private repo cannot have branch protection, so autopilot cannot run and <code>pr.sh merge</code> refuses; merge by hand after review.</li>
           <li>Stale v3.12 stamps fixed (reviewer agent header).</li>
-          <li>Existing v3.13 projects: <code>cp {KIT}/start.sh scripts/</code> on a <code>chore/kit-v3.14</code> branch (above).</li>
+          <li>Existing v3.13 projects: copy the kit's <code>start.sh</code> into <code>scripts/</code> on a <code>chore/kit-v3.14</code> branch (commands above).</li>
         </ul>
         <h3 class="sub">Changes in v3.13</h3>
         <p>The protected verification loop: tests are written from the spec before the code, read by you, then locked, so the code must meet the tests. A <code>Risk:</code> tier in every plan; <code>/tests</code> and <code>lock_tests.sh</code>; <code>integrity.sh</code> rule I6; hooks that block locked tests and plans; a Stop hook that runs the gate; <code>loop.sh</code> and autopilot refuse unlocked standard and strict plans and stop on "Disputed"; <code>pr.sh</code> runs <code>gate.sh --full</code> and adds Evidence, Boundary changes and the <code>needs-human-review</code> label. Details: <code>readme.md</code>, "Changes in v3.13".</p>
