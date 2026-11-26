@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# start.sh - start the next piece of work, or show where you are.      VERSION: v6 (kit v3.14)
+# start.sh - start the next piece of work, or show where you are.      VERSION: v7 (kit v3.14.2)
 # v5: status knows the test lock (/tests, read docs/tests/<ID>.md, lock_tests.sh); check lists lock_tests.sh.
 # v6: before creating a new branch, warns and asks when local main is ahead of origin/main (ALLOW_AHEAD=1 skips the question).
+# v7: check reports WARN, not FAIL, when GitHub's plan rules out branch protection (private repo on Free).
 #
 #   bash scripts/start.sh                    start the next unticked REQ in docs/TASKS.md
 #   bash scripts/start.sh REQ-004            start (or resume) that REQ
@@ -163,7 +164,7 @@ mcp_check() {
 
 # ---------- check: is the kit installed and active? ----------
 kit_check() {
-  local fails=0 warns=0 f n=0 t a d st
+  local fails=0 warns=0 f n=0 t a d st prot
   pass() { echo "    PASS  : $*"; }
   wrn()  { echo "    WARN  : $*"; warns=$((warns+1)); }
   bad()  { echo "    FAIL  : $*"; fails=$((fails+1)); }
@@ -214,7 +215,13 @@ kit_check() {
   command -v jq >/dev/null 2>&1 && pass "jq" || wrn "jq not found: no cost numbers in loop.sh; autopilot will not run"
   git remote get-url origin >/dev/null 2>&1 && pass "git remote origin: $(git remote get-url origin)" || wrn "no git remote 'origin'"
   if [ "$HAVE_GH" = 1 ]; then
-    if gh api "repos/{owner}/{repo}/branches/${BASE}/protection" >/dev/null 2>&1; then pass "branch protection on ${BASE}"
+    if prot="$(gh api "repos/{owner}/{repo}/branches/${BASE}/protection" 2>&1)"; then pass "branch protection on ${BASE}"
+    elif printf '%s' "$prot" | grep -qiE 'Upgrade to GitHub Pro|make this repository public'; then
+      # GitHub's plan, not the setup: a private repo on GitHub Free cannot have branch protection at all
+      wrn "no branch protection on ${BASE}: GitHub does not offer it for private repos on the Free plan (HTTP 403)."
+      echo "            protect.sh cannot fix this. Until the repo is public or on Pro/Team, only the hooks guard ${BASE},"
+      echo "            pr.sh merge refuses, and autopilot will not run. Merge PRs on GitHub yourself, or set"
+      echo "            ALLOW_UNPROTECTED=1 for pr.sh merge if you accept that (your choice, not Claude's)."
     elif grep -qE '^Status: APPROVED' docs/TASKS.md 2>/dev/null; then
       bad "no branch protection on ${BASE}, and setup is done. The hooks are only a safety net; protection is the wall. Run: bash scripts/protect.sh"
     else wrn "no branch protection on ${BASE} yet: run 'bash scripts/protect.sh' once setup is approved (spec docs go straight to ${BASE} until then)"; fi
