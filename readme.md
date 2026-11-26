@@ -1,6 +1,6 @@
 # vibecode - Spec-Driven Build Kit - Adoption Guide
 
-Kit version: v3.14.1 (2026-11-25).
+Kit version: v3.14.2 (2026-11-26).
 This kit is a set of reusable reference files for spec-driven, fully traceable development with Claude Code.
 This README explains what each file is, whether you edit it, and how a new project is created from it.
 
@@ -161,6 +161,7 @@ Needs jq and an authenticated gh; level 3 refuses to run without branch protecti
 **Free plan + private repo:** GitHub offers no branch protection there (it needs Pro, Team or Enterprise, or a public repo),
 so `autopilot.sh` cannot run at any level and `pr.sh merge` refuses. Review and merge each PR yourself;
 `ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge` is your own, knowing override, never Claude's.
+`start.sh check` reports this case as WARN, not FAIL: `protect.sh` cannot fix it.
 
 ## How the pieces fit together
 
@@ -255,6 +256,15 @@ Bug  -> BUG-ID -> failing test -> Issue # -> branch -> PR -> merge
   grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
   ```
   Then copy section 0a and the `mcp` command row from `<kit>/templates/project/CLAUDE.md` into the project's CLAUDE.md (its FILL IN sections stay as they are), run `bash scripts/start.sh check` and commit as `chore(kit): MCP servers and check (kit v2.7)`.
+
+## Changes in v3.14.2 (vibecode)
+
+- **`start.sh` v7:** `check` reports WARN, not FAIL, when GitHub's plan rules out branch protection: a private repo on
+  GitHub Free answers the protection API with HTTP 403 "Upgrade to GitHub Pro or make this repository public". The WARN says
+  `protect.sh` cannot fix it and that `pr.sh merge` and autopilot still refuse. A repo that could have protection but has none
+  still FAILs once setup is approved. Nothing else changed: `pr.sh merge` and `autopilot.sh` still need protection.
+- Existing v3.14.1 projects: `cp <kit>/start.sh <project>/scripts/` on a `chore/kit-v3.14.2` branch,
+  then `bash scripts/start.sh check && bash scripts/gate.sh`.
 
 ## Changes in v3.14.1 (vibecode)
 

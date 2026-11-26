@@ -625,7 +625,8 @@ bash scripts/protect.sh          # shows what it will set, asks for "yes"; --sho
 ```
 It requires the CI check `gate` (the job name in `ci.yml`) to pass and be up to date, applies to admins too
 (an agent pushes with your token, so an admin exemption would exempt the agent), and blocks force-push and deletion of main.
-`pr.sh merge` and `autopilot.sh` refuse to run without it; `start.sh check` reports FAIL once setup is approved.
+`pr.sh merge` and `autopilot.sh` refuse to run without it; `start.sh check` reports FAIL once setup is approved
+(WARN instead when the GitHub plan rules it out, below).
 Private repos need GitHub Pro, Team or Enterprise for branch protection. On a free-plan private repo `protect.sh` cannot turn it on,
 so `pr.sh merge` refuses and autopilot cannot run: merge each PR yourself after review (`ALLOW_UNPROTECTED=1 bash scripts/pr.sh merge`
 is your own, knowing override, never Claude's).
